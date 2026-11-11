@@ -107,7 +107,9 @@ TAG_IGNORES = {"not_spending", "payback_other", "covered"}
 # Only genuinely recurring charges belong here. A one-off purchase counts as
 # spending money like anything else, even when the merchant looks subscription-like,
 # so nothing goes on this list until it has actually billed month after month.
-SUBSCRIPTION_MERCHANTS = ("ring", "anthropic")
+# His known subscriptions, confirmed 2026-11-11: Anthropic, Spotify, the Cobblestone car
+# wash (every 4 weeks), Google One and Ring.
+SUBSCRIPTION_MERCHANTS = ("ring", "anthropic", "spotify", "google one", "cobblestone")
 
 # Places he does not tip: counter service, vending, water machines, apps.
 NO_TIP = (
