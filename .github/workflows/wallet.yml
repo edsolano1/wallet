@@ -1,0 +1,60 @@
+name: Update wallet
+
+on:
+  schedule:
+    - cron: "7 * * * *"   # about hourly; GitHub may run it a little late
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: wallet
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    env:
+      PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
+      PLAID_SECRET: ${{ secrets.PLAID_SECRET }}
+      PLAID_ENV: ${{ secrets.PLAID_ENV }}
+      WALLET_KEY: ${{ secrets.WALLET_KEY }}
+      DB_KEY: ${{ secrets.DB_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt 
+
+      # The database (bank tokens and history) lives encrypted on the "db" release.
+      - run: gh release download db -p finance.db.enc
+      - run: python -m app.cloud open
+      - run: python -m app.cloud run
+      - run: python -m app.cloud seal
+      - run: gh release upload db finance.db.enc --clobber
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - uses: actions/deploy-pages@v4
+
+      # GitHub pauses scheduled runs after 60 quiet days; an empty commit now and then keeps it going.
+      - name: Keep the schedule alive
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -gt 3888000 ]; then
+            git config user.name "wallet-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Keep the hourly update running"
+            git push
+          fi

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <div class="head">
+    <div>
+      <h1>Personal Finance</h1>
+      <p class="sub">Running on this computer only.</p>
+    </div>
+    <div class="actions">
+      <button id="refresh" class="btn ghost">Refresh</button>
+      <button id="connect" class="btn">Connect a bank</button>
+    </div>
+  </div>
+
+  <div id="banner" class="banner" hidden></div>
+  <div id="health"></div>
+
+  <div class="card review" id="review-card" hidden>
+    <div class="review-head">
+      <span class="label">Needs your review <span class="badge" id="review-count">0</span></span>
+      <span class="pending">These moved money but the matching half was not found. Nothing is guessed.</span>
+    </div>
+    <div id="review-list"></div>
+  </div>
+
+  <section class="numbers">
+    <div class="card">
+      <div class="label" id="wallet-label">Left until payday</div>
+      <div class="big" id="wallet">&mdash;</div>
+      <div class="sums" id="wallet-sum"></div>
+    </div>
+    <div class="card">
+      <div class="label">Net worth</div>
+      <div class="mid" id="networth">&mdash;</div>
+      <div class="pending">Every account. Earmarking never changes this.</div>
+    </div>
+  </section>
+
+  <div class="card" id="env-card" hidden>
+    <div class="label" style="margin-bottom:8px">Set aside this month</div>
+    <div class="catadd">
+      <input id="env-name" placeholder="What for, e.g. Groceries" />
+      <input id="env-amt" placeholder="$" class="amt-in" />
+      <button class="btn ghost" id="env-add">Set aside</button>
+    </div>
+    <div id="env-error" class="caterr" hidden></div>
+    <div id="envelopes"></div>
+  </div>
+
+  <div class="card" id="accounts-card" hidden>
+    <div class="label" style="margin-bottom:6px">Accounts</div>
+    <div id="accounts"></div>
+  </div>
+
+  <div class="card" id="tx-card" hidden>
+    <div class="label" style="margin-bottom:6px">Recent transactions</div>
+    <div id="transactions"></div>
+  </div>
+
+  <div class="card" id="msg-card">
+    <div class="label" style="margin-bottom:6px">Tell Claude something</div>
+    <div class="pending" style="margin-bottom:8px">Anything that isn't about one
+      transaction. Claude reads these the next time you talk.</div>
+    <textarea id="msg-body" rows="3" placeholder="e.g. the Costco run was mostly for the party, not groceries"></textarea>
+    <div class="catadd" style="margin-top:8px">
+      <span class="pending" id="msg-status" style="flex:1"></span>
+      <button class="btn ghost" id="msg-send">Send</button>
+    </div>
+    <div id="msg-list"></div>
+  </div>
+
+  <div class="card" id="cat-card">
+    <div class="label" style="margin-bottom:8px">Categories</div>
+    <div class="catadd">
+      <input id="cat-name" placeholder="What the money was for, e.g. Groceries" />
+      <button class="btn ghost" id="cat-add">Add</button>
+    </div>
+    <div id="cat-error" class="caterr" hidden></div>
+    <div id="categories"></div>
+  </div>
+
+  <div class="card status">
+    <div class="row"><span class="k">Database</span><span class="pill off" id="db-state">checking</span></div>
+    <div class="row"><span class="k">Plaid keys</span><span class="pill off" id="plaid-state">checking</span></div>
+    <div class="row"><span class="k">Banks connected</span><span id="item-count">0</span></div>
+    <div class="row"><span class="k">Accounts</span><span id="acct-count">0</span></div>
+    <div class="row"><span class="k">Transactions</span><span id="tx-count">0</span></div>
+    <div class="row"><span class="k">Transfers excluded from spending</span><span id="tr-count">0</span></div>
+    <div class="row"><span class="k">Spent this month</span><span id="spent">&mdash;</span></div>
+  </div>
+</main>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

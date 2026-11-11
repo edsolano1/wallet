@@ -1,0 +1,18 @@
+# Secrets. Never commit these.
+.env
+
+# Local database and Plaid access tokens live here.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+__pycache__/
+*.pyc
+.venv/
+
+# Personal notes and generated files that stay on this computer.
+RECONCILIATION.md
+TASKS.md
+dashboard.html
+*.enc
