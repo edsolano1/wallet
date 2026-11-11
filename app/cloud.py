@@ -71,6 +71,22 @@ def snapshot(conn, today: date) -> dict:
         "tip": round(wallet._tip(r), 2),
     } for r in counted[:25]]
 
+    period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]
+    needs = []
+    for name, (budget, cats) in wallet.NEEDS.items():
+        used = wallet._cost([r for r in period if (r["pfc_detailed"] or "") in cats])
+        needs.append({"name": name, "budget": budget, "spent": round(used, 2),
+                      "left": round(max(budget - used, 0), 2)})
+    still_needed = sum(n["left"] for n in needs)
+
+    saved = sum(a for day, a in wallet.SET_ASIDE.items() if day <= today)
+    planned = sum(wallet.SET_ASIDE.values())
+    used_fund = sum(a for _, a in wallet.FUND_SPENT)
+    fund = {"name": "Black Friday Fund", "saved": saved, "planned": planned,
+            "spent": round(used_fund, 2), "left": round(saved - used_fund, 2),
+            "left_planned": round(planned - used_fund, 2),
+            "items": [{"what": w, "amount": a} for w, a in wallet.FUND_SPENT]}
+
     banks = [dict(r) for r in conn.execute(
         "SELECT institution_name AS name, status, last_sync_at, last_sync_error FROM items")]
     return {
@@ -79,6 +95,9 @@ def snapshot(conn, today: date) -> dict:
         "spent_today": cost([r for r in counted if r["date"] == today.isoformat()]),
         "spent_3d": cost([r for r in counted if r["date"] >= three.isoformat()]),
         "charges": charges,
+        "needs": needs,
+        "free": round(s["left"] - still_needed, 2),
+        "fund": fund,
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
         "updated": datetime.now(HOME).isoformat(timespec="seconds"),
     }

@@ -51,6 +51,21 @@ button.link{font:600 13px var(--body);color:var(--accent);background:none;border
 .note{font-size:12.5px;color:var(--muted)}
 h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
 .skel{opacity:.45}
+.card{display:flex;flex-direction:column;gap:10px;padding:18px 20px;border-radius:22px;background:var(--surface);border:1px solid var(--line)}
+.ringrow{display:flex;align-items:center;gap:18px}
+.ringrow svg{flex:none}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:14px;min-width:0}
+.legend div{display:flex;align-items:center;gap:8px}
+.legend i{width:10px;height:10px;border-radius:3px;flex:none}
+.legend b{margin-left:auto;font-variant-numeric:tabular-nums;padding-left:8px}
+.needs{display:flex;flex-direction:column;gap:12px}
+.need .top{display:flex;justify-content:space-between;font-size:14px}
+.need .top b{font-variant-numeric:tabular-nums}
+.need .bar{margin-top:6px;height:8px}
+.fundrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.fundrow b{font-family:var(--display);font-weight:800;font-size:34px;font-variant-numeric:tabular-nums}
+.fundrow span{font-size:13px;color:var(--muted)}
+#ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
 </style>
 </head>
 <body>
@@ -62,6 +77,19 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="setaside" id="setaside" hidden></div>
     <div class="bar" aria-hidden="true"><i id="bar" style="width:0"></i></div>
     <span class="pill" id="pill" hidden></span>
+  </section>
+  <section class="card" id="needs-card" hidden>
+    <div class="ringrow">
+      <svg id="ring" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true"></svg>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="needs" id="needs"></div>
+  </section>
+  <section class="card" id="fund-card" hidden>
+    <div class="eyebrow">Black Friday Fund</div>
+    <div class="fundrow"><b id="fund-left">—</b><span id="fund-sub"></span></div>
+    <div class="bar"><i id="fund-bar" style="width:0;background:var(--warn)"></i></div>
+    <div class="setaside" id="fund-items"></div>
   </section>
   <div class="stats">
     <div class="stat"><span>Today</span><b id="s-today">—</b></div>
@@ -122,6 +150,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const pct=cap>0?Math.min(100,Math.max(0,(w.spent-w.paid_back)/cap*100)):100;
     $("bar").style.width=pct+"%";$("bar").style.background=tone?`var(--${tone})`:"var(--accent)";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
+    drawNeeds(w);drawFund(w.fund);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
@@ -134,6 +163,45 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("updated").textContent="Updated "+u.toLocaleString("en-US",{weekday:"short",hour:"numeric",minute:"2-digit"});
     const broken=(w.banks||[]).filter(b=>!b.ok).map(b=>b.name);
     if(broken.length) setTimeout(()=>msg(broken.join(", ")+" needs reconnecting in the Finance App."),0);
+  }
+
+  const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e};
+
+  // The ring is this paycheck's spending money: what's gone, what groceries and gas still
+  // need, and what's free. Over budget, the whole ring turns red.
+  function drawNeeds(w){
+    if(!w.needs){$("needs-card").hidden=true;return}
+    $("needs-card").hidden=false;
+    const cap=Math.max(w.allowance,1), spent=Math.max(w.spent-w.paid_back,0);
+    const colors={Groceries:"#3B82C4",Gas:"var(--warn)"};
+    const parts=[{label:"Spent",v:Math.min(spent,cap),c:"var(--line)"}];
+    w.needs.forEach(n=>parts.push({label:n.name+" left",v:n.left,c:colors[n.name]||"var(--muted)"}));
+    parts.push({label:"Free",v:Math.max(w.free,0),c:"var(--accent)"});
+    const total=Math.max(parts.reduce((s,p)=>s+p.v,0),cap), R=48, C=2*Math.PI*R;
+    let svg=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>`;
+    if(w.left<0) svg=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--bad)" stroke-width="14"/>`;
+    else{let off=0;parts.forEach(p=>{const len=p.v/total*C;if(len>0.5)svg+=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="${p.c}" stroke-width="14" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;off+=len})}
+    const pct=Math.round(Math.max(w.left,0)/cap*100);
+    svg+=`<text x="60" y="58" text-anchor="middle" font-size="24">${pct}%</text><text x="60" y="76" text-anchor="middle" font-size="10" style="font-weight:500;fill:var(--muted)">left</text>`;
+    $("ring").innerHTML=svg;
+    const lg=$("legend");lg.innerHTML="";
+    parts.slice(1).forEach(p=>{const d=el("div");const i=el("i");i.style.background=p.c;d.append(i,el("span",null,p.label),el("b",null,money(p.v)));lg.appendChild(d)});
+    if(w.free<0){const d=el("div","note",`Groceries and gas still need ${money(-w.free)} more than you have left.`);lg.appendChild(d)}
+    const box=$("needs");box.innerHTML="";
+    w.needs.forEach(n=>{const d=el("div","need");const top=el("div","top");
+      top.append(el("span",null,n.name),el("b",null,`${money(n.left)} of ${money(n.budget)} left`));
+      const bar=el("div","bar");const fill=el("i");fill.style.width=Math.min(100,n.spent/n.budget*100)+"%";fill.style.background=n.spent>n.budget?"var(--bad)":(colors[n.name]||"var(--accent)");bar.appendChild(fill);
+      d.append(top,bar);box.appendChild(d)});
+  }
+
+  function drawFund(f){
+    if(!f){$("fund-card").hidden=true;return}
+    $("fund-card").hidden=false;
+    $("fund-left").textContent=money(f.left);
+    const pending=f.planned-f.saved;
+    $("fund-sub").textContent=`left of ${money(f.saved)} saved`+(pending>0?` · +${money(pending)} more on the next payday, ${money(f.left_planned)} total`:"");
+    $("fund-bar").style.width=(f.saved>0?Math.min(100,f.spent/f.saved*100):0)+"%";
+    $("fund-items").textContent=f.items.map(i=>`${i.what}: ${money(i.amount)}`).join(" · ");
   }
 
   $("refresh").onclick=load;

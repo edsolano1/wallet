@@ -33,6 +33,18 @@ TIP_MIN = 30.00
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 
+# What has been bought out of the Black Friday Fund so far, so the page can say what is left.
+FUND_SPENT = [("Acer monitor, Micro Center, Nov 8", 409.14)]
+
+# Needs, not wants (his words, 2026-11-11): groceries and gas have to happen every month,
+# so each gets a soft envelope per paycheck. They are INSIDE spending money, not on top of
+# it; the page shows how much of each is left and what is free once they are covered.
+# Costco and Walmart are filed as superstores, so they count as groceries.
+NEEDS = {
+    "Groceries": (175.00, {"FOOD_AND_DRINK_GROCERIES", "GENERAL_MERCHANDISE_SUPERSTORES"}),
+    "Gas": (75.00, {"TRANSPORTATION_GAS"}),
+}
+
 # Charges he decided belong to a LATER paycheck than the one they posted in: the
 # Oct 26 Costco run came out of the Oct 30 check, not the Oct 16 one. Hidden in
 # the period it posted in and taken off the top of the period it belongs to.
