@@ -122,6 +122,18 @@ def sync_item(item_row) -> dict:
                     removed += 1
                 if not has_more:
                     break
+            # Balances only arrived at link time before; refresh them every sync. The
+            # cached balance from /accounts/get costs nothing extra on Plaid.
+            try:
+                for a in plaid_client.get_accounts(access_token):
+                    b = a.get("balances") or {}
+                    conn.execute(
+                        "UPDATE accounts SET current_balance = ?, available_balance = ?,"
+                        " last_synced_at = datetime('now') WHERE plaid_account_id = ?",
+                        (b.get("current"), b.get("available"), a.get("account_id")),
+                    )
+            except Exception:
+                pass  # a stale balance is shown with its date; transactions still count
             conn.execute(
                 "UPDATE items SET sync_cursor = ?, last_sync_at = datetime('now'),"
                 " status = 'healthy', last_sync_error = NULL WHERE id = ?",

@@ -91,6 +91,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="bar"><i id="fund-bar" style="width:0;background:var(--warn)"></i></div>
     <div class="setaside" id="fund-items"></div>
   </section>
+  <section class="card" id="acct-card" hidden>
+    <div class="eyebrow">Accounts</div>
+    <div class="list" id="accts"></div>
+    <div class="eyebrow" style="margin-top:6px">Your transfers, last 3 weeks</div>
+    <div class="list" id="moves"></div>
+  </section>
   <div class="stats">
     <div class="stat"><span>Today</span><b id="s-today">—</b></div>
     <div class="stat"><span>Last 3 days</span><b id="s-3d">—</b></div>
@@ -150,7 +156,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const pct=cap>0?Math.min(100,Math.max(0,(w.spent-w.paid_back)/cap*100)):100;
     $("bar").style.width=pct+"%";$("bar").style.background=tone?`var(--${tone})`:"var(--accent)";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
-    drawNeeds(w);drawFund(w.fund);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
@@ -202,6 +208,17 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("fund-sub").textContent=`left of ${money(f.saved)} saved`+(pending>0?` · +${money(pending)} more on the next payday, ${money(f.left_planned)} total`:"");
     $("fund-bar").style.width=(f.saved>0?Math.min(100,f.spent/f.saved*100):0)+"%";
     $("fund-items").textContent=f.items.map(i=>`${i.what}: ${money(i.amount)}`).join(" · ");
+  }
+
+  function drawAccounts(w){
+    if(!w.accounts){$("acct-card").hidden=true;return}
+    $("acct-card").hidden=false;
+    const row=(a,b,c,cls)=>{const r=el("div","row");r.append(el("div","m",a),el("div","a"+(cls?" "+cls:""),b),el("div","d",c));return r};
+    const A=$("accts");A.innerHTML="";
+    w.accounts.forEach(a=>A.appendChild(row(`${a.name} ··${a.mask}`,(a.type==="credit"&&a.balance>0?"owe ":"")+money(Math.abs(a.balance)),a.type==="credit"?"card":"cash")));
+    const M=$("moves");M.innerHTML="";
+    if(!w.moves.length)M.appendChild(el("div","note","None yet."));
+    w.moves.forEach(m=>M.appendChild(row(m.what.replace(/\s*(transaction #|#).*$/i,"").slice(0,60),money(-m.amount),`${fmt(m.date)} · from ${m.account}`)));
   }
 
   $("refresh").onclick=load;

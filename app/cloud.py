@@ -96,6 +96,19 @@ def snapshot(conn, today: date) -> dict:
         "spent_3d": cost([r for r in counted if r["date"] >= three.isoformat()]),
         "charges": charges,
         "needs": needs,
+        "accounts": [{"name": r["name"], "mask": r["mask"], "type": r["type"],
+                      "balance": r["available_balance"] if r["type"] == "depository" and r["available_balance"] is not None else r["current_balance"],
+                      "as_of": r["last_synced_at"]}
+                     for r in conn.execute(
+                         "SELECT name, mask, type, current_balance, available_balance, last_synced_at"
+                         " FROM accounts WHERE type = 'depository' OR COALESCE(current_balance, 0) <> 0"
+                         " ORDER BY type, current_balance DESC")],
+        "moves": [{"date": r["date"], "amount": round(float(r["amount"]), 2), "what": r["what"], "account": r["acct"]}
+                  for r in conn.execute(
+                      "SELECT t.date, t.amount, COALESCE(t.merchant_name, t.name) AS what, a.name || ' ' || a.mask AS acct"
+                      " FROM transactions t JOIN accounts a ON a.id = t.account_id"
+                      " WHERE t.date >= ? AND t.transfer_kind = 'self_transfer' AND t.amount < 0"
+                      " ORDER BY t.date DESC LIMIT 8", ((today - timedelta(days=21)).isoformat(),))],
         "free": round(s["left"] - still_needed, 2),
         "fund": fund,
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
