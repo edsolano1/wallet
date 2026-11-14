@@ -66,11 +66,15 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .fundrow b{font-family:var(--display);font-weight:800;font-size:34px;font-variant-numeric:tabular-nums}
 .fundrow span{font-size:13px;color:var(--muted)}
 #ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
+#pull{position:absolute;top:0;right:0;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer}
+#pull.spin svg{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <section class="hero" aria-live="polite">
+  <section class="hero" aria-live="polite" style="position:relative">
+    <button id="pull" aria-label="Pull from bank"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
     <div class="eyebrow" id="eyebrow">Left until payday</div>
     <div class="big skel" id="big">$—</div>
     <div class="sub" id="sub">Loading…</div>
@@ -102,7 +106,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="stat"><span>Last 3 days</span><b id="s-3d">—</b></div>
     <div class="stat"><span>Tips not posted yet</span><b id="s-tip">—</b></div>
   </div>
-  <div class="meta"><span id="updated"></span><button class="link" id="refresh">Refresh</button> <button class="link" id="pull">Pull from bank</button></div>
+  <div class="meta"><span id="updated"></span><button class="link" id="refresh">Refresh</button></div>
   <div class="msg" id="msg" hidden></div>
   <h2>Latest charges</h2>
   <div class="list" id="list"></div>
@@ -223,7 +227,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 
   $("refresh").onclick=load;
   // Starts the GitHub update right now. The token stays on this phone only.
-  $("pull").onclick=async()=>{
+  const spin=on=>$("pull").classList.toggle("spin",on);
+  $("pull").onclick=async()=>{if($("pull").classList.contains("spin"))return;spin(true);try{await pull()}finally{spin(false)}};
+  async function pull(){
     let t=null;try{t=localStorage.getItem("wallet.gh")}catch(e){}
     if(!t){t=(prompt("Paste your GitHub key (one time only)")||"").trim();if(!t)return;try{localStorage.setItem("wallet.gh",t)}catch(e){}}
     msg("Asking your banks...");
@@ -236,7 +242,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const now=await fetch("wallet.enc?t="+Date.now(),{cache:"no-store"}).then(x=>x.text()).catch(()=>before);
       if(now!==before){await load();msg("Up to date.");setTimeout(()=>msg(""),4000);return}}
     msg("Still running. Tap Refresh in a minute.");
-  };
+  }
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")load()});
   setInterval(()=>{if(document.visibilityState==="visible")load()},300000);
   load();
