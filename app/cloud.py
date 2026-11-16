@@ -66,7 +66,8 @@ def snapshot(conn, today: date) -> dict:
         "merchant": r["what"] or "Charge",
         "amount": round(float(r["amount"]), 2),
         "date": r["date"],
-        "category": PRETTY.get(r["pfc_primary"] or "", (r["pfc_primary"] or "").replace("_", " ").title()),
+        "category": "Gas" if wallet.is_gas_station(r) and abs(float(r["amount"])) >= wallet.GAS_MIN_FILLUP
+                    else PRETTY.get(r["pfc_primary"] or "", (r["pfc_primary"] or "").replace("_", " ").title()),
         "pending": bool(r["pending"]),
         "tip": round(wallet._tip(r), 2),
     } for r in counted[:25]]
@@ -74,9 +75,10 @@ def snapshot(conn, today: date) -> dict:
     period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]
     needs = []
     for name, (budget, cats) in wallet.NEEDS.items():
-        hits = [r for r in period if (r["pfc_detailed"] or "") in cats]
         if name == "Gas":  # small gas-station charges are snacks, not fill-ups
-            hits = [r for r in hits if abs(float(r["amount"])) >= wallet.GAS_MIN_FILLUP]
+            hits = [r for r in period if wallet.is_gas_station(r) and abs(float(r["amount"])) >= wallet.GAS_MIN_FILLUP]
+        else:
+            hits = [r for r in period if (r["pfc_detailed"] or "") in cats]
         used = wallet._cost(hits)
         needs.append({"name": name, "budget": budget, "spent": round(used, 2),
                       "left": round(max(budget - used, 0), 2)})

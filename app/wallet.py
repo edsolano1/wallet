@@ -42,6 +42,16 @@ FUND_SPENT = [("Acer monitor, Micro Center, Nov 8", 409.14)]
 # Costco and Walmart are filed as superstores, so they count as groceries.
 # Gas-station charges under this are snacks; only bigger ones count against the Gas need.
 GAS_MIN_FILLUP = 20.00
+# Gas stations the bank labels as something else. Morongo's travel center on I-10 in
+# Cabazon has slot machines, so its pumps come through as "casinos and gambling".
+GAS_STATIONS_LIKE = ("morongo band of missio",)
+
+
+def is_gas_station(row) -> bool:
+    if (row.get("pfc_detailed") or "") == "TRANSPORTATION_GAS":
+        return True
+    raw = ((row.get("raw_name") or "") + " " + (row.get("what") or "")).lower()
+    return any(x in raw for x in GAS_STATIONS_LIKE)
 
 NEEDS = {
     "Groceries": (175.00, {"FOOD_AND_DRINK_GROCERIES", "GENERAL_MERCHANDISE_SUPERSTORES"}),
@@ -231,7 +241,7 @@ def _is_spending(row) -> bool:
 def _tip(row) -> float:
     """A pending restaurant or bar charge usually posts before the tip is added."""
     amount = -float(row["amount"])
-    if not row["pending"] or amount <= 0:
+    if not row["pending"] or amount <= 0 or is_gas_station(dict(row)):
         return 0.0
     name = (row["what"] or "").lower()
     if any(x in name for x in NO_TIP):
@@ -250,7 +260,7 @@ def _rows(conn, start: date, end: date) -> list[dict]:
         dict(r)
         for r in conn.execute(
             "SELECT t.amount, t.date, t.pending, t.is_transfer, t.pfc_primary,"
-            " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what,"
+            " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name,"
             " n.tag AS tag, a.type AS account_type"
             " FROM transactions t"
             " JOIN accounts a ON a.id = t.account_id"
