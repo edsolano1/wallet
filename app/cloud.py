@@ -74,7 +74,10 @@ def snapshot(conn, today: date) -> dict:
     period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]
     needs = []
     for name, (budget, cats) in wallet.NEEDS.items():
-        used = wallet._cost([r for r in period if (r["pfc_detailed"] or "") in cats])
+        hits = [r for r in period if (r["pfc_detailed"] or "") in cats]
+        if name == "Gas":  # small gas-station charges are snacks, not fill-ups
+            hits = [r for r in hits if abs(float(r["amount"])) >= wallet.GAS_MIN_FILLUP]
+        used = wallet._cost(hits)
         needs.append({"name": name, "budget": budget, "spent": round(used, 2),
                       "left": round(max(budget - used, 0), 2)})
     still_needed = sum(n["left"] for n in needs)

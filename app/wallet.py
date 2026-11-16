@@ -40,6 +40,9 @@ FUND_SPENT = [("Acer monitor, Micro Center, Nov 8", 409.14)]
 # so each gets a soft envelope per paycheck. They are INSIDE spending money, not on top of
 # it; the page shows how much of each is left and what is free once they are covered.
 # Costco and Walmart are filed as superstores, so they count as groceries.
+# Gas-station charges under this are snacks; only bigger ones count against the Gas need.
+GAS_MIN_FILLUP = 20.00
+
 NEEDS = {
     "Groceries": (175.00, {"FOOD_AND_DRINK_GROCERIES", "GENERAL_MERCHANDISE_SUPERSTORES"}),
     "Gas": (75.00, {"TRANSPORTATION_GAS"}),
