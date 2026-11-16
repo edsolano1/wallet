@@ -66,22 +66,45 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .fundrow b{font-family:var(--display);font-weight:800;font-size:34px;font-variant-numeric:tabular-nums}
 .fundrow span{font-size:13px;color:var(--muted)}
 #ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
-#pull{position:absolute;top:0;right:0;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer}
+#pull{position:absolute;top:12px;right:12px;width:42px;height:42px;border-radius:50%;border:0;background:var(--accent-soft);color:var(--accent);-webkit-tap-highlight-color:transparent;display:grid;place-items:center;cursor:pointer}
 #pull.spin svg{animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.track{position:relative;height:12px;border-radius:999px;background:var(--line);margin-top:14px}
+.track i{position:absolute;top:0;bottom:0;left:0;border-radius:999px 0 0 999px}
+.track .cap{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--fg);border-radius:2px}
+.tracklab{position:relative;height:18px;font-size:12px;color:var(--muted);margin-top:4px}
+.tracklab span{position:absolute;white-space:nowrap}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;cursor:pointer}
+.tile span{font-size:12px;color:var(--muted)} .tile b{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
+.back{align-self:flex-start;font:600 14px var(--body);color:var(--accent);background:none;border:0;padding:4px 0;cursor:pointer}
+[hidden]{display:none!important}
+[data-view]{display:flex;flex-direction:column;gap:18px}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div data-view="" id="home">
   <section class="hero" aria-live="polite" style="position:relative">
-    <button id="pull" aria-label="Pull from bank"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+    <button id="pull" aria-label="Pull from bank"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
     <div class="eyebrow" id="eyebrow">Left until payday</div>
     <div class="big skel" id="big">$—</div>
-    <div class="sub" id="sub">Loading…</div>
-    <div class="setaside" id="setaside" hidden></div>
-    <div class="bar" aria-hidden="true"><i id="bar" style="width:0"></i></div>
     <span class="pill" id="pill" hidden></span>
+    <div class="track" aria-hidden="true"><i id="bar-ok"></i><i id="bar-over" style="background:var(--bad);border-radius:0 999px 999px 0"></i><b class="cap" id="bar-cap" hidden></b></div>
+    <div class="tracklab" id="tracklab"></div>
   </section>
+  <div class="tiles">
+    <button class="tile" data-go="needs"><span>Groceries &amp; gas left</span><b id="t-needs">—</b></button>
+    <button class="tile" data-go="fund"><span>Black Friday Fund</span><b id="t-fund">—</b></button>
+    <button class="tile" data-go="accounts"><span>Accounts</span><b id="t-acct">—</b></button>
+    <button class="tile" data-go="details"><span>Details</span><b id="t-today">—</b></button>
+  </div>
+  <div class="msg" id="msg" hidden></div>
+  <h2>Recent charges</h2>
+  <div class="list" id="list"></div>
+  <div class="meta"><span id="updated"></span></div>
+  </div>
+  <div data-view="needs" hidden><button class="back" data-go="">‹ Back</button>
   <section class="card" id="needs-card" hidden>
     <div class="ringrow">
       <svg id="ring" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true"></svg>
@@ -89,29 +112,37 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     </div>
     <div class="needs" id="needs"></div>
   </section>
+  </div>
+  <div data-view="fund" hidden><button class="back" data-go="">‹ Back</button>
   <section class="card" id="fund-card" hidden>
     <div class="eyebrow">Black Friday Fund</div>
     <div class="fundrow"><b id="fund-left">—</b><span id="fund-sub"></span></div>
     <div class="bar"><i id="fund-bar" style="width:0;background:var(--warn)"></i></div>
     <div class="setaside" id="fund-items"></div>
   </section>
+  </div>
+  <div data-view="accounts" hidden><button class="back" data-go="">‹ Back</button>
   <section class="card" id="acct-card" hidden>
     <div class="eyebrow">Accounts</div>
     <div class="list" id="accts"></div>
     <div class="eyebrow" style="margin-top:6px">Your transfers, last 3 weeks</div>
     <div class="list" id="moves"></div>
   </section>
-  <div class="stats">
-    <div class="stat"><span>Today</span><b id="s-today">—</b></div>
-    <div class="stat"><span>Last 3 days</span><b id="s-3d">—</b></div>
-    <div class="stat"><span>Tips not posted yet</span><b id="s-tip">—</b></div>
   </div>
-  <div class="meta"><span id="updated"></span><button class="link" id="refresh">Refresh</button></div>
-  <div class="msg" id="msg" hidden></div>
-  <h2>Latest charges</h2>
-  <div class="list" id="list"></div>
+  <div data-view="details" hidden><button class="back" data-go="">‹ Back</button>
+  <section class="card">
+    <div class="sub" id="sub">Loading…</div>
+    <div class="setaside" id="setaside" hidden></div>
+    <div class="stats">
+      <div class="stat"><span>Today</span><b id="s-today">—</b></div>
+      <div class="stat"><span>Last 3 days</span><b id="s-3d">—</b></div>
+      <div class="stat"><span>Tips not posted yet</span><b id="s-tip">—</b></div>
+    </div>
+  </section>
+  <div class="meta"><span></span><button class="link" id="refresh">Reload page</button></div>
   <p class="note">Pending restaurant, bar and salon charges of $30+ get a 20% tip estimate until they post; counter service never does. Bills, rent, loans, subscriptions, parking, card payments and transfers never count. Paybacks go back in. Leftover from last paycheck rolls in; an overspend comes out.</p>
-  <p class="note">Numbers come from your banks through Plaid, refreshed about once an hour.</p>
+  <p class="note">Numbers come from your banks through Plaid. Tap the round arrow to pull right now.</p>
+  </div>
 </div>
 <script>
 (function(){
@@ -157,8 +188,19 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
-    const pct=cap>0?Math.min(100,Math.max(0,(w.spent-w.paid_back)/cap*100)):100;
-    $("bar").style.width=pct+"%";$("bar").style.background=tone?`var(--${tone})`:"var(--accent)";
+    // The bar is the whole paycheck's spending money; past the line it's red.
+    const used=Math.max(w.spent-w.paid_back,0), scale=Math.max(used,cap,1), capPct=cap/scale*100;
+    $("bar-ok").style.width=Math.min(used,cap)/scale*100+"%";$("bar-ok").style.background=tone==="warn"?"var(--warn)":"var(--accent)";
+    $("bar-over").style.left=capPct+"%";$("bar-over").style.width=Math.max(used-cap,0)/scale*100+"%";
+    if(used<=cap)$("bar-ok").style.borderRadius="999px";
+    $("bar-cap").hidden=used<=cap;$("bar-cap").style.left=`calc(${capPct}% - 1px)`;
+    const lab=$("tracklab");lab.innerHTML="";
+    if(used>cap){const a=el("span",null,money(cap)+" budget");a.style.right=(100-capPct)+"%";const b=el("span",null,"+"+money(used-cap)+" over");b.style.right="0";b.style.color="var(--bad)";b.style.fontWeight="600";lab.append(a);if(100-capPct>28)lab.append(b);else a.textContent=money(cap)+" budget · +"+money(used-cap)+" over"}
+    else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
+    $("t-today").textContent=money(w.spent_today)+" today";
+    if(w.needs)$("t-needs").textContent=money(w.needs.reduce((s,n)=>s+n.left,0));
+    if(w.fund)$("t-fund").textContent=money(w.fund.left);
+    const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash);
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);
     const list=$("list");list.innerHTML="";
@@ -226,6 +268,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   }
 
   $("refresh").onclick=load;
+  // Each section is its own screen; the phone's back button returns home.
+  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details)$/.test(v)?v:""));scrollTo(0,0)}
+  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
+  addEventListener("hashchange",show);
   // Starts the GitHub update right now. The token stays on this phone only.
   const spin=on=>$("pull").classList.toggle("spin",on);
   $("pull").onclick=async()=>{if($("pull").classList.contains("spin"))return;spin(true);try{await pull()}finally{spin(false)}};
