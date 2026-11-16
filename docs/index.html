@@ -195,7 +195,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(used<=cap)$("bar-ok").style.borderRadius="999px";
     $("bar-cap").hidden=used<=cap;$("bar-cap").style.left=`calc(${capPct}% - 1px)`;
     const lab=$("tracklab");lab.innerHTML="";
-    if(used>cap){const a=el("span",null,money(cap)+" budget");a.style.right=(100-capPct)+"%";const b=el("span",null,"+"+money(used-cap)+" over");b.style.right="0";b.style.color="var(--bad)";b.style.fontWeight="600";lab.append(a);if(100-capPct>28)lab.append(b);else a.textContent=money(cap)+" budget · +"+money(used-cap)+" over"}
+    if(used>cap){const a=el("span",null,money(cap)+" to spend");a.style.right=(100-capPct)+"%";const b=el("span",null,"+"+money(used-cap)+" over");b.style.right="0";b.style.color="var(--bad)";b.style.fontWeight="600";lab.append(a);if(100-capPct>28)lab.append(b);else a.textContent=money(cap)+" budget · +"+money(used-cap)+" over"}
     else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
     $("t-today").textContent=money(w.spent_today)+" today";
     if(w.needs)$("t-needs").textContent=money(w.needs.reduce((s,n)=>s+n.left,0));
