@@ -64,9 +64,24 @@ def owed(conn) -> dict | None:
     Each request clears as that person's Zelles land on or after the day it was sent,
     oldest request first. The Zelles themselves already count as paybacks.
     """
-    if not OWED.exists() or "DB_KEY" not in os.environ:
+    asks = []
+    if OWED.exists() and "DB_KEY" in os.environ:
+        asks = json.loads(unseal(OWED.read_bytes(), _key("DB_KEY")))
+    # Charges he answered "split" in the app: half is owed, tip estimate included
+    # until the charge posts with the real tip.
+    for r in conn.execute(
+            "SELECT t.amount, t.pending, t.pfc_primary, t.pfc_detailed, t.is_transfer, t.transfer_kind,"
+            " COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, NULL AS tag,"
+            " COALESCE(t.authorized_date, t.date) AS date, ans.who, ans.answered_on"
+            " FROM answers ans JOIN transactions t ON t.plaid_transaction_id = ans.plaid_transaction_id"
+            " WHERE ans.answer = 'split'"):
+        r = dict(r)
+        full = -float(r["amount"]) + wallet._tip(r)
+        asks.append({"who": r["who"] or wallet.SPLIT_WITH, "what": r["what"] or "Shared charge",
+                     "amount": round(full / 2, 2), "since": r["answered_on"],
+                     "note": "pending, tip estimated" if r["pending"] else ""})
+    if not asks:
         return None
-    asks = json.loads(unseal(OWED.read_bytes(), _key("DB_KEY")))
     items = []
     for who in dict.fromkeys(a["who"] for a in asks):
         mine = sorted((a for a in asks if a["who"] == who), key=lambda a: a["since"])
@@ -79,8 +94,34 @@ def owed(conn) -> dict | None:
             paid -= take
             left = round(a["amount"] - take, 2)
             if left >= OWED_SLACK:
-                items.append({"who": who, "what": a["what"], "amount": a["amount"], "left": left, "since": a["since"]})
+                items.append({"who": who, "what": a["what"], "amount": a["amount"], "left": left,
+                              "since": a["since"], "note": a.get("note", "")})
     return {"total": round(sum(i["left"] for i in items), 2), "items": items}
+
+
+def answer(raw: str) -> None:
+    """
+    Store answers sent from the page: a JSON list of {"id", "answer", "who"?}.
+    It arrives as a workflow input, so anything malformed is dropped, not trusted.
+    """
+    try:
+        given = json.loads(raw or "[]")
+    except ValueError:
+        return
+    db.migrate()
+    with db.connect() as conn:
+        for a in given if isinstance(given, list) else []:
+            if not isinstance(a, dict) or a.get("answer") not in ("split", "solo", "settled"):
+                continue
+            pid = str(a.get("id", ""))[:80]
+            if not conn.execute("SELECT 1 FROM transactions WHERE plaid_transaction_id = ?", (pid,)).fetchone():
+                continue
+            who = str(a.get("who") or wallet.SPLIT_WITH)[:40] if a["answer"] == "split" else None
+            conn.execute("INSERT INTO answers (plaid_transaction_id, answer, who, answered_on)"
+                         " VALUES (?, ?, ?, ?) ON CONFLICT(plaid_transaction_id) DO UPDATE SET"
+                         " answer = excluded.answer, who = excluded.who",
+                         (pid, a["answer"], who, datetime.now(HOME).date().isoformat()))
+        conn.commit()
 
 
 def snapshot(conn, today: date) -> dict:
@@ -105,6 +146,11 @@ def snapshot(conn, today: date) -> dict:
     } for r in counted[:25]]
 
     period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]
+    ask_from = max(wallet.SPLIT_ASK_FROM, today - timedelta(days=14)).isoformat()
+    questions = [{"id": r["pid"], "merchant": r["what"] or "Charge", "date": r["date"], "why": why,
+                  "amount": round(-float(r["amount"]) + wallet._tip(r), 2), "pending": bool(r["pending"])}
+                 for r in wallet._rows(conn, date.fromisoformat(ask_from), today + timedelta(days=1))
+                 if (why := wallet.split_question(r))]
     needs = []
     for name, (budget, cats) in wallet.NEEDS.items():
         if name == "Gas":  # small gas-station charges are snacks, not fill-ups
@@ -149,6 +195,8 @@ def snapshot(conn, today: date) -> dict:
         "free": round(s["left"] - still_needed, 2),
         "fund": fund,
         "owed": owed(conn),
+        "questions": questions,
+        "split_with": wallet.SPLIT_WITH,
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
         "updated": datetime.now(HOME).isoformat(timespec="seconds"),
     }
@@ -159,6 +207,7 @@ def run() -> None:
 
     db.migrate()
     out = sync.sync_all()
+    sync.backfill_purchase_dates()
     out["transfers"] = transfers.run()
     print(json.dumps({k: v for k, v in out.items() if k != "transfers"}))  # counts only, no money
     with db.connect() as conn:
@@ -176,5 +225,7 @@ if __name__ == "__main__":
         SEALED_DB.write_bytes(seal(config.DATABASE_PATH.read_bytes(), _key("DB_KEY")))
     elif cmd == "run":
         run()
+    elif cmd == "answer":
+        answer(os.environ.get("ANSWERS", ""))
     elif cmd == "owe":
         OWED.write_bytes(seal(OWED_PLAIN.read_bytes(), _key("DB_KEY")))

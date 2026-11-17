@@ -92,6 +92,21 @@ def sync_transactions(access_token: str, cursor: str | None):
     )
 
 
+def get_transactions(access_token: str, start, end) -> list[dict]:
+    """Every transaction in a date range from /transactions/get, paged."""
+    from plaid.model.transactions_get_request import TransactionsGetRequest
+    from plaid.model.transactions_get_request_options import TransactionsGetRequestOptions
+
+    out: list[dict] = []
+    while True:
+        res = client().transactions_get(TransactionsGetRequest(
+            access_token=access_token, start_date=start, end_date=end,
+            options=TransactionsGetRequestOptions(count=500, offset=len(out)))).to_dict()
+        out += res.get("transactions", [])
+        if len(out) >= res.get("total_transactions", 0) or not res.get("transactions"):
+            return out
+
+
 def get_item_status(access_token: str) -> dict:
     """
     Ask Plaid how a connection is doing. A broken Item reports an error here

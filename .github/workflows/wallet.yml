@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "23 * * * *"  # about hourly; GitHub may run it late or skip one when busy
   workflow_dispatch:
+    inputs:
+      answers:
+        description: "Answers from the wallet page (JSON)"
+        required: false
+        default: ""
   push:
     branches: [main]
 
@@ -39,6 +44,9 @@ jobs:
       # The database (bank tokens and history) lives encrypted on the "db" release.
       - run: gh release download db -p finance.db.enc
       - run: python -m app.cloud open
+      - run: python -m app.cloud answer
+        env:
+          ANSWERS: ${{ inputs.answers }}
       - run: python -m app.cloud run
       - run: python -m app.cloud seal
       - run: gh release upload db finance.db.enc --clobber

@@ -36,13 +36,20 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
     # If this posted row replaces a pending one, carry the category over and drop
     # the pending row, so the charge is never counted twice.
     carried_category = None
+    carried_note = None
     if pending_ref:
         prior = conn.execute(
-            "SELECT category_id FROM transactions WHERE plaid_transaction_id = ?",
+            "SELECT id, category_id FROM transactions WHERE plaid_transaction_id = ?",
             (pending_ref,),
         ).fetchone()
         if prior:
             carried_category = prior["category_id"]
+            carried_note = conn.execute(
+                "SELECT tag, note FROM transaction_notes WHERE transaction_id = ?", (prior["id"],)
+            ).fetchone()
+            # His answer follows the charge from pending to posted.
+            conn.execute("UPDATE answers SET plaid_transaction_id = ? WHERE plaid_transaction_id = ?",
+                         (tx["transaction_id"], pending_ref))
             conn.execute(
                 "DELETE FROM transactions WHERE plaid_transaction_id = ?", (pending_ref,)
             )
@@ -51,8 +58,8 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
     conn.execute(
         "INSERT INTO transactions (plaid_transaction_id, account_id, amount, date,"
         " merchant_name, name, pending, pending_transaction_id, category_id,"
-        " pfc_primary, pfc_detailed)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+        " pfc_primary, pfc_detailed, authorized_date)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
         " ON CONFLICT(plaid_transaction_id) DO UPDATE SET"
         "   amount = excluded.amount,"
         "   date = excluded.date,"
@@ -62,6 +69,7 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
         "   pending_transaction_id = excluded.pending_transaction_id,"
         "   pfc_primary = excluded.pfc_primary,"
         "   pfc_detailed = excluded.pfc_detailed,"
+        "   authorized_date = COALESCE(excluded.authorized_date, transactions.authorized_date),"
         "   updated_at = datetime('now')",
         (
             tx["transaction_id"],
@@ -75,8 +83,15 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
             carried_category,
             pfc.get("primary"),
             pfc.get("detailed"),
+            str(tx.get("authorized_date") or tx["date"]),
         ),
     )
+    if carried_note:
+        conn.execute(
+            "INSERT OR IGNORE INTO transaction_notes (transaction_id, tag, note)"
+            " SELECT id, ?, ? FROM transactions WHERE plaid_transaction_id = ?",
+            (carried_note["tag"], carried_note["note"], tx["transaction_id"]),
+        )
     return True
 
 
@@ -149,6 +164,30 @@ def sync_item(item_row) -> dict:
             raise
 
     return {"added": added, "modified": modified, "removed": removed}
+
+
+def backfill_purchase_dates(days: int = 60) -> int:
+    """Rows stored before authorized_date existed get it once from /transactions/get."""
+    from datetime import date, timedelta
+    with db.connect() as conn:
+        since = (date.today() - timedelta(days=days)).isoformat()
+        if not conn.execute("SELECT 1 FROM transactions WHERE authorized_date IS NULL AND date >= ? LIMIT 1",
+                            (since,)).fetchone():
+            return 0
+        fixed = 0
+        for item in conn.execute("SELECT access_token FROM items WHERE status = 'healthy'").fetchall():
+            try:
+                txs = plaid_client.get_transactions(item["access_token"], date.today() - timedelta(days=days), date.today())
+            except Exception:
+                continue
+            for tx in txs:
+                fixed += conn.execute(
+                    "UPDATE transactions SET authorized_date = ? WHERE plaid_transaction_id = ? AND authorized_date IS NULL",
+                    (str(tx.get("authorized_date") or tx["date"]), tx["transaction_id"])).rowcount
+        # Anything Plaid no longer returns keeps its posted date, so this never runs twice.
+        conn.execute("UPDATE transactions SET authorized_date = date WHERE authorized_date IS NULL")
+        conn.commit()
+        return fixed
 
 
 def sync_all() -> dict:

@@ -81,6 +81,14 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .owed{border-style:dashed;gap:6px}
 .owed .fundrow b{color:var(--fg)}
 .owed .row .a{color:var(--muted)}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.sheet .card{width:100%;max-width:440px;gap:12px;animation:up .35s cubic-bezier(.2,1.2,.4,1)}
+@keyframes up{from{transform:translateY(60px);opacity:0}}
+.sheet .q{font-family:var(--display);font-weight:800;font-size:24px;line-height:1.15}
+.sheet .btns{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.sheet .btns button{font:600 15px var(--body);padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.sheet .btns button.main{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.sheet .btns button.later{border:0;background:none;color:var(--muted);padding:6px}
 [hidden]{display:none!important}
 [data-view]{display:flex;flex-direction:column;gap:18px}
 </style>
@@ -152,6 +160,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <p class="note">Numbers come from your banks through Plaid. Tap the round arrow to pull right now.</p>
   </div>
 </div>
+<div class="sheet" id="sheet" hidden><section class="card">
+  <div class="eyebrow" id="ask-count">Quick question</div>
+  <div class="q" id="ask-q"></div>
+  <div class="note" id="ask-why"></div>
+  <div class="btns"><button class="main" id="ask-split">Split with Denisse</button><button id="ask-solo">Just me</button><button id="ask-settled">Split, already paid back</button><button class="later" id="ask-later">Ask me later</button></div>
+</section></div>
+<span id="ask" hidden></span>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -180,7 +195,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     finally{$("big").classList.remove("skel")}
   }
 
-  function render(w){
+  let last=null;
+  function render(w){last=w;
     const left=w.left, cap=w.allowance;
     let tone="",pill="";
     if(left<0){tone="bad";pill="Over until payday by "+money(-left)}
@@ -210,7 +226,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.fund)$("t-fund").textContent=money(w.fund.left);
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash);
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);ask(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
@@ -263,8 +279,34 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("owed-sub").textContent=`from ${who} · you'd be at ${money(w.left+o.total)}`;
     const L=$("owed-list");L.innerHTML="";
     o.items.forEach(i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a",cents(i.left)),
-      el("div","d",`${i.who} · asked ${fmt(i.since)}`+(i.left<i.amount?` · ${cents(i.amount-i.left)} paid`:"")));L.appendChild(r)});
+      el("div","d",`${i.who} · since ${fmt(i.since)}`+(i.left<i.amount?` · ${cents(i.amount-i.left)} paid`:"")+(i.note?` · ${i.note}`:"")));L.appendChild(r)});
   }
+
+  // "Was this split?" for charges that look shared. Answers go to the wallet's next
+  // run; until then this phone remembers them so the same question doesn't come back.
+  const store=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||"null");localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
+  let snoozed=false, open=[];
+  function ask(w){
+    const done=store("wallet.answered")||{};
+    open=(w.questions||[]).filter(q=>!done[q.id]);
+    $("ask").textContent=open.length?`Was ${open[0].merchant} ${"$"+open[0].amount.toFixed(2)} split?`:"";
+    $("ask-split").textContent="Split with "+(w.split_with||"Denisse");
+    if(!open.length||snoozed||location.hash){$("sheet").hidden=true;return}
+    const q=open[0];
+    $("ask-count").textContent=open.length>1?`Quick question · 1 of ${open.length}`:"Quick question";
+    $("ask-q").textContent=`Was ${q.merchant} ${"$"+q.amount.toFixed(2)} split?`;
+    $("ask-why").textContent=`${fmt(q.date)}${q.pending?" · pending":""} · ${q.why}.`;
+    $("sheet").hidden=false;
+  }
+  async function answer(kind){
+    const q=open[0];if(!q)return;
+    const done=store("wallet.answered")||{};done[q.id]=kind;store("wallet.answered",done);
+    const queue=store("wallet.queue")||[];queue.push({id:q.id,answer:kind});store("wallet.queue",queue);
+    if(last)ask(last);
+    if(!open.length){$("sheet").hidden=true;spin(true);try{await pull(true)}finally{spin(false)}}
+  }
+  $("ask-split").onclick=()=>answer("split");$("ask-solo").onclick=()=>answer("solo");$("ask-settled").onclick=()=>answer("settled");
+  $("ask-later").onclick=()=>{snoozed=true;$("sheet").hidden=true};
 
   function drawFund(f){
     if(!f){$("fund-card").hidden=true;return}
@@ -295,12 +337,14 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Starts the GitHub update right now. The token stays on this phone only.
   const spin=on=>$("pull").classList.toggle("spin",on);
   $("pull").onclick=async()=>{if($("pull").classList.contains("spin"))return;spin(true);try{await pull()}finally{spin(false)}};
-  async function pull(){
+  async function pull(withAnswers){
+    const queue=store("wallet.queue")||[];
     let t=null;try{t=localStorage.getItem("wallet.gh")}catch(e){}
     if(!t){t=(prompt("Paste your GitHub key (one time only)")||"").trim();if(!t)return;try{localStorage.setItem("wallet.gh",t)}catch(e){}}
-    msg("Asking your banks...");
+    msg(withAnswers?"Saving your answers...":"Asking your banks...");
     const r=await fetch("https://api.github.com/repos/edsolano1/wallet/actions/workflows/wallet.yml/dispatches",
-      {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify({ref:"main"})}).catch(()=>null);
+      {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify({ref:"main",inputs:{answers:JSON.stringify(queue)}})}).catch(()=>null);
+    if(r&&r.ok)store("wallet.queue",[]);
     if(!r||!r.ok){if(r&&r.status===401){try{localStorage.removeItem("wallet.gh")}catch(e){}}msg("Couldn't start it"+(r?" ("+r.status+")":"")+". Tap again to retry.");return}
     const before=await fetch("wallet.enc?t="+Date.now(),{cache:"no-store"}).then(x=>x.text()).catch(()=>"");
     msg("Pulling... about 1-2 minutes.");

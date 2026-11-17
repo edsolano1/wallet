@@ -144,6 +144,31 @@ NO_TIP = (
     "subway", "sonic", "starbucks", "dutch bros", "del taco", "wingstop",
     "raising cane", "five guys", "little caesars", "pizza hut", "papa john",
 )
+# Charges worth asking "was this split?" about, from what he told us on 2026-11-16:
+# he rarely spends over $15 alone at fast food, a sit-down meal of $30+ is often for
+# two, and he isn't drinking for a while, so any bar tab is worth a question.
+# Detailed category -> the smallest amount (tip estimate included) that asks.
+SPLIT_ASK = {
+    "FOOD_AND_DRINK_FAST_FOOD": 15.01,
+    "FOOD_AND_DRINK_RESTAURANT": 30.00,
+    "FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR": 10.00,
+}
+SPLIT_ASK_FROM = date(2026, 11, 16)  # the sushi, ramen and breakfast before this are settled
+SPLIT_WITH = "Denisse"
+
+
+def split_question(row) -> str | None:
+    """Why this charge looks shared, or None if it doesn't (or he already answered)."""
+    if row.get("answer") or row.get("tag") or float(row["amount"]) >= 0 or not _is_spending(row):
+        return None
+    low = SPLIT_ASK.get(row["pfc_detailed"] or "")
+    if low is None or -float(row["amount"]) + _tip(row) < low:
+        return None
+    return {"FOOD_AND_DRINK_FAST_FOOD": "More than you usually spend alone at fast food",
+            "FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR": "A bar tab",
+            }.get(row["pfc_detailed"], "A sit-down meal over $30")
+
+
 # Pending charges here may still gain a tip before they post.
 TIP_PRIMARY = {"FOOD_AND_DRINK", "ENTERTAINMENT"}
 TIP_ALWAYS_DETAILED = {"PERSONAL_CARE_HAIR_AND_BEAUTY"}
@@ -159,7 +184,7 @@ def period_for(day: date) -> tuple[date, date]:
 def _moved_to(row) -> date | None:
     """The payday a charge was reassigned to, if Eddie moved it; otherwise None."""
     for (when, merchant, amount), payday in MOVED:
-        if (row["date"] == when.isoformat()
+        if (when.isoformat() in (row["date"], row.get("posted"))
                 and merchant in (row["what"] or "").lower()
                 and abs(-float(row["amount"]) - amount) < 0.01):
             return payday
@@ -259,13 +284,15 @@ def _rows(conn, start: date, end: date) -> list[dict]:
     return [
         dict(r)
         for r in conn.execute(
-            "SELECT t.amount, t.date, t.pending, t.is_transfer, t.pfc_primary,"
+            "SELECT t.amount, COALESCE(t.authorized_date, t.date) AS date, t.date AS posted, t.pending, t.is_transfer, t.pfc_primary,"
             " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name,"
-            " n.tag AS tag, a.type AS account_type"
+            " n.tag AS tag, a.type AS account_type,"
+            " t.plaid_transaction_id AS pid, ans.answer AS answer, ans.who AS answer_who, ans.answered_on AS answered_on"
             " FROM transactions t"
             " JOIN accounts a ON a.id = t.account_id"
             " LEFT JOIN transaction_notes n ON n.transaction_id = t.id"
-            " WHERE t.date >= ? AND t.date < ?",
+            " LEFT JOIN answers ans ON ans.plaid_transaction_id = t.plaid_transaction_id"
+            " WHERE COALESCE(t.authorized_date, t.date) >= ? AND COALESCE(t.authorized_date, t.date) < ?",
             (start.isoformat(), end.isoformat()),
         )
     ]

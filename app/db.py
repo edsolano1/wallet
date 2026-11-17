@@ -155,6 +155,9 @@ _LATER_COLUMNS = {
         # Rule 3: an unmatched transfer leg is surfaced, never swallowed.
         "needs_review": "INTEGER NOT NULL DEFAULT 0",
         "review_reason": "TEXT",
+        # The day he made the purchase. `date` is when the bank posted it, which can
+        # lag by days; the wallet dates everything by this one when Plaid has it.
+        "authorized_date": "TEXT",
     }
 }
 
@@ -189,6 +192,16 @@ CREATE TABLE IF NOT EXISTS transaction_notes (
     tag            TEXT,
     note           TEXT,
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- His answers to "was this split?", keyed by Plaid's id so they survive a pending
+-- charge posting (sync moves the key to the posted row). 'split' means half is
+-- owed back by `who`; 'solo' and 'settled' mean nothing more is owed.
+CREATE TABLE IF NOT EXISTS answers (
+    plaid_transaction_id TEXT PRIMARY KEY,
+    answer               TEXT NOT NULL CHECK (answer IN ('split','solo','settled')),
+    who                  TEXT,
+    answered_on          TEXT NOT NULL DEFAULT (date('now'))
 );
 
 -- Anything he wants to tell Claude that is not about one transaction.
