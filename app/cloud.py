@@ -13,6 +13,7 @@ browsers never send to a server.
 import base64
 import json
 import os
+import re
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -58,6 +59,10 @@ PRETTY = {
 
 
 def owed(conn) -> dict | None:
+    return _owed(conn)[0]
+
+
+def _owed(conn) -> tuple[dict | None, dict]:
     """
     What people still owe him, shown as possible money back, never counted in the wallet.
 
@@ -74,16 +79,18 @@ def owed(conn) -> dict | None:
     for r in conn.execute(
             "SELECT t.amount, t.pending, t.pfc_primary, t.pfc_detailed, t.is_transfer, t.transfer_kind,"
             " COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, NULL AS tag,"
-            " COALESCE(t.authorized_date, t.date) AS date, ans.who, ans.answered_on"
+            " COALESCE(t.authorized_date, t.date) AS date, ans.who, ans.answered_on, ans.share"
             " FROM answers ans JOIN transactions t ON t.plaid_transaction_id = ans.plaid_transaction_id"
             " WHERE ans.answer = 'split'"):
         r = dict(r)
         full = -float(r["amount"]) + wallet._tip(r)
         asks.append({"who": r["who"], "what": r["what"] or "Shared charge",
-                     "amount": round(full / 2, 2), "since": r["answered_on"],
+                     "amount": round(r["share"] if r["share"] is not None else full / 2, 2),
+                     "since": r["answered_on"],
                      "note": "pending, tip estimated" if r["pending"] else ""})
+    paid_for: dict[str, list[str]] = {}  # Zelle id -> what it paid for
     if not asks:
-        return None
+        return None, paid_for
 
     items = []
     def keep(a, left):
@@ -104,21 +111,24 @@ def owed(conn) -> dict | None:
     people = sorted((a for a in asks if not a.get("card")), key=lambda a: (not a.get("who"), a["since"]))
     if people:
         pool = [dict(r) for r in conn.execute(
-            "SELECT LOWER(name) AS name, date, amount AS left FROM transactions"
+            "SELECT plaid_transaction_id AS pid, LOWER(name) AS name, date, amount AS left FROM transactions"
             " WHERE amount > 0 AND date >= ? AND LOWER(name) LIKE '%zelle%' ORDER BY date",
             (min(a["since"] for a in people),))]
         for a in people:  # named requests first, then the open splits
             need = a["amount"]
             match = (a.get("match") or a.get("who") or "").lower()
-            for z in pool:
-                if need <= 0:
+            fits = [z for z in pool if z["date"] >= a["since"] and z["left"] > 0 and match in z["name"]]
+            # A Zelle for exactly this amount is the one that paid it, even if another came first.
+            fits.sort(key=lambda z: abs(z["left"] - need) >= 0.01)
+            for z in fits:
+                if need < OWED_SLACK:
                     break
-                if z["date"] >= a["since"] and z["left"] > 0 and match in z["name"]:
-                    take = min(need, z["left"])
-                    z["left"] -= take
-                    need -= take
+                take = min(need, z["left"])
+                z["left"] -= take
+                need -= take
+                paid_for.setdefault(z["pid"], []).append(a["what"])
             keep(a, need)
-    return {"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None
+    return ({"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None), paid_for
 
 
 def answer(raw: str) -> None:
@@ -141,10 +151,17 @@ def answer(raw: str) -> None:
                 continue
             who = str(a["who"])[:40] if a.get("who") and a["answer"] == "split" else None
             note = str(a.get("note") or "").strip()[:500] or None
-            conn.execute("INSERT INTO answers (plaid_transaction_id, answer, who, answered_on, note)"
-                         " VALUES (?, ?, ?, ?, ?) ON CONFLICT(plaid_transaction_id) DO UPDATE SET"
-                         " answer = excluded.answer, who = excluded.who, note = COALESCE(excluded.note, answers.note)",
-                         (pid, a["answer"], who, datetime.now(HOME).date().isoformat(), note))
+            try:  # what they owe, when it isn't half
+                share = round(float(a["share"]), 2) if a.get("share") not in (None, "") and a["answer"] == "split" else None
+            except (TypeError, ValueError):
+                share = None
+            if share is not None and not 0 < share < 10000:
+                share = None
+            conn.execute("INSERT INTO answers (plaid_transaction_id, answer, who, answered_on, note, share)"
+                         " VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(plaid_transaction_id) DO UPDATE SET"
+                         " answer = excluded.answer, who = excluded.who, share = excluded.share,"
+                         " note = COALESCE(excluded.note, answers.note)",
+                         (pid, a["answer"], who, datetime.now(HOME).date().isoformat(), note, share))
         conn.commit()
 
 
@@ -159,12 +176,22 @@ def snapshot(conn, today: date) -> dict:
         return round(wallet._cost(rs) - wallet._paid_back(rs), 2)
 
     counted.sort(key=lambda r: (r["date"], r["pending"]), reverse=True)
+    owing, paid_for = _owed(conn)
+
+    def label(r):
+        """A Zelle back says who sent it and what for, not the bank's raw line."""
+        m = re.search(r"zelle payment from ([a-z]+)", r["what"] or "", re.I)
+        if float(r["amount"]) <= 0 or not m:
+            return r["what"] or "Charge", None
+        why = paid_for.get(r["pid"])
+        return f"Zelle from {m.group(1).title()}", "Paid back · " + (" + ".join(why) if why else "what for? tell Claude")
+
     charges = [{
-        "merchant": r["what"] or "Charge",
+        "merchant": label(r)[0],
         "amount": round(float(r["amount"]), 2),
         "date": r["date"],
-        "category": "Gas" if wallet.is_gas_station(r) and abs(float(r["amount"])) >= wallet.GAS_MIN_FILLUP
-                    else PRETTY.get(r["pfc_primary"] or "", (r["pfc_primary"] or "").replace("_", " ").title()),
+        "category": label(r)[1] or ("Gas" if wallet.is_gas_station(r) and abs(float(r["amount"])) >= wallet.GAS_MIN_FILLUP
+                    else PRETTY.get(r["pfc_primary"] or "", (r["pfc_primary"] or "").replace("_", " ").title())),
         "pending": bool(r["pending"]),
         "tip": round(wallet._tip(r), 2),
     } for r in counted[:25]]
@@ -218,7 +245,7 @@ def snapshot(conn, today: date) -> dict:
                       " ORDER BY t.date DESC LIMIT 8", ((today - timedelta(days=21)).isoformat(),))],
         "free": round(s["left"] - still_needed, 2),
         "fund": fund,
-        "owed": owed(conn),
+        "owed": owing,
         "questions": questions,
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
         "updated": datetime.now(HOME).isoformat(timespec="seconds"),

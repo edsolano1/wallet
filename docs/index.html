@@ -86,6 +86,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 @keyframes up{from{transform:translateY(60px);opacity:0}}
 .sheet .q{font-family:var(--display);font-weight:800;font-size:24px;line-height:1.15}
 .sheet textarea{font:15px var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;resize:none;width:100%}
+.sheet .share{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.sheet .share span{margin-left:auto}
+.sheet .share input{width:110px;font:600 16px var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:right}
 .sheet .btns{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .sheet .btns button{font:600 15px var(--body);padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
 .sheet .btns button.main{background:var(--accent);border-color:var(--accent);color:var(--bg)}
@@ -165,6 +168,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <div class="eyebrow" id="ask-count">Quick question</div>
   <div class="q" id="ask-q"></div>
   <div class="note" id="ask-why"></div>
+  <label class="share">Their share <span>$</span><input id="ask-share" type="number" inputmode="decimal" step="0.01" min="0"></label>
   <textarea id="ask-note" rows="2" placeholder="Anything else? (optional, goes to Claude)"></textarea>
   <div class="btns"><button class="main" id="ask-split">Split in half</button><button id="ask-solo">Just me</button><button class="later" id="ask-later">Ask me later</button></div>
 </section></div>
@@ -295,6 +299,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const q=open[0];
     $("ask-count").textContent=open.length>1?`Quick question · 1 of ${open.length}`:"Quick question";
     $("ask-q").textContent=`Was ${q.merchant} ${"$"+q.amount.toFixed(2)} split?`;
+    if($("ask-share").dataset.q!==q.id){$("ask-share").dataset.q=q.id;$("ask-share").value=(q.amount/2).toFixed(2)}
     $("ask-why").textContent=`${fmt(q.date)}${q.pending?" · pending":""} · ${q.why}.`;
     $("sheet").hidden=false;
   }
@@ -302,7 +307,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const q=open[0];if(!q)return;
     const done=store("wallet.answered")||{};done[q.id]=kind;store("wallet.answered",done);
     const note=$("ask-note").value.trim();$("ask-note").value="";
-    const queue=store("wallet.queue")||[];queue.push(note?{id:q.id,answer:kind,note}:{id:q.id,answer:kind});store("wallet.queue",queue);
+    const a={id:q.id,answer:kind};if(note)a.note=note;
+    const share=parseFloat($("ask-share").value);
+    if(kind==="split"&&share>0&&Math.abs(share-q.amount/2)>=0.01)a.share=share;
+    const queue=store("wallet.queue")||[];queue.push(a);store("wallet.queue",queue);
     if(last)ask(last);
     if(!open.length){$("sheet").hidden=true;spin(true);try{await pull(true)}finally{spin(false)}}
   }

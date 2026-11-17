@@ -159,7 +159,7 @@ _LATER_COLUMNS = {
         # lag by days; the wallet dates everything by this one when Plaid has it.
         "authorized_date": "TEXT",
     },
-    "answers": {"note": "TEXT"},
+    "answers": {"note": "TEXT", "share": "REAL"},
 }
 
 
@@ -204,7 +204,9 @@ CREATE TABLE IF NOT EXISTS answers (
     who                  TEXT,
     answered_on          TEXT NOT NULL DEFAULT (date('now')),
     -- Anything he typed with the answer, for Claude to read.
-    note                 TEXT
+    note                 TEXT,
+    -- What the other person owes when it isn't half (he ate more, say).
+    share                REAL
 );
 
 -- Anything he wants to tell Claude that is not about one transaction.
