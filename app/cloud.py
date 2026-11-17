@@ -74,15 +74,25 @@ def _owed(conn) -> tuple[dict | None, dict]:
     asks = []
     if OWED.exists() and "DB_KEY" in os.environ:
         asks = json.loads(unseal(OWED.read_bytes(), _key("DB_KEY")))
+    # Claude's corrections after reading his notes: {"answer_for": <Plaid id>, "share": .., "who": .., "what": ..}
+    fixes = {a["answer_for"]: a for a in asks if a.get("answer_for")}
+    asks = [a for a in asks if not a.get("answer_for")]
     # Charges he answered "split" in the app: half is owed, tip estimate included
     # until the charge posts with the real tip.
     for r in conn.execute(
             "SELECT t.amount, t.pending, t.pfc_primary, t.pfc_detailed, t.is_transfer, t.transfer_kind,"
             " COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, NULL AS tag,"
-            " COALESCE(t.authorized_date, t.date) AS date, ans.who, ans.answered_on, ans.share"
+            " COALESCE(t.authorized_date, t.date) AS date, ans.who, ans.answered_on, ans.share,"
+            " ans.plaid_transaction_id AS pid"
             " FROM answers ans JOIN transactions t ON t.plaid_transaction_id = ans.plaid_transaction_id"
             " WHERE ans.answer = 'split'"):
         r = dict(r)
+        fix = fixes.get(r["pid"], {})
+        if fix.get("share") is not None:
+            r["share"] = fix["share"]
+        r["who"] = fix.get("who", r["who"])
+        if fix.get("what"):
+            r["what"] = fix["what"]
         full = -float(r["amount"]) + wallet._tip(r)
         asks.append({"who": r["who"], "what": r["what"] or "Shared charge",
                      "amount": round(r["share"] if r["share"] is not None else full / 2, 2),
@@ -129,6 +139,38 @@ def _owed(conn) -> tuple[dict | None, dict]:
                 paid_for.setdefault(z["pid"], []).append(a["what"])
             keep(a, need)
     return ({"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None), paid_for
+
+
+NOTES_SEEN = ROOT / "notes_seen.json"
+
+
+def notes() -> None:
+    """
+    For Claude's hourly check, run on his computer: print the notes he typed in the
+    popup that Claude hasn't handled yet, or "none". Reads the live database from
+    the release, so it never touches the copy the workflow owns.
+    """
+    import sqlite3
+    import tempfile
+    import urllib.request
+
+    blob = urllib.request.urlopen("https://github.com/edsolano1/wallet/releases/download/db/finance.db.enc").read()
+    seen = set(json.loads(NOTES_SEEN.read_text())) if NOTES_SEEN.exists() else set()
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / "f.db"
+        path.write_bytes(unseal(blob, _key("DB_KEY")))
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        rows = [dict(r) for r in conn.execute(
+            "SELECT a.plaid_transaction_id AS id, a.answer, a.share, a.note, a.answered_on,"
+            " COALESCE(t.merchant_name, t.name) AS merchant, t.amount, t.pending"
+            " FROM answers a LEFT JOIN transactions t ON t.plaid_transaction_id = a.plaid_transaction_id"
+            " WHERE a.note IS NOT NULL AND TRIM(a.note) <> ''")]
+        conn.close()
+    new = [r for r in rows if f'{r["id"]}|{r["note"]}' not in seen]
+    print(json.dumps(new, indent=1) if new else "none")
+    if "--mark" in sys.argv:
+        NOTES_SEEN.write_text(json.dumps(sorted(seen | {f'{r["id"]}|{r["note"]}' for r in rows})))
 
 
 def answer(raw: str) -> None:
@@ -277,5 +319,7 @@ if __name__ == "__main__":
         run()
     elif cmd == "answer":
         answer(os.environ.get("ANSWERS", ""))
+    elif cmd == "notes":
+        notes()
     elif cmd == "owe":
         OWED.write_bytes(seal(OWED_PLAIN.read_bytes(), _key("DB_KEY")))

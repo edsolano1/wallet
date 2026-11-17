@@ -18,3 +18,4 @@ dashboard.html
 *.enc
 owed.json
 !owed.enc
+notes_seen.json

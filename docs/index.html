@@ -196,7 +196,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const blob=b64((await r.text()).trim());
       const k=await crypto.subtle.importKey("raw",b64(key),"AES-GCM",false,["decrypt"]);
       const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:blob.slice(0,12)},k,blob.slice(12));
-      render(JSON.parse(new TextDecoder().decode(plain)));msg("");
+      const w=JSON.parse(new TextDecoder().decode(plain));render(w);msg("");
+      autoPull(w);
     }catch(e){msg(e.name==="OperationError"?"The key doesn't match. Open the page from the Tracker app.":"Couldn't load the numbers. Tap Refresh to try again.")}
     finally{$("big").classList.remove("skel")}
   }
@@ -338,6 +339,18 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     w.moves.forEach(m=>M.appendChild(row(m.what.replace(/\s*(transaction #|#).*$/i,"").slice(0,60),money(-m.amount),`${fmt(m.date)} · from ${m.account}`)));
   }
 
+  // GitHub runs the hourly schedule every 4-10 hours, so when the numbers are over an
+  // hour old this page asks for a run itself (the app opens it about hourly in the
+  // background). Quietly, and at most once every 50 minutes.
+  function autoPull(w){
+    let t=null,lastAt=0;try{t=localStorage.getItem("wallet.gh");lastAt=+localStorage.getItem("wallet.autopull")||0}catch(e){}
+    if(!t||Date.now()-new Date(w.updated)<3600e3||Date.now()-lastAt<50*60e3)return;
+    try{localStorage.setItem("wallet.autopull",String(Date.now()))}catch(e){}
+    const queue=store("wallet.queue")||[];
+    fetch("https://api.github.com/repos/edsolano1/wallet/actions/workflows/wallet.yml/dispatches",
+      {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify({ref:"main",inputs:{answers:JSON.stringify(queue)}})})
+      .then(r=>{if(r.ok)store("wallet.queue",[])}).catch(()=>{});
+  }
   $("refresh").onclick=load;
   // Each section is its own screen; the phone's back button returns home.
   function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details)$/.test(v)?v:""));scrollTo(0,0)}
