@@ -85,6 +85,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .sheet .card{width:100%;max-width:440px;gap:12px;animation:up .35s cubic-bezier(.2,1.2,.4,1)}
 @keyframes up{from{transform:translateY(60px);opacity:0}}
 .sheet .q{font-family:var(--display);font-weight:800;font-size:24px;line-height:1.15}
+.sheet textarea{font:15px var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;resize:none;width:100%}
 .sheet .btns{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .sheet .btns button{font:600 15px var(--body);padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
 .sheet .btns button.main{background:var(--accent);border-color:var(--accent);color:var(--bg)}
@@ -164,7 +165,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <div class="eyebrow" id="ask-count">Quick question</div>
   <div class="q" id="ask-q"></div>
   <div class="note" id="ask-why"></div>
-  <div class="btns"><button class="main" id="ask-split">Split with Denisse</button><button id="ask-solo">Just me</button><button id="ask-settled">Split, already paid back</button><button class="later" id="ask-later">Ask me later</button></div>
+  <textarea id="ask-note" rows="2" placeholder="Anything else? (optional, goes to Claude)"></textarea>
+  <div class="btns"><button class="main" id="ask-split">Split in half</button><button id="ask-solo">Just me</button><button class="later" id="ask-later">Ask me later</button></div>
 </section></div>
 <span id="ask" hidden></span>
 <script>
@@ -275,11 +277,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const o=w.owed;$("owed").hidden=!(o&&o.items.length);if($("owed").hidden)return;
     const cents=n=>"$"+n.toFixed(2);
     $("owed-total").textContent=cents(o.total);
-    const who=[...new Set(o.items.map(i=>i.who))].join(", ");
-    $("owed-sub").textContent=`from ${who} · you'd be at ${money(w.left+o.total)}`;
+    $("owed-sub").textContent=`you'd be at ${money(w.left+o.total)}`;
     const L=$("owed-list");L.innerHTML="";
     o.items.forEach(i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a",cents(i.left)),
-      el("div","d",`${i.who} · since ${fmt(i.since)}`+(i.left<i.amount?` · ${cents(i.amount-i.left)} paid`:"")+(i.note?` · ${i.note}`:"")));L.appendChild(r)});
+      el("div","d",`${i.who?i.who+" · ":""}since ${fmt(i.since)}`+(i.left<i.amount?` · ${cents(i.amount-i.left)} paid`:"")+(i.note?` · ${i.note}`:"")));L.appendChild(r)});
   }
 
   // "Was this split?" for charges that look shared. Answers go to the wallet's next
@@ -290,7 +291,6 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const done=store("wallet.answered")||{};
     open=(w.questions||[]).filter(q=>!done[q.id]);
     $("ask").textContent=open.length?`Was ${open[0].merchant} ${"$"+open[0].amount.toFixed(2)} split?`:"";
-    $("ask-split").textContent="Split with "+(w.split_with||"Denisse");
     if(!open.length||snoozed||location.hash){$("sheet").hidden=true;return}
     const q=open[0];
     $("ask-count").textContent=open.length>1?`Quick question · 1 of ${open.length}`:"Quick question";
@@ -301,11 +301,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   async function answer(kind){
     const q=open[0];if(!q)return;
     const done=store("wallet.answered")||{};done[q.id]=kind;store("wallet.answered",done);
-    const queue=store("wallet.queue")||[];queue.push({id:q.id,answer:kind});store("wallet.queue",queue);
+    const note=$("ask-note").value.trim();$("ask-note").value="";
+    const queue=store("wallet.queue")||[];queue.push(note?{id:q.id,answer:kind,note}:{id:q.id,answer:kind});store("wallet.queue",queue);
     if(last)ask(last);
     if(!open.length){$("sheet").hidden=true;spin(true);try{await pull(true)}finally{spin(false)}}
   }
-  $("ask-split").onclick=()=>answer("split");$("ask-solo").onclick=()=>answer("solo");$("ask-settled").onclick=()=>answer("settled");
+  $("ask-split").onclick=()=>answer("split");$("ask-solo").onclick=()=>answer("solo");
   $("ask-later").onclick=()=>{snoozed=true;$("sheet").hidden=true};
 
   function drawFund(f){

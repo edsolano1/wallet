@@ -61,8 +61,10 @@ def owed(conn) -> dict | None:
     """
     What people still owe him, shown as possible money back, never counted in the wallet.
 
-    Each request clears as that person's Zelles land on or after the day it was sent,
-    oldest request first. The Zelles themselves already count as paybacks.
+    Requests clear as Zelles come in on or after the day they were made, oldest first.
+    A request naming someone only takes that person's Zelles; a split he answered in
+    the app names no one (he may have split with anyone), so it takes any Zelle left
+    over. The Zelles themselves already count as paybacks.
     """
     asks = []
     if OWED.exists() and "DB_KEY" in os.environ:
@@ -77,43 +79,52 @@ def owed(conn) -> dict | None:
             " WHERE ans.answer = 'split'"):
         r = dict(r)
         full = -float(r["amount"]) + wallet._tip(r)
-        asks.append({"who": r["who"] or wallet.SPLIT_WITH, "what": r["what"] or "Shared charge",
+        asks.append({"who": r["who"], "what": r["what"] or "Shared charge",
                      "amount": round(full / 2, 2), "since": r["answered_on"],
                      "note": "pending, tip estimated" if r["pending"] else ""})
+    if not asks:
+        return None
+
+    items = []
+    def keep(a, left):
+        if left >= OWED_SLACK:
+            items.append({"who": a.get("who") or "", "what": a["what"], "amount": a["amount"],
+                          "left": round(left, 2), "since": a["since"], "note": a.get("note", "")})
+
     # A card credit he is expecting (rewards redeemed as a statement credit) clears
     # when a credit of that amount lands on a card; it then counts as money back.
-    cards = [a for a in asks if a.get("card")]
-    asks = [a for a in asks if not a.get("card")]
-    items = []
-    for a in cards:
+    for a in (a for a in asks if a.get("card")):
         landed = conn.execute(
             "SELECT 1 FROM transactions t JOIN accounts ac ON ac.id = t.account_id"
             " WHERE ac.type = 'credit' AND ABS(t.amount - ?) < 0.01 AND t.date >= ?",
             (a["amount"], a["since"])).fetchone()
         if not landed:
-            items.append({"who": a["who"], "what": a["what"], "amount": a["amount"], "left": a["amount"],
-                          "since": a["since"], "note": a.get("note", "")})
-    if not asks and not items:
-        return None
-    for who in dict.fromkeys(a["who"] for a in asks):
-        mine = sorted((a for a in asks if a["who"] == who), key=lambda a: a["since"])
-        match = mine[0].get("match", who).lower()
-        paid = sum(float(r["amount"]) for r in conn.execute(
-            "SELECT amount FROM transactions WHERE amount > 0 AND date >= ? AND LOWER(name) LIKE ?",
-            (mine[0]["since"], f"%zelle%{match}%")))
-        for a in mine:
-            take = min(paid, a["amount"])
-            paid -= take
-            left = round(a["amount"] - take, 2)
-            if left >= OWED_SLACK:
-                items.append({"who": who, "what": a["what"], "amount": a["amount"], "left": left,
-                              "since": a["since"], "note": a.get("note", "")})
-    return {"total": round(sum(i["left"] for i in items), 2), "items": items}
+            keep(a, a["amount"])
+
+    people = sorted((a for a in asks if not a.get("card")), key=lambda a: (not a.get("who"), a["since"]))
+    if people:
+        pool = [dict(r) for r in conn.execute(
+            "SELECT LOWER(name) AS name, date, amount AS left FROM transactions"
+            " WHERE amount > 0 AND date >= ? AND LOWER(name) LIKE '%zelle%' ORDER BY date",
+            (min(a["since"] for a in people),))]
+        for a in people:  # named requests first, then the open splits
+            need = a["amount"]
+            match = (a.get("match") or a.get("who") or "").lower()
+            for z in pool:
+                if need <= 0:
+                    break
+                if z["date"] >= a["since"] and z["left"] > 0 and match in z["name"]:
+                    take = min(need, z["left"])
+                    z["left"] -= take
+                    need -= take
+            keep(a, need)
+    return {"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None
 
 
 def answer(raw: str) -> None:
     """
-    Store answers sent from the page: a JSON list of {"id", "answer", "who"?}.
+    Store answers sent from the page: a JSON list of {"id", "answer", "who"?, "note"?}.
+    The note is for Claude to read; it never changes the arithmetic.
     It arrives as a workflow input, so anything malformed is dropped, not trusted.
     """
     try:
@@ -128,11 +139,12 @@ def answer(raw: str) -> None:
             pid = str(a.get("id", ""))[:80]
             if not conn.execute("SELECT 1 FROM transactions WHERE plaid_transaction_id = ?", (pid,)).fetchone():
                 continue
-            who = str(a.get("who") or wallet.SPLIT_WITH)[:40] if a["answer"] == "split" else None
-            conn.execute("INSERT INTO answers (plaid_transaction_id, answer, who, answered_on)"
-                         " VALUES (?, ?, ?, ?) ON CONFLICT(plaid_transaction_id) DO UPDATE SET"
-                         " answer = excluded.answer, who = excluded.who",
-                         (pid, a["answer"], who, datetime.now(HOME).date().isoformat()))
+            who = str(a["who"])[:40] if a.get("who") and a["answer"] == "split" else None
+            note = str(a.get("note") or "").strip()[:500] or None
+            conn.execute("INSERT INTO answers (plaid_transaction_id, answer, who, answered_on, note)"
+                         " VALUES (?, ?, ?, ?, ?) ON CONFLICT(plaid_transaction_id) DO UPDATE SET"
+                         " answer = excluded.answer, who = excluded.who, note = COALESCE(excluded.note, answers.note)",
+                         (pid, a["answer"], who, datetime.now(HOME).date().isoformat(), note))
         conn.commit()
 
 
@@ -208,7 +220,6 @@ def snapshot(conn, today: date) -> dict:
         "fund": fund,
         "owed": owed(conn),
         "questions": questions,
-        "split_with": wallet.SPLIT_WITH,
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
         "updated": datetime.now(HOME).isoformat(timespec="seconds"),
     }

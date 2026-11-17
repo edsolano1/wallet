@@ -158,7 +158,8 @@ _LATER_COLUMNS = {
         # The day he made the purchase. `date` is when the bank posted it, which can
         # lag by days; the wallet dates everything by this one when Plaid has it.
         "authorized_date": "TEXT",
-    }
+    },
+    "answers": {"note": "TEXT"},
 }
 
 
@@ -201,7 +202,9 @@ CREATE TABLE IF NOT EXISTS answers (
     plaid_transaction_id TEXT PRIMARY KEY,
     answer               TEXT NOT NULL CHECK (answer IN ('split','solo','settled')),
     who                  TEXT,
-    answered_on          TEXT NOT NULL DEFAULT (date('now'))
+    answered_on          TEXT NOT NULL DEFAULT (date('now')),
+    -- Anything he typed with the answer, for Claude to read.
+    note                 TEXT
 );
 
 -- Anything he wants to tell Claude that is not about one transaction.
@@ -215,6 +218,8 @@ CREATE TABLE IF NOT EXISTS messages (
 
 def migrate(path: Path | None = None) -> None:
     with connect(path) as conn:
+        conn.executescript(ENVELOPES)
+        conn.executescript(NOTES)
         for table, columns in _LATER_COLUMNS.items():
             existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
             for name, decl in columns.items():

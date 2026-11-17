@@ -155,7 +155,6 @@ SPLIT_ASK = {
     "FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR": 10.00,
 }
 SPLIT_ASK_FROM = date(2026, 11, 16)  # the sushi, ramen and breakfast before this are settled
-SPLIT_WITH = "Denisse"
 
 
 def split_question(row) -> str | None:
