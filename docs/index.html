@@ -72,10 +72,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .track{position:relative;height:12px;border-radius:999px;background:var(--line);margin-top:14px}
 .track .fill{position:absolute;inset:0;border-radius:999px;overflow:hidden}
 .track i{position:absolute;top:0;bottom:0;left:0}
-#bar-tent{background:var(--tent)}
-#bar-cushion{background:repeating-linear-gradient(135deg,var(--tent) 0 3px,transparent 3px 7px);opacity:.55}
+#bar-cushion{background:repeating-linear-gradient(135deg,var(--accent) 0 3px,transparent 3px 7px);opacity:.5}
+#bar-covered{background:var(--bad);top:3px;bottom:3px;border-radius:0 999px 999px 0}
 #bar-over{background:var(--bad)}
-.big.tent{color:var(--tent)} .pill.tent{background:var(--tent-soft);color:var(--tent)}
+.big.tent{color:var(--accent);opacity:.7} .pill.tent{background:var(--accent-soft);color:var(--accent)}
 .track .cap{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--fg);border-radius:2px}
 .tracklab{position:relative;height:18px;font-size:12px;color:var(--muted);margin-top:4px}
 .tracklab span{position:absolute;white-space:nowrap}
@@ -118,7 +118,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="big skel" id="big">$—</div>
     <div class="tentative" id="tentative" hidden></div>
     <span class="pill" id="pill" hidden></span>
-    <div class="track" aria-hidden="true"><div class="fill"><i id="bar-ok"></i><i id="bar-tent"></i><i id="bar-cushion"></i><i id="bar-over"></i></div><b class="cap" id="bar-cap" hidden></b></div>
+    <div class="track" aria-hidden="true"><div class="fill"><i id="bar-ok"></i><i id="bar-cushion"></i><i id="bar-covered"></i><i id="bar-over"></i></div><b class="cap" id="bar-cap" hidden></b></div>
     <div class="tracklab" id="tracklab"></div>
     <details class="owed" id="owed" hidden>
       <summary><span>Owed to you</span><b id="owed-total">—</b><i aria-hidden="true">›</i></summary>
@@ -235,29 +235,29 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
-    // The bar is the paycheck's spending money. Green is spending inside the budget, blue
-    // is the cushion of money owed to him (solid where spending already leans on it,
-    // striped where it's still free), red is spending past both. As paybacks land, the
-    // spending shrinks and the blue turns back into green.
+    // The bar is the paycheck's spending money (his pick, "option C", in green). Solid green
+    // is spending inside the budget. Past the budget line, striped see-through green is the
+    // money owed to him, and the overspend is a thinner red bar laid over it, so he sees how
+    // much of it the owed money covers. Red past the stripes is overspend nothing covers.
+    // As paybacks land, spending shrinks, the stripes shrink, and the red goes away.
     const used=Math.max(w.spent-w.paid_back,0), roof=cap+owed, scale=Math.max(used,roof,1);
     const pct=v=>Math.max(v,0)/scale*100+"%", seg=(id,from,width)=>{$(id).style.left=pct(from);$(id).style.width=pct(width)};
     seg("bar-ok",0,Math.min(used,cap));$("bar-ok").style.background=tone==="warn"?"var(--warn)":"var(--accent)";
-    seg("bar-tent",cap,Math.min(used,roof)-cap);
-    seg("bar-cushion",Math.max(used,cap),roof-Math.max(used,cap));
+    seg("bar-cushion",cap,owed);
+    seg("bar-covered",cap,Math.min(used,roof)-cap);
     seg("bar-over",roof,used-roof);
-    const capPct=cap/scale*100, roofPct=roof/scale*100;
+    const capPct=cap/scale*100;
     $("bar-cap").hidden=used<=cap&&!owed;$("bar-cap").style.left=`calc(${capPct}% - 1px)`;
     const lab=$("tracklab");lab.innerHTML="";
     const at=(text,rightPct,color)=>{const s=el("span",null,text);s.style.right=rightPct+"%";if(color){s.style.color=color;s.style.fontWeight="600"}lab.append(s);return s};
-    if(used>roof){
-      const tail=`+${money(used-roof)} over`;
-      if(100-roofPct>28){at(owed?`${money(cap)} + ${money(owed)} owed`:`${money(cap)} to spend`,100-roofPct);at(tail,0,"var(--bad)")}
-      else at((owed?`${money(cap)} + ${money(owed)} owed · `:`${money(cap)} budget · `)+tail,0,"var(--bad)");
-    }else if(owed){
-      const rest=`${money(owed)} owed · ${money(roof-Math.max(used,cap))} free`;
-      if(capPct>22&&100-capPct>40){at(`${money(cap)} budget`,100-capPct);at(rest,0,"var(--tent)")}
-      else at(`${money(cap)} budget + ${rest}`,0,"var(--tent)");
-    }else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
+    const over=used-cap;
+    let right=null;
+    if(used>roof) right=[owed?`${money(over)} over · ${money(used-roof)} not covered`:`+${money(over)} over`,"var(--bad)"];
+    else if(over>0) right=[`${money(over)} over, covered`,"var(--bad)"];
+    else if(owed) right=[`+${money(owed)} owed`,"var(--accent)"];
+    if(right&&capPct>22&&100-capPct>45){at(`${money(cap)} budget`,100-capPct);at(right[0],0,right[1])}
+    else if(right) at(`${money(cap)} budget · ${right[0]}`,0,right[1]);
+    else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
     $("t-today").textContent=money(w.spent_today)+" today";
     if(w.needs)$("t-needs").textContent=money(w.needs.reduce((s,n)=>s+n.left,0));
     if(w.fund)$("t-fund").textContent=money(w.fund.left);
