@@ -26,6 +26,12 @@ HOME = ZoneInfo("America/Phoenix")
 ROOT = config.PROJECT_ROOT
 SEALED_DB = ROOT / "finance.db.enc"
 OUT = ROOT / "docs" / "wallet.enc"
+# Money people owe him, sealed with DB_KEY so names and amounts stay out of the public repo.
+# Edit owed.json (kept on this computer only), then `python -m app.cloud owe` to reseal it.
+OWED_PLAIN = ROOT / "owed.json"
+OWED = ROOT / "owed.enc"
+# Under this much left, a request counts as paid (split rounding can leave a cent).
+OWED_SLACK = 0.50
 
 
 def _key(name: str) -> bytes:
@@ -49,6 +55,32 @@ PRETTY = {
     "HOME_IMPROVEMENT": "Home", "MEDICAL": "Medical", "TRAVEL": "Travel",
     "TRANSFER_IN": "Money back", "GOVERNMENT_AND_NON_PROFIT": "Government & giving",
 }
+
+
+def owed(conn) -> dict | None:
+    """
+    What people still owe him, shown as possible money back, never counted in the wallet.
+
+    Each request clears as that person's Zelles land on or after the day it was sent,
+    oldest request first. The Zelles themselves already count as paybacks.
+    """
+    if not OWED.exists() or "DB_KEY" not in os.environ:
+        return None
+    asks = json.loads(unseal(OWED.read_bytes(), _key("DB_KEY")))
+    items = []
+    for who in dict.fromkeys(a["who"] for a in asks):
+        mine = sorted((a for a in asks if a["who"] == who), key=lambda a: a["since"])
+        match = mine[0].get("match", who).lower()
+        paid = sum(float(r["amount"]) for r in conn.execute(
+            "SELECT amount FROM transactions WHERE amount > 0 AND date >= ? AND LOWER(name) LIKE ?",
+            (mine[0]["since"], f"%zelle%{match}%")))
+        for a in mine:
+            take = min(paid, a["amount"])
+            paid -= take
+            left = round(a["amount"] - take, 2)
+            if left >= OWED_SLACK:
+                items.append({"who": who, "what": a["what"], "amount": a["amount"], "left": left, "since": a["since"]})
+    return {"total": round(sum(i["left"] for i in items), 2), "items": items}
 
 
 def snapshot(conn, today: date) -> dict:
@@ -116,6 +148,7 @@ def snapshot(conn, today: date) -> dict:
                       " ORDER BY t.date DESC LIMIT 8", ((today - timedelta(days=21)).isoformat(),))],
         "free": round(s["left"] - still_needed, 2),
         "fund": fund,
+        "owed": owed(conn),
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
         "updated": datetime.now(HOME).isoformat(timespec="seconds"),
     }
@@ -143,3 +176,5 @@ if __name__ == "__main__":
         SEALED_DB.write_bytes(seal(config.DATABASE_PATH.read_bytes(), _key("DB_KEY")))
     elif cmd == "run":
         run()
+    elif cmd == "owe":
+        OWED.write_bytes(seal(OWED_PLAIN.read_bytes(), _key("DB_KEY")))

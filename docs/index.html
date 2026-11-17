@@ -78,6 +78,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .tile{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;cursor:pointer}
 .tile span{font-size:12px;color:var(--muted)} .tile b{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
 .back{align-self:flex-start;font:600 14px var(--body);color:var(--accent);background:none;border:0;padding:4px 0;cursor:pointer}
+.owed{border-style:dashed;gap:6px}
+.owed .fundrow b{color:var(--fg)}
+.owed .row .a{color:var(--muted)}
 [hidden]{display:none!important}
 [data-view]{display:flex;flex-direction:column;gap:18px}
 </style>
@@ -92,6 +95,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <span class="pill" id="pill" hidden></span>
     <div class="track" aria-hidden="true"><i id="bar-ok"></i><i id="bar-over" style="background:var(--bad);border-radius:0 999px 999px 0"></i><b class="cap" id="bar-cap" hidden></b></div>
     <div class="tracklab" id="tracklab"></div>
+  </section>
+  <section class="card owed" id="owed" hidden>
+    <div class="eyebrow">Owed to you · not counted yet</div>
+    <div class="fundrow"><b id="owed-total">—</b><span id="owed-sub"></span></div>
+    <div class="list" id="owed-list"></div>
   </section>
   <div class="tiles">
     <button class="tile" data-go="needs"><span>Groceries &amp; gas left</span><b id="t-needs">—</b></button>
@@ -202,7 +210,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.fund)$("t-fund").textContent=money(w.fund.left);
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash);
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
@@ -244,6 +252,18 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       top.append(el("span",null,n.name),el("b",null,`${money(n.left)} of ${money(n.budget)} left`));
       const bar=el("div","bar");const fill=el("i");fill.style.width=Math.min(100,n.spent/n.budget*100)+"%";fill.style.background=n.spent>n.budget?"var(--bad)":(colors[n.name]||"var(--accent)");bar.appendChild(fill);
       d.append(top,bar);box.appendChild(d)});
+  }
+
+  // Money people owe him: possible money back, in neutral colors, until the Zelle lands.
+  function drawOwed(w){
+    const o=w.owed;$("owed").hidden=!(o&&o.items.length);if($("owed").hidden)return;
+    const cents=n=>"$"+n.toFixed(2);
+    $("owed-total").textContent=cents(o.total);
+    const who=[...new Set(o.items.map(i=>i.who))].join(", ");
+    $("owed-sub").textContent=`from ${who} · you'd be at ${money(w.left+o.total)}`;
+    const L=$("owed-list");L.innerHTML="";
+    o.items.forEach(i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a",cents(i.left)),
+      el("div","d",`${i.who} · asked ${fmt(i.since)}`+(i.left<i.amount?` · ${cents(i.amount-i.left)} paid`:"")));L.appendChild(r)});
   }
 
   function drawFund(f){

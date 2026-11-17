@@ -16,3 +16,5 @@ RECONCILIATION.md
 TASKS.md
 dashboard.html
 *.enc
+owed.json
+!owed.enc
