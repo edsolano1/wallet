@@ -47,6 +47,7 @@ button.link{font:600 13px var(--body);color:var(--accent);background:none;border
 .row .m{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row .a{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
 .row .a.in{color:var(--accent)}
+.row .a.out{color:var(--bad)}
 .row .d{font-size:12px;color:var(--muted)}
 .note{font-size:12.5px;color:var(--muted)}
 h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
@@ -375,10 +376,12 @@ details.fold.sub[open]{padding-bottom:4px}
     const b=w.bills;$("t-bills-tile").hidden=!b;if(!b)return;
     const span=c=>`${fmt(c.from)} – ${fmt(c.to)}`;
     $("t-bills").textContent=money(b.now.left)+" left after";
-    const row=(m,a,d,cls)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",m),el("div","a",a),el("div","d",d||""));return r};
+    const row=(m,a,d,cls,ac)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",m),el("div","a"+(ac?" "+ac:""),a),el("div","d",d||""));return r};
+    // Money coming in is green, money going out is red, paid bills are crossed off.
+    const tone=n=>n<0?"out":"in", outTone=n=>n>0?"out":"in";
     const out=n=>(n>0?"−":"+")+money(Math.abs(n));
     const bill=i=>row(i.what,i.paid?money(i.amount):out(i.amount),
-      `${fmt(i.due)}${i.card?" · on a card":""}${i.paid?" · paid ✓":""}${i.est?" · estimate":""}`,i.paid?"paid":"");
+      `${fmt(i.due)}${i.card?" · on a card":""}${i.paid?" · paid ✓":""}${i.est?" · estimate":""}`,i.paid?"paid":"",i.paid?"":"out");
     function head(box,title,left,sub,owedLine){
       box.innerHTML="";const S=el("summary");S.append(el("div","eyebrow",title));
       const f=el("div","fundrow");f.append(el("b",null,money(left)),el("span",null,sub));S.append(f);
@@ -390,18 +393,18 @@ details.fold.sub[open]{padding-bottom:4px}
     const N=b.now, L1=head($("bills-now"),"This pay cycle · "+span(N),N.left,"left after bills and cards",
       owed?`About ${money(N.left_if_owed)} once the ${money(owed)} owed to you comes in.`:"");
     $("bills-now").querySelector(".fundrow b").style.color=N.left<0?"var(--bad)":"";
-    L1.append(row(b.account,money(b.cash),"in checking now"));
-    b.cards.forEach(c=>L1.append(row(`${c.name} ··${c.mask}`,out(c.owe),c.owe<0?"credit on the card":`balance to pay off${c.pending?` · ${c.pending} not posted yet`:""}`)));
+    L1.append(row(b.account,money(b.cash),"in checking now","",tone(b.cash)));
+    b.cards.forEach(c=>L1.append(row(`${c.name} ··${c.mask}`,out(c.owe),c.owe<0?"credit on the card":`balance to pay off${c.pending?` · ${c.pending} not posted yet`:""}`,"",outTone(c.owe))));
     N.items.forEach(i=>L1.append(bill(i)));
-    if(N.spend>0)L1.append(row("Rest of your spending money",out(N.spend),"before payday"));
-    L1.append(row("Left",money(N.left),"",'sum'));
+    if(N.spend>0)L1.append(row("Rest of your spending money",out(N.spend),"before payday","","out"));
+    L1.append(row("Left",money(N.left),"",'sum',tone(N.left)));
     const X=b.next, L2=head($("bills-next"),"Next pay cycle · "+span(X),X.left,"left at the end of it","");
     $("bills-next").querySelector(".fundrow b").style.color=X.left<0?"var(--bad)":"";
-    L2.append(row("Carried over",money(N.left),"from this cycle"));
-    L2.append(row("Paycheck",(X.paycheck?"+":"")+money(X.paycheck),fmt(X.from)));
+    L2.append(row("Carried over",money(N.left),"from this cycle","",tone(N.left)));
+    L2.append(row("Paycheck",(X.paycheck?"+":"")+money(X.paycheck),fmt(X.from),"","in"));
     X.items.forEach(i=>L2.append(bill(i)));
-    L2.append(row("Spending money",out(X.spend),"your allowance this paycheck"));
-    L2.append(row("Left",money(X.left),"",'sum'));
+    L2.append(row("Spending money",out(X.spend),"your allowance this paycheck","","out"));
+    L2.append(row("Left",money(X.left),"",'sum',tone(X.left)));
     const later=b.later||[];$("bills-later").hidden=!later.length;
     if(later.length){const box=$("bills-later");box.innerHTML="";const S=el("summary");
       S.append(el("div","eyebrow","After that"),el("div","note",later.map(i=>`${i.what} ${money(i.amount)}`).join(" · ")),el("i",null,"›"));box.append(S);
