@@ -143,6 +143,7 @@ NO_TIP = (
     "jack in the box", "in-n-out", "chick-fil-a", "chipotle", "panda express",
     "subway", "sonic", "starbucks", "dutch bros", "del taco", "wingstop",
     "raising cane", "five guys", "little caesars", "pizza hut", "papa john",
+    "anepalco",  # breakfast spot the bank files as a salon; he confirmed no tip
 )
 # Charges worth asking "was this split?" about, from what he told us on 2026-11-16:
 # he rarely spends over $15 alone at fast food, a sit-down meal of $30+ is often for
