@@ -19,6 +19,7 @@ His model, in his words, is NOT "balance minus commitments". It is an allowance:
   - Money set aside for the Black Friday Fund comes off the top.
 """
 
+import re
 from datetime import date, timedelta
 
 from . import db
@@ -70,7 +71,128 @@ def is_grocery(row) -> bool:
 EXPECTED = [
     {"id": "beyond-47138", "what": "Beyond (online order)", "amount": 120.35, "date": date(2026, 11, 16),
      "mask": "9203", "pfc_primary": "FOOD_AND_DRINK", "pfc_detailed": "FOOD_AND_DRINK_GROCERIES"},
+    # Was pending on Samsung on Nov 15, then dropped out of the feed; it posts with the tip.
+    {"id": "ramen-1115", "what": "Ramen Hub & Sushi", "amount": 38.79, "date": date(2026, 11, 15), "tol": 12.00, "like": "ramen",
+     "mask": "1271", "pfc_primary": "FOOD_AND_DRINK", "pfc_detailed": "FOOD_AND_DRINK_RESTAURANT"},
 ]
+
+# ---- Upcoming bills: cash in checking against what has to come out before payday ----
+# The account bills and card payoffs come out of.
+BILLS_ACCOUNT = "7372"
+# Cards whose reported balance already includes pending charges (most report posted only).
+BALANCE_HAS_PENDING = {"2098"}
+# His bills, from his Monarch budget and what has actually billed. `day` is the day of the
+# month it usually lands, `every`+`anchor` a fixed cycle, `once` a one-off. A bill counts as
+# paid when a charge matching `match` (a regex on the merchant) for between lo and hi lands
+# from 12 days before to 5 days after it's due. `card` bills land on a card, not checking.
+BILLS = [
+    {"what": "Rent", "amount": 542.00, "day": 20, "match": r"zelle payment to denisse", "lo": 541, "hi": 543},
+    {"what": "Gas & electric (your half)", "amount": 110.00, "day": 16, "match": r"zelle payment to denisse", "lo": 80, "hi": 140, "est": True},
+    {"what": "Verizon", "amount": 107.46, "day": 19, "match": r"verizon", "lo": 80, "hi": 140},
+    {"what": "Anthropic", "amount": 109.10, "day": 20, "match": r"anthropic", "lo": 15, "hi": 250, "card": True},
+    {"what": "Spotify", "amount": 14.17, "day": 24, "match": r"spotify", "lo": 5, "hi": 30, "card": True},
+    {"what": "Ring", "amount": 10.90, "day": 1, "match": r"^ring\b", "lo": 5, "hi": 25, "card": True},
+    {"what": "Student loan autopay", "amount": 699.33, "day": 28, "start": date(2026, 11, 28), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 650, "hi": 760},
+    {"what": "State Farm", "amount": 233.50, "day": 10, "match": r"state farm", "lo": 200, "hi": 270},
+    {"what": "Parking", "amount": 30.00, "day": 9, "match": r"cash app\*gee", "lo": 25, "hi": 35},
+    {"what": "Car wash", "amount": 21.00, "every": 28, "anchor": date(2026, 11, 13), "match": r"cobblestone", "lo": 15, "hi": 30, "card": True},
+    {"what": "GEICO, paid in full", "amount": 1257.50, "once": date(2026, 12, 26), "match": r"geico", "lo": 1000, "hi": 1500},
+]
+CARD_NAMES = {"9203": "Chase card", "2098": "MGM card", "1271": "Samsung card", "4713": "Amazon card"}
+LATER_MIN = 200.00  # past the next payday, only bills this big are worth a heads-up
+
+
+def _due_dates(b, start: date, end: date) -> list[date]:
+    if "once" in b:
+        return [b["once"]] if start <= b["once"] < end else []
+    if "every" in b:
+        k = max(0, -(-(start - b["anchor"]).days // b["every"]))
+        out, d = [], b["anchor"] + timedelta(days=k * b["every"])
+        while d < end:
+            out.append(d)
+            d += timedelta(days=b["every"])
+        return out
+    out, y, m = [], start.year, start.month
+    while date(y, m, 1) < end:
+        d = date(y, m, min(b["day"], 28))
+        if start <= d < end and d >= b.get("start", d):
+            out.append(d)
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return out
+
+
+def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
+    """Checking, less every card balance (pending and not-yet-sent charges included) and
+    the bills due before the next payday, then the same for the pay cycle after."""
+    start, nxt = period_for(today)
+    after = nxt + timedelta(days=14)
+    acct = conn.execute("SELECT name, mask, COALESCE(available_balance, current_balance) AS bal FROM accounts"
+                        " WHERE mask = ?", (BILLS_ACCOUNT,)).fetchone()
+    cash = float(acct["bal"] or 0) if acct else 0.0
+
+    cards = []
+    for a in conn.execute("SELECT id, name, official_name, mask, current_balance FROM accounts WHERE type = 'credit'"):
+        pend = [dict(r) for r in conn.execute(
+            "SELECT amount, pfc_primary, pfc_detailed, COALESCE(merchant_name, name) AS what, name AS raw_name,"
+            " 1 AS pending FROM transactions WHERE account_id = ? AND pending = 1", (a["id"],))]
+        owe = float(a["current_balance"] or 0)
+        if a["mask"] not in BALANCE_HAS_PENDING:
+            owe -= sum(float(p["amount"]) for p in pend)
+        owe += sum(_tip(p) for p in pend)
+        waiting = [e for e in _expected(conn, today - timedelta(days=21), today + timedelta(days=1)) if e["mask"] == a["mask"]]
+        owe += sum(-float(e["amount"]) + _tip(e) for e in waiting)
+        if abs(owe) >= 0.01:
+            cards.append({"name": CARD_NAMES.get(a["mask"], a["official_name"] or a["name"]), "mask": a["mask"], "owe": round(owe, 2),
+                          "pending": len(pend) + len(waiting)})
+    cards.sort(key=lambda c: -c["owe"])
+    card_total = round(sum(c["owe"] for c in cards), 2)
+
+    lands = [dict(r) for r in conn.execute(
+        "SELECT t.plaid_transaction_id AS pid, -t.amount AS amt, COALESCE(t.authorized_date, t.date) AS day,"
+        " LOWER(COALESCE(t.merchant_name, '') || ' | ' || t.name) AS what FROM transactions t"
+        " WHERE t.amount < 0 AND COALESCE(t.authorized_date, t.date) >= ?", ((start - timedelta(days=20)).isoformat(),))]
+    used = set()
+
+    def cycle(a: date, b: date) -> list[dict]:
+        items = []
+        for bill in BILLS:
+            for due in _due_dates(bill, a, b):
+                lo, hi = (due - timedelta(days=12)).isoformat(), (due + timedelta(days=5)).isoformat()
+                hit = next((t for t in lands if t["pid"] not in used and lo <= t["day"] <= hi
+                            and bill["lo"] <= t["amt"] <= bill["hi"]
+                            and any(re.search(bill["match"], part.strip()) for part in t["what"].split("|"))), None)
+                if hit:
+                    used.add(hit["pid"])
+                items.append({"what": bill["what"], "due": due.isoformat(), "card": bool(bill.get("card")),
+                              "amount": round(hit["amt"] if hit else bill["amount"], 2), "paid": bool(hit),
+                              "est": bool(bill.get("est")) and not hit})
+        items.sort(key=lambda i: i["due"])
+        return items
+
+    now_items, next_items = cycle(start, nxt), cycle(nxt, after)
+    later = [i for i in cycle(after, after + timedelta(days=28)) if i["amount"] >= LATER_MIN]
+    due_now = sum(i["amount"] for i in now_items if not i["paid"])
+    spend_now = max(s["left"], 0.0)  # what's still his to spend before payday
+    left_now = cash - card_total - due_now - spend_now
+
+    pay = conn.execute("SELECT amount FROM transactions t JOIN accounts a ON a.id = t.account_id WHERE a.mask = ?"
+                       " AND t.pfc_detailed = 'INCOME_SALARY' AND t.amount > 0 ORDER BY t.date DESC LIMIT 1",
+                       (BILLS_ACCOUNT,)).fetchone()
+    paycheck = float(pay["amount"]) if pay else 0.0
+    spend_next = PER_PERIOD - SET_ASIDE.get(nxt, 0.0)
+    due_next = sum(i["amount"] for i in next_items if not i["paid"])
+    left_next = left_now + paycheck - due_next - spend_next
+    return {
+        "account": f'{acct["name"].title()} ··{acct["mask"]}' if acct else "Checking",
+        "cash": round(cash, 2), "cards": cards, "card_total": card_total,
+        "now": {"from": start.isoformat(), "to": (nxt - timedelta(days=1)).isoformat(), "items": now_items,
+                "due": round(due_now, 2), "spend": round(spend_now, 2), "left": round(left_now, 2),
+                "left_if_owed": round(left_now + owed_total, 2)},
+        "next": {"from": nxt.isoformat(), "to": (after - timedelta(days=1)).isoformat(), "items": next_items,
+                 "paycheck": round(paycheck, 2), "due": round(due_next, 2), "spend": round(spend_next, 2),
+                 "left": round(left_next, 2), "left_if_owed": round(left_next + owed_total, 2)},
+        "later": later,
+    }
 
 
 NEEDS = {
@@ -308,13 +430,15 @@ def _expected(conn, start: date, end: date) -> list[dict]:
             continue
         landed = conn.execute(
             "SELECT 1 FROM transactions t JOIN accounts a ON a.id = t.account_id"
-            " WHERE a.mask = ? AND ABS(t.amount + ?) < 0.01 AND t.date BETWEEN ? AND ?",
-            (e["mask"], e["amount"], e["date"].isoformat(), (e["date"] + timedelta(days=7)).isoformat())).fetchone()
+            " WHERE a.mask = ? AND ABS(t.amount + ?) < ? AND t.date BETWEEN ? AND ?"
+            " AND LOWER(COALESCE(t.merchant_name, '') || t.name) LIKE ?",
+            (e["mask"], e["amount"], e.get("tol", 0.01), e["date"].isoformat(),
+             (e["date"] + timedelta(days=7)).isoformat(), f'%{e.get("like", "")}%')).fetchone()
         if not landed:
             out.append({"amount": -e["amount"], "date": e["date"].isoformat(), "posted": None, "pending": 1,
                         "is_transfer": 0, "pfc_primary": e["pfc_primary"], "pfc_detailed": e["pfc_detailed"],
                         "transfer_kind": None, "what": e["what"], "raw_name": e["what"], "tag": None,
-                        "account_type": "credit", "pid": e["id"], "answer": None, "answer_who": None,
+                        "account_type": "credit", "pid": e["id"], "mask": e["mask"], "answer": None, "answer_who": None,
                         "answered_on": None})
     return out
 

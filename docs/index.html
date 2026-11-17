@@ -105,6 +105,14 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .sheet .btns button{font:600 15px var(--body);padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
 .sheet .btns button.main{background:var(--accent);border-color:var(--accent);color:var(--bg)}
 .sheet .btns button.later{border:0;background:none;color:var(--muted);padding:6px}
+.tile.wide{grid-column:1/-1;flex-direction:row;align-items:center;gap:12px}
+.tile.wide div{display:flex;flex-direction:column;gap:2px}
+.tile.wide em{margin-left:auto;font-style:normal;font-size:13px;color:var(--muted);text-align:right}
+.tile.wide em b{display:block;font-size:20px;color:var(--fg)}
+.row.paid .m,.row.paid .a{color:var(--muted);font-weight:500}
+.row.paid .a{text-decoration:line-through}
+.row.sum{border-top:1px solid var(--fg)}
+.row.sum .m,.row.sum .a{font-weight:700}
 [hidden]{display:none!important}
 [data-view]{display:flex;flex-direction:column;gap:18px}
 </style>
@@ -127,6 +135,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     </details>
   </section>
   <div class="tiles">
+    <button class="tile wide" data-go="bills" id="t-bills-tile" hidden><div><span>Upcoming bills</span><b id="t-bills">—</b></div><em id="t-bills-left"></em></button>
     <button class="tile" data-go="needs"><span>Groceries &amp; gas left</span><b id="t-needs">—</b></button>
     <button class="tile" data-go="fund"><span>Black Friday Fund</span><b id="t-fund">—</b></button>
     <button class="tile" data-go="accounts"><span>Accounts</span><b id="t-acct">—</b></button>
@@ -161,6 +170,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="eyebrow" style="margin-top:6px">Your transfers, last 3 weeks</div>
     <div class="list" id="moves"></div>
   </section>
+  </div>
+  <div data-view="bills" hidden><button class="back" data-go="">‹ Back</button>
+  <section class="card" id="bills-now"></section>
+  <section class="card" id="bills-next"></section>
+  <section class="card" id="bills-later" hidden></section>
+  <p class="note">Cards count everything you've bought, posted or not, plus tips not added yet, because you pay them off right away. A bill is marked paid when it shows up at your bank. Gas &amp; electric is an estimate until your Zelle goes out. Spending money is your $785 a paycheck.</p>
   </div>
   <div data-view="details" hidden><button class="back" data-go="">‹ Back</button>
   <section class="card">
@@ -263,7 +278,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.fund)$("t-fund").textContent=money(w.fund.left);
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash);
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);ask(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);ask(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
@@ -349,6 +364,44 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   $("ask-split").onclick=()=>answer("split");$("ask-solo").onclick=()=>answer("solo");
   $("ask-later").onclick=()=>{snoozed=true;$("sheet").hidden=true};
 
+  // Upcoming bills: checking, less every card balance and the bills due before payday,
+  // then the next pay cycle on top of what's left.
+  function drawBills(w){
+    const b=w.bills;$("t-bills-tile").hidden=!b;if(!b)return;
+    const span=c=>`${fmt(c.from)} – ${fmt(c.to)}`;
+    $("t-bills").textContent=money(b.now.due+b.card_total)+" to pay";
+    $("t-bills-left").innerHTML=`left after<b>${money(b.now.left)}</b>`;
+    const row=(m,a,d,cls)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",m),el("div","a",a),el("div","d",d||""));return r};
+    const out=n=>(n>0?"−":"+")+money(Math.abs(n));
+    const bill=i=>row(i.what,i.paid?money(i.amount):out(i.amount),
+      `${fmt(i.due)}${i.card?" · on a card":""}${i.paid?" · paid ✓":""}${i.est?" · estimate":""}`,i.paid?"paid":"");
+    function head(box,title,left,sub,owedLine){
+      box.innerHTML="";box.append(el("div","eyebrow",title));
+      const f=el("div","fundrow");f.append(el("b",null,money(left)),el("span",null,sub));box.append(f);
+      if(owedLine)box.append(el("div","note",owedLine));
+      const L=el("div","list");box.append(L);return L;
+    }
+    const owed=(w.owed&&w.owed.total)||0;
+    const N=b.now, L1=head($("bills-now"),"This pay cycle · "+span(N),N.left,"left after bills and cards",
+      owed?`About ${money(N.left_if_owed)} once the ${money(owed)} owed to you comes in.`:"");
+    $("bills-now").querySelector(".fundrow b").style.color=N.left<0?"var(--bad)":"";
+    L1.append(row(b.account,money(b.cash),"in checking now"));
+    b.cards.forEach(c=>L1.append(row(`${c.name} ··${c.mask}`,out(c.owe),c.owe<0?"credit on the card":`balance to pay off${c.pending?` · ${c.pending} not posted yet`:""}`)));
+    N.items.forEach(i=>L1.append(bill(i)));
+    if(N.spend>0)L1.append(row("Rest of your spending money",out(N.spend),"before payday"));
+    L1.append(row("Left",money(N.left),"",'sum'));
+    const X=b.next, L2=head($("bills-next"),"Next pay cycle · "+span(X),X.left,"left at the end of it","");
+    $("bills-next").querySelector(".fundrow b").style.color=X.left<0?"var(--bad)":"";
+    L2.append(row("Carried over",money(N.left),"from this cycle"));
+    L2.append(row("Paycheck",(X.paycheck?"+":"")+money(X.paycheck),fmt(X.from)));
+    X.items.forEach(i=>L2.append(bill(i)));
+    L2.append(row("Spending money",out(X.spend),"your allowance this paycheck"));
+    L2.append(row("Left",money(X.left),"",'sum'));
+    const later=b.later||[];$("bills-later").hidden=!later.length;
+    if(later.length){const box=$("bills-later");box.innerHTML="";box.append(el("div","eyebrow","After that"));
+      const L=el("div","list");later.forEach(i=>L.append(bill(i)));box.append(L)}
+  }
+
   function drawFund(f){
     if(!f){$("fund-card").hidden=true;return}
     $("fund-card").hidden=false;
@@ -384,7 +437,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   }
   $("refresh").onclick=load;
   // Each section is its own screen; the phone's back button returns home.
-  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details)$/.test(v)?v:""));scrollTo(0,0)}
+  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills)$/.test(v)?v:""));scrollTo(0,0)}
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
   addEventListener("hashchange",show);
   // Starts the GitHub update right now. The token stays on this phone only.

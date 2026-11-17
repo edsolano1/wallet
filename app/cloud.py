@@ -367,6 +367,7 @@ def snapshot(conn, today: date) -> dict:
         "free": round(s["left"] - still_needed, 2),
         "fund": fund,
         "owed": owing,
+        "bills": wallet.upcoming_bills(conn, today, s, (owing or {}).get("total", 0.0)),
         "questions": questions,
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
         "updated": datetime.now(HOME).isoformat(timespec="seconds"),
