@@ -113,6 +113,14 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .row.paid .a{text-decoration:line-through}
 .row.sum{border-top:1px solid var(--fg)}
 .row.sum .m,.row.sum .a{font-weight:700}
+details.fold>summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:6px;position:relative;padding-right:22px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary>i{position:absolute;right:0;top:0;font-style:normal;font-size:20px;line-height:1;color:var(--muted);transition:transform .2s}
+details.fold[open]>summary>i{transform:rotate(90deg)}
+details.fold[open]>summary{margin-bottom:6px}
+.foldrow{display:flex;align-items:center;gap:8px}
+.foldrow h2{margin:0}
+.foldrow b{margin-left:auto;font-size:14px;color:var(--muted);font-weight:600}
 [hidden]{display:none!important}
 [data-view]{display:flex;flex-direction:column;gap:18px}
 </style>
@@ -142,8 +150,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <button class="tile" data-go="details"><span>Details</span><b id="t-today">—</b></button>
   </div>
   <div class="msg" id="msg" hidden></div>
-  <h2>Recent charges</h2>
-  <div class="list" id="list"></div>
+  <details class="fold card" id="recent"><summary><div class="foldrow"><h2>Recent charges</h2><b id="recent-n"></b></div><i aria-hidden="true">›</i></summary>
+  <div class="list" id="list"></div></details>
   <div class="meta"><span id="updated"></span></div>
   </div>
   <div data-view="needs" hidden><button class="back" data-go="">‹ Back</button>
@@ -172,9 +180,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   </section>
   </div>
   <div data-view="bills" hidden><button class="back" data-go="">‹ Back</button>
-  <section class="card" id="bills-now"></section>
-  <section class="card" id="bills-next"></section>
-  <section class="card" id="bills-later" hidden></section>
+  <details class="card fold" id="bills-now"></details>
+  <details class="card fold" id="bills-next"></details>
+  <details class="card fold" id="bills-later" hidden></details>
   <p class="note">Cards count everything you've bought, posted or not, plus tips not added yet, because you pay them off right away. A bill is marked paid when it shows up at your bank. Gas &amp; electric is an estimate until your Zelle goes out. Spending money is your $785 a paycheck.</p>
   </div>
   <div data-view="details" hidden><button class="back" data-go="">‹ Back</button>
@@ -279,7 +287,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash);
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);ask(w);
-    const list=$("list");list.innerHTML="";
+    const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`${w.charges.length} · latest ${fmt(w.charges[0].date)}`:"";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
       const r=document.createElement("div");r.className="row";
@@ -376,9 +384,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const bill=i=>row(i.what,i.paid?money(i.amount):out(i.amount),
       `${fmt(i.due)}${i.card?" · on a card":""}${i.paid?" · paid ✓":""}${i.est?" · estimate":""}`,i.paid?"paid":"");
     function head(box,title,left,sub,owedLine){
-      box.innerHTML="";box.append(el("div","eyebrow",title));
-      const f=el("div","fundrow");f.append(el("b",null,money(left)),el("span",null,sub));box.append(f);
-      if(owedLine)box.append(el("div","note",owedLine));
+      box.innerHTML="";const S=el("summary");S.append(el("div","eyebrow",title));
+      const f=el("div","fundrow");f.append(el("b",null,money(left)),el("span",null,sub));S.append(f);
+      if(owedLine)S.append(el("div","note",owedLine));
+      S.append(el("i",null,"›"));box.append(S);
       const L=el("div","list");box.append(L);return L;
     }
     const owed=(w.owed&&w.owed.total)||0;
@@ -398,7 +407,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     L2.append(row("Spending money",out(X.spend),"your allowance this paycheck"));
     L2.append(row("Left",money(X.left),"",'sum'));
     const later=b.later||[];$("bills-later").hidden=!later.length;
-    if(later.length){const box=$("bills-later");box.innerHTML="";box.append(el("div","eyebrow","After that"));
+    if(later.length){const box=$("bills-later");box.innerHTML="";const S=el("summary");
+      S.append(el("div","eyebrow","After that"),el("div","note",later.map(i=>`${i.what} ${money(i.amount)}`).join(" · ")),el("i",null,"›"));box.append(S);
       const L=el("div","list");later.forEach(i=>L.append(bill(i)));box.append(L)}
   }
 
