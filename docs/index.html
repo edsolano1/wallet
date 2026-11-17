@@ -78,8 +78,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .tile{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;cursor:pointer}
 .tile span{font-size:12px;color:var(--muted)} .tile b{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
 .back{align-self:flex-start;font:600 14px var(--body);color:var(--accent);background:none;border:0;padding:4px 0;cursor:pointer}
-.owed{border-style:dashed;gap:6px}
-.owed .fundrow b{color:var(--fg)}
+.owed{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+.owed summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--muted)}
+.owed summary::-webkit-details-marker{display:none}
+.owed summary b{margin-left:auto;color:var(--fg);font-variant-numeric:tabular-nums;font-weight:600}
+.owed summary i{font-style:normal;font-size:18px;line-height:1;transition:transform .2s}
+.owed[open] summary i{transform:rotate(90deg)}
+.owed .note{margin:6px 0 2px}
 .owed .row .a{color:var(--muted)}
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
 .sheet .card{width:100%;max-width:440px;gap:12px;animation:up .35s cubic-bezier(.2,1.2,.4,1)}
@@ -107,11 +112,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <span class="pill" id="pill" hidden></span>
     <div class="track" aria-hidden="true"><i id="bar-ok"></i><i id="bar-over" style="background:var(--bad);border-radius:0 999px 999px 0"></i><b class="cap" id="bar-cap" hidden></b></div>
     <div class="tracklab" id="tracklab"></div>
-  </section>
-  <section class="card owed" id="owed" hidden>
-    <div class="eyebrow">Owed to you · not counted yet</div>
-    <div class="fundrow"><b id="owed-total">—</b><span id="owed-sub"></span></div>
-    <div class="list" id="owed-list"></div>
+    <details class="owed" id="owed" hidden>
+      <summary><span>Owed to you</span><b id="owed-total">—</b><i aria-hidden="true">›</i></summary>
+      <div class="note" id="owed-sub"></div>
+      <div class="list" id="owed-list"></div>
+    </details>
   </section>
   <div class="tiles">
     <button class="tile" data-go="needs"><span>Groceries &amp; gas left</span><b id="t-needs">—</b></button>
@@ -282,7 +287,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const o=w.owed;$("owed").hidden=!(o&&o.items.length);if($("owed").hidden)return;
     const cents=n=>"$"+n.toFixed(2);
     $("owed-total").textContent=cents(o.total);
-    $("owed-sub").textContent=`you'd be at ${money(w.left+o.total)}`;
+    $("owed-sub").textContent=`Not counted yet. If it all comes in, you'd be at ${money(w.left+o.total)}.`;
     const L=$("owed-list");L.innerHTML="";
     o.items.forEach(i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a",cents(i.left)),
       el("div","d",`${i.who?i.who+" · ":""}since ${fmt(i.since)}`+(i.left<i.amount?` · ${cents(i.amount-i.left)} paid`:"")+(i.note?` · ${i.note}`:"")));L.appendChild(r)});

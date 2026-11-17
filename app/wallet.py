@@ -53,6 +53,26 @@ def is_gas_station(row) -> bool:
     raw = ((row.get("raw_name") or "") + " " + (row.get("what") or "")).lower()
     return any(x in raw for x in GAS_STATIONS_LIKE)
 
+# Online grocery orders the bank files elsewhere (Beyond's Shopify store).
+GROCERY_LIKE = ("beyond plant", "beyond meat", "beyondmeat")
+
+
+def is_grocery(row) -> bool:
+    if (row.get("pfc_detailed") or "") in NEEDS["Groceries"][1]:
+        return True
+    raw = ((row.get("raw_name") or "") + " " + (row.get("what") or "")).lower()
+    return any(x in raw for x in GROCERY_LIKE)
+
+
+# Charges he made that the bank hasn't sent yet (found in an order email), counted
+# now so the number is honest. Each drops out on its own once a real charge of the
+# same amount shows up on that card within a week.
+EXPECTED = [
+    {"id": "beyond-47138", "what": "Beyond (online order)", "amount": 120.35, "date": date(2026, 11, 16),
+     "mask": "9203", "pfc_primary": "FOOD_AND_DRINK", "pfc_detailed": "FOOD_AND_DRINK_GROCERIES"},
+]
+
+
 NEEDS = {
     "Groceries": (175.00, {"FOOD_AND_DRINK_GROCERIES", "GENERAL_MERCHANDISE_SUPERSTORES"}),
     "Gas": (75.00, {"TRANSPORTATION_GAS"}),
@@ -144,6 +164,7 @@ NO_TIP = (
     "subway", "sonic", "starbucks", "dutch bros", "del taco", "wingstop",
     "raising cane", "five guys", "little caesars", "pizza hut", "papa john",
     "anepalco",  # breakfast spot the bank files as a salon; he confirmed no tip
+    "beyond",  # online grocery order
 )
 # Charges worth asking "was this split?" about, from what he told us on 2026-11-16:
 # he rarely spends over $15 alone at fast food, a sit-down meal of $30+ is often for
@@ -280,8 +301,26 @@ def _tip(row) -> float:
     return 0.0
 
 
+def _expected(conn, start: date, end: date) -> list[dict]:
+    out = []
+    for e in EXPECTED:
+        if not start <= e["date"] < end:
+            continue
+        landed = conn.execute(
+            "SELECT 1 FROM transactions t JOIN accounts a ON a.id = t.account_id"
+            " WHERE a.mask = ? AND ABS(t.amount + ?) < 0.01 AND t.date BETWEEN ? AND ?",
+            (e["mask"], e["amount"], e["date"].isoformat(), (e["date"] + timedelta(days=7)).isoformat())).fetchone()
+        if not landed:
+            out.append({"amount": -e["amount"], "date": e["date"].isoformat(), "posted": None, "pending": 1,
+                        "is_transfer": 0, "pfc_primary": e["pfc_primary"], "pfc_detailed": e["pfc_detailed"],
+                        "transfer_kind": None, "what": e["what"], "raw_name": e["what"], "tag": None,
+                        "account_type": "credit", "pid": e["id"], "answer": None, "answer_who": None,
+                        "answered_on": None})
+    return out
+
+
 def _rows(conn, start: date, end: date) -> list[dict]:
-    return [
+    return _expected(conn, start, end) + [
         dict(r)
         for r in conn.execute(
             "SELECT t.amount, COALESCE(t.authorized_date, t.date) AS date, t.date AS posted, t.pending, t.is_transfer, t.pfc_primary,"
