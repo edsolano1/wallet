@@ -159,7 +159,7 @@ _LATER_COLUMNS = {
         # lag by days; the wallet dates everything by this one when Plaid has it.
         "authorized_date": "TEXT",
     },
-    "answers": {"note": "TEXT", "share": "REAL"},
+    "answers": {"note": "TEXT", "share": "REAL", "note_done": "INTEGER NOT NULL DEFAULT 0", "reply": "TEXT"},
 }
 
 

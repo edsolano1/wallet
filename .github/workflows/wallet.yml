@@ -47,6 +47,10 @@ jobs:
       - run: python -m app.cloud answer
         env:
           ANSWERS: ${{ inputs.answers }}
+      # His popup notes, read by Claude Haiku on the plan's API credit. Skipped without the key.
+      - run: python -m app.cloud readnotes
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - run: python -m app.cloud run
       - run: python -m app.cloud seal
       - run: gh release upload db finance.db.enc --clobber

@@ -83,7 +83,7 @@ def _owed(conn) -> tuple[dict | None, dict]:
             "SELECT t.amount, t.pending, t.pfc_primary, t.pfc_detailed, t.is_transfer, t.transfer_kind,"
             " COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, NULL AS tag,"
             " COALESCE(t.authorized_date, t.date) AS date, ans.who, ans.answered_on, ans.share,"
-            " ans.plaid_transaction_id AS pid"
+            " ans.plaid_transaction_id AS pid, ans.reply"
             " FROM answers ans JOIN transactions t ON t.plaid_transaction_id = ans.plaid_transaction_id"
             " WHERE ans.answer = 'split'"):
         r = dict(r)
@@ -97,7 +97,8 @@ def _owed(conn) -> tuple[dict | None, dict]:
         asks.append({"who": r["who"], "what": r["what"] or "Shared charge",
                      "amount": round(r["share"] if r["share"] is not None else full / 2, 2),
                      "since": r["answered_on"],
-                     "note": "pending, tip estimated" if r["pending"] else ""})
+                     "note": "; ".join(x for x in ("pending, tip estimated" if r["pending"] else "",
+                                                     f"Claude: {r['reply']}" if r["reply"] else "") if x)})
     paid_for: dict[str, list[str]] = {}  # Zelle id -> what it paid for
     if not asks:
         return None, paid_for
@@ -139,6 +140,84 @@ def _owed(conn) -> tuple[dict | None, dict]:
                 paid_for.setdefault(z["pid"], []).append(a["what"])
             keep(a, need)
     return ({"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None), paid_for
+
+
+# Reads his popup notes with Claude, paid from the API credit that comes with his plan.
+# Haiku is plenty for "she pays 13.18": one short call per note, a fraction of a cent.
+NOTE_MODEL = "claude-haiku-5-5"
+NOTE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "answer": {"type": "string", "enum": ["keep", "split", "solo", "settled"]},
+        "change_share": {"type": "boolean"},
+        "share": {"type": "number"},
+        "change_who": {"type": "boolean"},
+        "who": {"type": "string"},
+        "reply": {"type": "string"},
+    },
+    "required": ["answer", "change_share", "share", "change_who", "who", "reply"],
+    "additionalProperties": False,
+}
+NOTE_RULES = """You read one short note Eddie typed when his budgeting app asked whether a charge was split.
+Decide what the note changes about money owed back to him for that charge, nothing else.
+
+- answer: "split" if someone owes him part of it, "solo" if it was just him, "settled" if it was split but
+  already paid back (cash, they paid him already), "keep" to leave his original answer as is.
+- share: what the OTHER person owes him in dollars, only when the note gives or implies an amount
+  (e.g. "I'm paying 17, she pays 13.18" -> 13.18; "she owes a third" -> a third of the total). Otherwise
+  set change_share false and share 0.
+- who: the other person's first name if the note names them, else change_who false and who "".
+- reply: one short sentence to Eddie saying what you changed, or that the note was just noted.
+If the note is only context or unclear, change nothing ("keep", both flags false)."""
+
+
+def read_notes(limit: int = 10) -> None:
+    """In the workflow: turn new popup notes into share/who/answer changes. Needs ANTHROPIC_API_KEY."""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return
+    import anthropic
+
+    db.migrate()
+    client = anthropic.Anthropic()
+    done = 0
+    with db.connect() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT a.plaid_transaction_id AS pid, a.answer, a.share, a.who, a.note,"
+            " COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, t.amount, t.pending,"
+            " t.pfc_primary, t.pfc_detailed, t.is_transfer, t.transfer_kind, NULL AS tag"
+            " FROM answers a JOIN transactions t ON t.plaid_transaction_id = a.plaid_transaction_id"
+            " WHERE a.note IS NOT NULL AND TRIM(a.note) <> '' AND a.note_done = 0 LIMIT ?", (limit,))]
+        for r in rows:
+            full = round(-float(r["amount"]) + wallet._tip(r), 2)
+            pending = " (pending, tip estimated)" if r["pending"] else ""
+            share = f"${r['share']:.2f}" if r["share"] is not None else "half"
+            ask = (f"Charge: {r['what']}, ${full:.2f}{pending}.\n"
+                   f"His answer: {r['answer']}, other person's share: {share}.\n"
+                   f"His note: {r['note']}")
+            try:
+                res = client.messages.create(
+                    model=NOTE_MODEL, max_tokens=4000, system=NOTE_RULES,
+                    output_config={"effort": "low", "format": {"type": "json_schema", "schema": NOTE_SCHEMA}},
+                    messages=[{"role": "user", "content": ask}],
+                )
+            except anthropic.APIError:
+                continue  # tried again next run
+            if res.stop_reason != "end_turn":
+                conn.execute("UPDATE answers SET note_done = 1, reply = ? WHERE plaid_transaction_id = ?",
+                             ("Couldn't read this note; Claude will look at it with you.", r["pid"]))
+                continue
+            out = json.loads(next(b.text for b in res.content if b.type == "text"))
+            answer = r["answer"] if out["answer"] == "keep" else out["answer"]
+            share = r["share"]
+            if out["change_share"] and 0 <= out["share"] <= full + 0.01:
+                share = round(out["share"], 2)
+            who = out["who"][:40] if out["change_who"] and out["who"].strip() else r["who"]
+            conn.execute("UPDATE answers SET answer = ?, share = ?, who = ?, reply = ?, note_done = 1"
+                         " WHERE plaid_transaction_id = ?",
+                         (answer, share, who if answer == "split" else None, out["reply"][:300], r["pid"]))
+            done += 1
+        conn.commit()
+    print(f"notes read: {done}")  # the log is public: counts only
 
 
 NOTES_SEEN = ROOT / "notes_seen.json"
@@ -319,6 +398,8 @@ if __name__ == "__main__":
         run()
     elif cmd == "answer":
         answer(os.environ.get("ANSWERS", ""))
+    elif cmd == "readnotes":
+        read_notes()
     elif cmd == "notes":
         notes()
     elif cmd == "owe":

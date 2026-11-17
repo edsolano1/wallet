@@ -3,3 +3,4 @@ uvicorn[standard]==0.34.0
 python-dotenv==1.0.1
 plaid-python==27.0.0
 cryptography==50.0.2
+anthropic==2.9.0
