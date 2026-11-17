@@ -80,9 +80,21 @@ def owed(conn) -> dict | None:
         asks.append({"who": r["who"] or wallet.SPLIT_WITH, "what": r["what"] or "Shared charge",
                      "amount": round(full / 2, 2), "since": r["answered_on"],
                      "note": "pending, tip estimated" if r["pending"] else ""})
-    if not asks:
-        return None
+    # A card credit he is expecting (rewards redeemed as a statement credit) clears
+    # when a credit of that amount lands on a card; it then counts as money back.
+    cards = [a for a in asks if a.get("card")]
+    asks = [a for a in asks if not a.get("card")]
     items = []
+    for a in cards:
+        landed = conn.execute(
+            "SELECT 1 FROM transactions t JOIN accounts ac ON ac.id = t.account_id"
+            " WHERE ac.type = 'credit' AND ABS(t.amount - ?) < 0.01 AND t.date >= ?",
+            (a["amount"], a["since"])).fetchone()
+        if not landed:
+            items.append({"who": a["who"], "what": a["what"], "amount": a["amount"], "left": a["amount"],
+                          "since": a["since"], "note": a.get("note", "")})
+    if not asks and not items:
+        return None
     for who in dict.fromkeys(a["who"] for a in asks):
         mine = sorted((a for a in asks if a["who"] == who), key=lambda a: a["since"])
         match = mine[0].get("match", who).lower()
