@@ -99,9 +99,12 @@ BALANCE_HAS_PENDING = {"2098"}
 # month it usually lands, `every`+`anchor` a fixed cycle, `once` a one-off. A bill counts as
 # paid when a charge matching `match` (a regex on the merchant) for between lo and hi lands
 # from 12 days before to 5 days after it's due. `card` bills land on a card, not checking.
+# `sum` bills are paid in pieces (gas and electric go to Denisse as two Zelles, $11.28 and
+# $43.15 on Nov 13), so every matching payment up to `each_hi` in that window adds up.
 BILLS = [
     {"what": "Rent", "amount": 542.00, "day": 20, "match": r"zelle payment to denisse", "lo": 541, "hi": 543},
-    {"what": "Gas & electric (your half)", "amount": 110.00, "day": 16, "match": r"zelle payment to denisse", "lo": 80, "hi": 140, "est": True},
+    {"what": "Gas & electric (your half)", "amount": 110.00, "day": 16, "match": r"zelle payment to denisse", "lo": 30, "hi": 250,
+     "sum": True, "each_hi": 200, "est": True},
     {"what": "Verizon", "amount": 107.46, "day": 19, "match": r"verizon", "lo": 80, "hi": 140},
     {"what": "Anthropic", "amount": 109.10, "day": 20, "match": r"anthropic", "lo": 15, "hi": 250, "card": True},
     {"what": "Spotify", "amount": 14.17, "day": 24, "match": r"spotify", "lo": 5, "hi": 30, "card": True},
@@ -112,7 +115,8 @@ BILLS = [
     {"what": "Car wash", "amount": 21.00, "every": 28, "anchor": date(2026, 11, 13), "match": r"cobblestone", "lo": 15, "hi": 30, "card": True},
     {"what": "GEICO, paid in full", "amount": 1257.50, "once": date(2026, 12, 26), "match": r"geico", "lo": 1000, "hi": 1500},
 ]
-CARD_NAMES = {"9203": "Chase card", "2098": "MGM card", "1271": "Samsung card", "4713": "Amazon card"}
+# His names for his accounts.
+NICKNAMES = {"7372": "Chase Checking", "9203": "Sapphire", "2098": "MGM Card", "1271": "Samsung Card", "4713": "Amazon Card"}
 LATER_MIN = 200.00  # past the next payday, only bills this big are worth a heads-up
 
 
@@ -159,7 +163,7 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
         waiting = [e for e in _expected(conn, today - timedelta(days=21), today + timedelta(days=1)) if e["mask"] == a["mask"]]
         owe += sum(-float(e["amount"]) + _tip(e) for e in waiting)
         if abs(owe) >= 0.01:
-            cards.append({"name": CARD_NAMES.get(a["mask"], a["official_name"] or a["name"]), "mask": a["mask"], "owe": round(owe, 2),
+            cards.append({"name": NICKNAMES.get(a["mask"], a["official_name"] or a["name"]), "mask": a["mask"], "owe": round(owe, 2),
                           "pending": len(pend) + len(waiting)})
     cards.sort(key=lambda c: -c["owe"])
     card_total = round(sum(c["owe"] for c in cards), 2)
@@ -175,11 +179,18 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
         for bill in BILLS:
             for due in _due_dates(bill, a, b):
                 lo, hi = (due - timedelta(days=12)).isoformat(), (due + timedelta(days=5)).isoformat()
-                hit = next((t for t in lands if t["pid"] not in used and lo <= t["day"] <= hi
-                            and bill["lo"] <= t["amt"] <= bill["hi"]
-                            and any(re.search(bill["match"], part.strip()) for part in t["what"].split("|"))), None)
-                if hit:
-                    used.add(hit["pid"])
+                like = [t for t in lands if t["pid"] not in used and lo <= t["day"] <= hi
+                        and any(re.search(bill["match"], part.strip()) for part in t["what"].split("|"))]
+                if bill.get("sum"):
+                    parts = [t for t in like if t["amt"] <= bill["each_hi"]]
+                    total = sum(t["amt"] for t in parts)
+                    hit = {"amt": total} if bill["lo"] <= total <= bill["hi"] else None
+                    if hit:
+                        used.update(t["pid"] for t in parts)
+                else:
+                    hit = next((t for t in like if bill["lo"] <= t["amt"] <= bill["hi"]), None)
+                    if hit:
+                        used.add(hit["pid"])
                 items.append({"what": bill["what"], "due": due.isoformat(), "card": bool(bill.get("card")),
                               "amount": round(hit["amt"] if hit else bill["amount"], 2), "paid": bool(hit),
                               "est": bool(bill.get("est")) and not hit})
@@ -200,7 +211,7 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
     due_next = sum(i["amount"] for i in next_items if not i["paid"])
     left_next = left_now + paycheck - due_next - spend_next
     return {
-        "account": f'{acct["name"].title()} ··{acct["mask"]}' if acct else "Checking",
+        "account": f'{NICKNAMES.get(acct["mask"], acct["name"].title())} ··{acct["mask"]}' if acct else "Checking",
         "cash": round(cash, 2), "cards": cards, "card_total": card_total,
         "now": {"from": start.isoformat(), "to": (nxt - timedelta(days=1)).isoformat(), "items": now_items,
                 "due": round(due_now, 2), "spend": round(spend_now, 2), "left": round(left_now, 2),

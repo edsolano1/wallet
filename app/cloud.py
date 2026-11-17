@@ -351,7 +351,7 @@ def snapshot(conn, today: date) -> dict:
         "spent_3d": cost([r for r in counted if r["date"] >= three.isoformat()]),
         "charges": charges,
         "needs": needs,
-        "accounts": [{"name": r["name"], "mask": r["mask"], "type": r["type"],
+        "accounts": [{"name": wallet.NICKNAMES.get(r["mask"], r["name"]), "mask": r["mask"], "type": r["type"],
                       "balance": r["available_balance"] if r["type"] == "depository" and r["available_balance"] is not None else r["current_balance"],
                       "as_of": r["last_synced_at"]}
                      for r in conn.execute(

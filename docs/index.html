@@ -394,7 +394,8 @@ details.fold.sub[open]{padding-bottom:4px}
       owed?`About ${money(N.left_if_owed)} once the ${money(owed)} owed to you comes in.`:"");
     $("bills-now").querySelector(".fundrow b").style.color=N.left<0?"var(--bad)":"";
     L1.append(row(b.account,money(b.cash),"in checking now","",tone(b.cash)));
-    b.cards.forEach(c=>L1.append(row(`${c.name} ··${c.mask}`,out(c.owe),c.owe<0?"credit on the card":`balance to pay off${c.pending?` · ${c.pending} not posted yet`:""}`,"",outTone(c.owe))));
+    // All the cards as one bill: he pays them off together.
+    if(b.cards.length)L1.append(row("Credit cards",out(b.card_total),b.cards.map(c=>`${c.name} ${c.owe<0?"+"+money(-c.owe):money(c.owe)}`).join(" · "),"",outTone(b.card_total)));
     N.items.forEach(i=>L1.append(bill(i)));
     if(N.spend>0)L1.append(row("Rest of your spending money",out(N.spend),"before payday","","out"));
     L1.append(row("Left",money(N.left),"",'sum',tone(N.left)));
