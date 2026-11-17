@@ -10,16 +10,16 @@
 <style>
 :root{
   --bg:#F2F4F1; --surface:#FFFFFF; --line:#DCE2DD; --fg:#15201A; --muted:#5D6A62;
-  --accent:#1F6E48; --accent-soft:#E2EFE7; --warn:#A86A12; --warn-soft:#F7EBD6; --bad:#B3261E; --bad-soft:#F8E1DF;
+  --accent:#1F6E48; --accent-soft:#E2EFE7; --warn:#A86A12; --warn-soft:#F7EBD6; --bad:#B3261E; --bad-soft:#F8E1DF; --tent:#3E6FD8; --tent-soft:#E1E9FA;
   --display:"Archivo","Helvetica Neue",Arial,sans-serif;
   --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0E1411; --surface:#161F1A; --line:#26322B; --fg:#E5EDE8; --muted:#90A097;
-  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; color-scheme:dark}}
+  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0E1411; --surface:#161F1A; --line:#26322B; --fg:#E5EDE8; --muted:#90A097;
-  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; color-scheme:dark}
+  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--fg);margin:0}
 body{font-family:var(--body);font-size:15px;line-height:1.45;padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
@@ -70,7 +70,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 #pull.spin svg{animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .track{position:relative;height:12px;border-radius:999px;background:var(--line);margin-top:14px}
-.track i{position:absolute;top:0;bottom:0;left:0;border-radius:999px 0 0 999px}
+.track .fill{position:absolute;inset:0;border-radius:999px;overflow:hidden}
+.track i{position:absolute;top:0;bottom:0;left:0}
+#bar-tent{background:var(--tent)}
+#bar-cushion{background:repeating-linear-gradient(135deg,var(--tent) 0 3px,transparent 3px 7px);opacity:.55}
+#bar-over{background:var(--bad)}
+.big.tent{color:var(--tent)} .pill.tent{background:var(--tent-soft);color:var(--tent)}
 .track .cap{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--fg);border-radius:2px}
 .tracklab{position:relative;height:18px;font-size:12px;color:var(--muted);margin-top:4px}
 .tracklab span{position:absolute;white-space:nowrap}
@@ -113,7 +118,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="big skel" id="big">$—</div>
     <div class="tentative" id="tentative" hidden></div>
     <span class="pill" id="pill" hidden></span>
-    <div class="track" aria-hidden="true"><i id="bar-ok"></i><i id="bar-over" style="background:var(--bad);border-radius:0 999px 999px 0"></i><b class="cap" id="bar-cap" hidden></b></div>
+    <div class="track" aria-hidden="true"><div class="fill"><i id="bar-ok"></i><i id="bar-tent"></i><i id="bar-cushion"></i><i id="bar-over"></i></div><b class="cap" id="bar-cap" hidden></b></div>
     <div class="tracklab" id="tracklab"></div>
     <details class="owed" id="owed" hidden>
       <summary><span>Owed to you</span><b id="owed-total">—</b><i aria-hidden="true">›</i></summary>
@@ -212,12 +217,15 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 
   let last=null;
   function render(w){last=w;
-    const left=w.left, cap=w.allowance;
+    // The big number counts money people owe him (tentative). The confirmed figure
+    // sits under it, and the owed part shows on the bar in blue until it lands.
+    const cap=w.allowance, owed=(w.owed&&w.owed.total)||0, real=w.left, left=real+owed;
     let tone="",pill="";
     if(left<0){tone="bad";pill="Over until payday by "+money(-left)}
+    else if(real<0){tone="tent";pill=`Counts on ${money(owed)} owed to you`}
     else if(left<cap*0.1){tone="warn";pill="Running low"}
     $("big").textContent=money(Math.max(left,0));$("big").className="big "+tone;
-    $("eyebrow").textContent=left<0?"Out of spending money":"Left until payday";
+    $("eyebrow").textContent=left<0?"Out of spending money":owed>0?"Left until payday · tentative":"Left until payday";
     const d=w.days_to_payday, next=day(w.next_payday).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
     $("sub").textContent=`${money(w.spent-w.paid_back)} of ${money(cap)} spent since payday. Next check ${next}, ${d} day${d===1?"":"s"} away.`;
     const parts=[];
@@ -227,15 +235,29 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
-    // The bar is the whole paycheck's spending money; past the line it's red.
-    const used=Math.max(w.spent-w.paid_back,0), scale=Math.max(used,cap,1), capPct=cap/scale*100;
-    $("bar-ok").style.width=Math.min(used,cap)/scale*100+"%";$("bar-ok").style.background=tone==="warn"?"var(--warn)":"var(--accent)";
-    $("bar-over").style.left=capPct+"%";$("bar-over").style.width=Math.max(used-cap,0)/scale*100+"%";
-    if(used<=cap)$("bar-ok").style.borderRadius="999px";
-    $("bar-cap").hidden=used<=cap;$("bar-cap").style.left=`calc(${capPct}% - 1px)`;
+    // The bar is the paycheck's spending money. Green is spending inside the budget, blue
+    // is the cushion of money owed to him (solid where spending already leans on it,
+    // striped where it's still free), red is spending past both. As paybacks land, the
+    // spending shrinks and the blue turns back into green.
+    const used=Math.max(w.spent-w.paid_back,0), roof=cap+owed, scale=Math.max(used,roof,1);
+    const pct=v=>Math.max(v,0)/scale*100+"%", seg=(id,from,width)=>{$(id).style.left=pct(from);$(id).style.width=pct(width)};
+    seg("bar-ok",0,Math.min(used,cap));$("bar-ok").style.background=tone==="warn"?"var(--warn)":"var(--accent)";
+    seg("bar-tent",cap,Math.min(used,roof)-cap);
+    seg("bar-cushion",Math.max(used,cap),roof-Math.max(used,cap));
+    seg("bar-over",roof,used-roof);
+    const capPct=cap/scale*100, roofPct=roof/scale*100;
+    $("bar-cap").hidden=used<=cap&&!owed;$("bar-cap").style.left=`calc(${capPct}% - 1px)`;
     const lab=$("tracklab");lab.innerHTML="";
-    if(used>cap){const a=el("span",null,money(cap)+" to spend");a.style.right=(100-capPct)+"%";const b=el("span",null,"+"+money(used-cap)+" over");b.style.right="0";b.style.color="var(--bad)";b.style.fontWeight="600";lab.append(a);if(100-capPct>28)lab.append(b);else a.textContent=money(cap)+" budget · +"+money(used-cap)+" over"}
-    else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
+    const at=(text,rightPct,color)=>{const s=el("span",null,text);s.style.right=rightPct+"%";if(color){s.style.color=color;s.style.fontWeight="600"}lab.append(s);return s};
+    if(used>roof){
+      const tail=`+${money(used-roof)} over`;
+      if(100-roofPct>28){at(owed?`${money(cap)} + ${money(owed)} owed`:`${money(cap)} to spend`,100-roofPct);at(tail,0,"var(--bad)")}
+      else at((owed?`${money(cap)} + ${money(owed)} owed · `:`${money(cap)} budget · `)+tail,0,"var(--bad)");
+    }else if(owed){
+      const rest=`${money(owed)} owed · ${money(roof-Math.max(used,cap))} free`;
+      if(capPct>22&&100-capPct>40){at(`${money(cap)} budget`,100-capPct);at(rest,0,"var(--tent)")}
+      else at(`${money(cap)} budget + ${rest}`,0,"var(--tent)");
+    }else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
     $("t-today").textContent=money(w.spent_today)+" today";
     if(w.needs)$("t-needs").textContent=money(w.needs.reduce((s,n)=>s+n.left,0));
     if(w.fund)$("t-fund").textContent=money(w.fund.left);
@@ -288,8 +310,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Money people owe him: possible money back, in neutral colors, until the Zelle lands.
   function drawOwed(w){
     const o=w.owed;$("owed").hidden=$("tentative").hidden=!(o&&o.items.length);if($("owed").hidden)return;
-    const t=w.left+o.total;
-    $("tentative").innerHTML=`Tentatively <b>${t<0?"−":""}$${Math.round(Math.abs(t)).toLocaleString("en-US")}</b> once what you're owed comes in`;
+    $("tentative").innerHTML=`Confirmed <b>${w.left<0?"−":""}$${Math.round(Math.abs(w.left)).toLocaleString("en-US")}</b> · ${money(o.total)} still owed to you`;
     const cents=n=>"$"+n.toFixed(2);
     $("owed-total").textContent=cents(o.total);
     $("owed-sub").textContent=`Not counted yet. If it all comes in, you'd be at ${money(w.left+o.total)}.`;
