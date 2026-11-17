@@ -118,6 +118,11 @@ details.fold>summary::-webkit-details-marker{display:none}
 details.fold>summary>i{position:absolute;right:0;top:0;font-style:normal;font-size:20px;line-height:1;color:var(--muted);transition:transform .2s}
 details.fold[open]>summary>i{transform:rotate(90deg)}
 details.fold[open]>summary{margin-bottom:6px}
+details.fold.card{gap:0}
+details.fold[open].card{gap:10px}
+details.fold .inner{display:flex;flex-direction:column;gap:10px}
+details.fold.sub{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+details.fold.sub[open]{padding-bottom:4px}
 .foldrow{display:flex;align-items:center;gap:8px}
 .foldrow h2{margin:0}
 .foldrow b{margin-left:auto;font-size:14px;color:var(--muted);font-weight:600}
@@ -142,51 +147,41 @@ details.fold[open]>summary{margin-bottom:6px}
       <div class="list" id="owed-list"></div>
     </details>
   </section>
-  <div class="tiles">
-    <button class="tile wide" data-go="bills" id="t-bills-tile" hidden><div><span>Upcoming bills</span><b id="t-bills">—</b></div><em id="t-bills-left"></em></button>
-    <button class="tile" data-go="needs"><span>Groceries &amp; gas left</span><b id="t-needs">—</b></button>
-    <button class="tile" data-go="fund"><span>Black Friday Fund</span><b id="t-fund">—</b></button>
-    <button class="tile" data-go="accounts"><span>Accounts</span><b id="t-acct">—</b></button>
-    <button class="tile" data-go="details"><span>Details</span><b id="t-today">—</b></button>
-  </div>
   <div class="msg" id="msg" hidden></div>
-  <details class="fold card" id="recent"><summary><div class="foldrow"><h2>Recent charges</h2><b id="recent-n"></b></div><i aria-hidden="true">›</i></summary>
-  <div class="list" id="list"></div></details>
-  <div class="meta"><span id="updated"></span></div>
-  </div>
-  <div data-view="needs" hidden><button class="back" data-go="">‹ Back</button>
-  <section class="card" id="needs-card" hidden>
+  <details class="fold card" id="t-bills-tile" hidden><summary><div class="foldrow"><h2>Upcoming bills</h2><b id="t-bills">—</b></div><i aria-hidden="true">›</i></summary>
+  <details class="fold sub" id="bills-now"></details>
+  <details class="fold sub" id="bills-next"></details>
+  <details class="fold sub" id="bills-later" hidden></details>
+  <p class="note">Cards count everything you've bought, posted or not, plus tips not added yet, because you pay them off right away. A bill is marked paid when it shows up at your bank. Gas &amp; electric is an estimate until your Zelle goes out. Spending money is your $785 a paycheck.</p>
+  </details>
+  <details class="fold card" id="f-needs"><summary><div class="foldrow"><h2>Groceries &amp; gas</h2><b id="t-needs">—</b></div><i aria-hidden="true">›</i></summary>
+  <section class="inner" id="needs-card" hidden>
     <div class="ringrow">
       <svg id="ring" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true"></svg>
       <div class="legend" id="legend"></div>
     </div>
     <div class="needs" id="needs"></div>
   </section>
-  </div>
-  <div data-view="fund" hidden><button class="back" data-go="">‹ Back</button>
-  <section class="card" id="fund-card" hidden>
-    <div class="eyebrow">Black Friday Fund</div>
+  </details>
+  <details class="fold card" id="f-fund"><summary><div class="foldrow"><h2>Black Friday Fund</h2><b id="t-fund">—</b></div><i aria-hidden="true">›</i></summary>
+  <section class="inner" id="fund-card" hidden>
     <div class="fundrow"><b id="fund-left">—</b><span id="fund-sub"></span></div>
     <div class="bar"><i id="fund-bar" style="width:0;background:var(--warn)"></i></div>
     <div class="setaside" id="fund-items"></div>
   </section>
-  </div>
-  <div data-view="accounts" hidden><button class="back" data-go="">‹ Back</button>
-  <section class="card" id="acct-card" hidden>
-    <div class="eyebrow">Accounts</div>
+  </details>
+  <details class="fold card" id="recent"><summary><div class="foldrow"><h2>Recent charges</h2><b id="recent-n">—</b></div><i aria-hidden="true">›</i></summary>
+  <div class="list" id="list"></div>
+  </details>
+  <details class="fold card" id="f-acct"><summary><div class="foldrow"><h2>Accounts</h2><b id="t-acct">—</b></div><i aria-hidden="true">›</i></summary>
+  <section class="inner" id="acct-card" hidden>
     <div class="list" id="accts"></div>
     <div class="eyebrow" style="margin-top:6px">Your transfers, last 3 weeks</div>
     <div class="list" id="moves"></div>
   </section>
-  </div>
-  <div data-view="bills" hidden><button class="back" data-go="">‹ Back</button>
-  <details class="card fold" id="bills-now"></details>
-  <details class="card fold" id="bills-next"></details>
-  <details class="card fold" id="bills-later" hidden></details>
-  <p class="note">Cards count everything you've bought, posted or not, plus tips not added yet, because you pay them off right away. A bill is marked paid when it shows up at your bank. Gas &amp; electric is an estimate until your Zelle goes out. Spending money is your $785 a paycheck.</p>
-  </div>
-  <div data-view="details" hidden><button class="back" data-go="">‹ Back</button>
-  <section class="card">
+  </details>
+  <details class="fold card" id="f-details"><summary><div class="foldrow"><h2>Details</h2><b id="t-today">—</b></div><i aria-hidden="true">›</i></summary>
+  <section class="inner">
     <div class="sub" id="sub">Loading…</div>
     <div class="setaside" id="setaside" hidden></div>
     <div class="stats">
@@ -198,6 +193,8 @@ details.fold[open]>summary{margin-bottom:6px}
   <div class="meta"><span></span><button class="link" id="refresh">Reload page</button></div>
   <p class="note">Pending restaurant, bar and salon charges of $30+ get a 20% tip estimate until they post; counter service never does. Bills, rent, loans, subscriptions, parking, card payments and transfers never count. Paybacks go back in. Leftover from last paycheck rolls in; an overspend comes out.</p>
   <p class="note">Numbers come from your banks through Plaid. Tap the round arrow to pull right now.</p>
+  </details>
+  <div class="meta"><span id="updated"></span></div>
   </div>
 </div>
 <div class="sheet" id="sheet" hidden><section class="card">
@@ -287,7 +284,7 @@ details.fold[open]>summary{margin-bottom:6px}
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash);
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);ask(w);
-    const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`${w.charges.length} · latest ${fmt(w.charges[0].date)}`:"";
+    const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`latest ${fmt(w.charges[0].date)}`:"";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
       const r=document.createElement("div");r.className="row";
@@ -377,8 +374,7 @@ details.fold[open]>summary{margin-bottom:6px}
   function drawBills(w){
     const b=w.bills;$("t-bills-tile").hidden=!b;if(!b)return;
     const span=c=>`${fmt(c.from)} – ${fmt(c.to)}`;
-    $("t-bills").textContent=money(b.now.due+b.card_total)+" to pay";
-    $("t-bills-left").innerHTML=`left after<b>${money(b.now.left)}</b>`;
+    $("t-bills").textContent=money(b.now.left)+" left after";
     const row=(m,a,d,cls)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",m),el("div","a",a),el("div","d",d||""));return r};
     const out=n=>(n>0?"−":"+")+money(Math.abs(n));
     const bill=i=>row(i.what,i.paid?money(i.amount):out(i.amount),
