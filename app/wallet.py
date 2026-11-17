@@ -55,7 +55,21 @@ def is_gas_station(row) -> bool:
     return any(x in raw for x in GAS_STATIONS_LIKE)
 
 # Online grocery orders the bank files elsewhere (Beyond's Shopify store).
-GROCERY_LIKE = ("beyond plant", "beyond meat", "beyondmeat")
+GROCERY_LIKE = ("beyond plant", "beyond meat", "beyondmeat", "watermill")  # Watermill Express: drinking water
+
+# Pending holds bigger than the real charge: (merchant fragment, hold, what it really costs).
+# Watermill Express holds $3.00 and settles at $1.75.
+HOLDS = [("watermill", 3.00, 1.75)]
+
+
+def _real_amount(row: dict) -> dict:
+    """Swap a known pending hold for what the charge will actually settle at."""
+    if row.get("pending"):
+        name = ((row.get("what") or "") + " " + (row.get("raw_name") or "")).lower()
+        for frag, hold, real in HOLDS:
+            if frag in name and abs(-float(row["amount"]) - hold) < 0.01:
+                row["amount"] = -real
+    return row
 
 
 def is_grocery(row) -> bool:
@@ -135,9 +149,12 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
         pend = [dict(r) for r in conn.execute(
             "SELECT amount, pfc_primary, pfc_detailed, COALESCE(merchant_name, name) AS what, name AS raw_name,"
             " 1 AS pending FROM transactions WHERE account_id = ? AND pending = 1", (a["id"],))]
+        held = sum(float(p["amount"]) for p in pend)
+        pend = [_real_amount(p) for p in pend]
         owe = float(a["current_balance"] or 0)
         if a["mask"] not in BALANCE_HAS_PENDING:
-            owe -= sum(float(p["amount"]) for p in pend)
+            owe -= held
+        owe -= sum(float(p["amount"]) for p in pend) - held  # a hold that will settle smaller
         owe += sum(_tip(p) for p in pend)
         waiting = [e for e in _expected(conn, today - timedelta(days=21), today + timedelta(days=1)) if e["mask"] == a["mask"]]
         owe += sum(-float(e["amount"]) + _tip(e) for e in waiting)
@@ -445,7 +462,7 @@ def _expected(conn, start: date, end: date) -> list[dict]:
 
 def _rows(conn, start: date, end: date) -> list[dict]:
     return _expected(conn, start, end) + [
-        dict(r)
+        _real_amount(dict(r))
         for r in conn.execute(
             "SELECT t.amount, COALESCE(t.authorized_date, t.date) AS date, t.date AS posted, t.pending, t.is_transfer, t.pfc_primary,"
             " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name,"
