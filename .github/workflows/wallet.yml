@@ -9,6 +9,10 @@ on:
         description: "Answers from the wallet page (JSON)"
         required: false
         default: ""
+      live:
+        description: "1 = have Plaid check the banks now (he tapped refresh)"
+        required: false
+        default: ""
   push:
     branches: [main]
 
@@ -52,6 +56,8 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - run: python -m app.cloud run
+        env:
+          LIVE: ${{ inputs.live }}
       - run: python -m app.cloud seal
       - run: gh release upload db finance.db.enc --clobber
 

@@ -10,6 +10,8 @@ from plaid.model.products import Products
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.item_get_request import ItemGetRequest
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
+from plaid.model.transactions_refresh_request import TransactionsRefreshRequest
+from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 
 from . import config
 
@@ -50,6 +52,18 @@ def exchange_public_token(public_token: str) -> tuple[str, str]:
 
 def get_accounts(access_token: str) -> list[dict]:
     res = client().accounts_get(AccountsGetRequest(access_token=access_token))
+    return res.to_dict()["accounts"]
+
+
+def refresh_transactions(access_token: str) -> None:
+    """Ask Plaid to check the bank for new transactions now instead of on its own schedule.
+    It answers right away and fetches in the background; a /transactions/sync after picks it up."""
+    client().transactions_refresh(TransactionsRefreshRequest(access_token=access_token))
+
+
+def get_live_balances(access_token: str) -> list[dict]:
+    """Balances read from the bank right now (/accounts/balance/get), not Plaid's cached copy."""
+    res = client().accounts_balance_get(AccountsBalanceGetRequest(access_token=access_token))
     return res.to_dict()["accounts"]
 
 

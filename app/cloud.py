@@ -378,7 +378,7 @@ def run() -> None:
     from . import sync, transfers
 
     db.migrate()
-    out = sync.sync_all()
+    out = sync.sync_all(live=os.environ.get("LIVE") == "1")
     sync.backfill_purchase_dates()
     out["transfers"] = transfers.run()
     print(json.dumps({k: v for k, v in out.items() if k != "transfers"}))  # counts only, no money

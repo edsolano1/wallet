@@ -12,6 +12,7 @@ and sends a new posted one carrying pending_transaction_id. We match on that and
 replace the row, keeping whatever category was already assigned.
 """
 
+import time
 from . import db, plaid_client
 
 
@@ -95,7 +96,7 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
     return True
 
 
-def sync_item(item_row) -> dict:
+def sync_item(item_row, live: bool = False) -> dict:
     """Pull every page for one bank. Returns a small summary for the page to show."""
     added = modified = removed = 0
     cursor = item_row["sync_cursor"]
@@ -138,9 +139,16 @@ def sync_item(item_row) -> dict:
                 if not has_more:
                     break
             # Balances only arrived at link time before; refresh them every sync. The
-            # cached balance from /accounts/get costs nothing extra on Plaid.
+            # cached balance from /accounts/get costs nothing extra on Plaid. When he
+            # taps refresh, read them live from the bank instead (a small Plaid fee).
+            accts = None
+            if live:
+                try:
+                    accts = plaid_client.get_live_balances(access_token)
+                except Exception:
+                    accts = None  # not enabled or the bank is slow: fall back to the cached copy
             try:
-                for a in plaid_client.get_accounts(access_token):
+                for a in accts or plaid_client.get_accounts(access_token):
                     b = a.get("balances") or {}
                     conn.execute(
                         "UPDATE accounts SET current_balance = ?, available_balance = ?,"
@@ -190,13 +198,26 @@ def backfill_purchase_dates(days: int = 60) -> int:
         return fixed
 
 
-def sync_all() -> dict:
+LIVE_WAIT = 30  # seconds
+
+
+def sync_all(live: bool = False) -> dict:
+    """live: he tapped refresh, so have Plaid check each bank now before syncing."""
     with db.connect() as conn:
         items = [dict(r) for r in conn.execute("SELECT * FROM items")]
-    totals = {"added": 0, "modified": 0, "removed": 0, "banks": 0, "errors": []}
+    totals = {"added": 0, "modified": 0, "removed": 0, "banks": 0, "errors": [], "rechecked": 0}
+    if live:
+        for item in items:
+            try:
+                plaid_client.refresh_transactions(item["access_token"])
+                totals["rechecked"] += 1
+            except Exception:
+                pass  # not enabled on the Plaid plan, or the bank refused: the normal sync still runs
+        if totals["rechecked"]:
+            time.sleep(LIVE_WAIT)  # Plaid fetches in the background; give it a moment
     for item in items:
         try:
-            out = sync_item(item)
+            out = sync_item(item, live)
             for k in ("added", "modified", "removed"):
                 totals[k] += out[k]
             totals["banks"] += 1

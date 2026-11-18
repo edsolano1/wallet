@@ -457,18 +457,24 @@ details.fold.sub[open]{padding-bottom:4px}
     const queue=store("wallet.queue")||[];
     let t=null;try{t=localStorage.getItem("wallet.gh")}catch(e){}
     if(!t){t=(prompt("Paste your GitHub key (one time only)")||"").trim();if(!t)return;try{localStorage.setItem("wallet.gh",t)}catch(e){}}
-    msg(withAnswers?"Saving your answers...":"Asking your banks...");
+    msg(withAnswers?"Saving your answers...":"Asking your banks to check for new charges...");
     const r=await fetch("https://api.github.com/repos/edsolano1/wallet/actions/workflows/wallet.yml/dispatches",
-      {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify({ref:"main",inputs:{answers:JSON.stringify(queue)}})}).catch(()=>null);
+      {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify({ref:"main",inputs:{answers:JSON.stringify(queue),live:withAnswers?"":"1"}})}).catch(()=>null);
     if(r&&r.ok)store("wallet.queue",[]);
     if(!r||!r.ok){if(r&&r.status===401){try{localStorage.removeItem("wallet.gh")}catch(e){}}msg("Couldn't start it"+(r?" ("+r.status+")":"")+". Tap again to retry.");return}
     const before=await fetch("wallet.enc?t="+Date.now(),{cache:"no-store"}).then(x=>x.text()).catch(()=>"");
-    msg("Pulling... about 1-2 minutes.");
+    msg(withAnswers?"Pulling... about 1-2 minutes.":"Checking the banks... about 2 minutes.");
     for(let i=0;i<20;i++){await new Promise(z=>setTimeout(z,15000));
       const now=await fetch("wallet.enc?t="+Date.now(),{cache:"no-store"}).then(x=>x.text()).catch(()=>before);
       if(now!==before){await load();msg("Up to date.");setTimeout(()=>msg(""),4000);return}}
     msg("Still running. Tap Refresh in a minute.");
   }
+  // Pull down from the top of the page to do the same as the refresh button.
+  let y0=null;
+  addEventListener("touchstart",e=>{y0=scrollY<=0&&e.touches.length===1?e.touches[0].clientY:null},{passive:true});
+  addEventListener("touchmove",e=>{if(y0===null)return;const dy=e.touches[0].clientY-y0;
+    if(dy>90){y0=null;$("pull").click()}},{passive:true});
+  addEventListener("touchend",()=>{y0=null},{passive:true});
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")load()});
   setInterval(()=>{if(document.visibilityState==="visible")load()},300000);
   load();
