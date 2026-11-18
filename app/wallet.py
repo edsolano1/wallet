@@ -479,7 +479,7 @@ def _rows(conn, start: date, end: date) -> list[dict]:
         _real_amount(dict(r))
         for r in conn.execute(
             "SELECT t.amount, COALESCE(t.authorized_date, t.date) AS date, t.date AS posted, t.pending, t.is_transfer, t.pfc_primary,"
-            " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, t.created_at AS seen,"
+            " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, COALESCE(t.authorized_at, t.created_at) AS seen,"
             " n.tag AS tag, a.type AS account_type,"
             " t.plaid_transaction_id AS pid, ans.answer AS answer, ans.who AS answer_who, ans.answered_on AS answered_on"
             " FROM transactions t"

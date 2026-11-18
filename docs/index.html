@@ -73,7 +73,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .track{position:relative;height:12px;border-radius:999px;background:var(--line);margin-top:14px}
 .track .fill{position:absolute;inset:0;border-radius:999px;overflow:hidden}
 .track i{position:absolute;top:0;bottom:0;left:0}
-#bar-cushion{background:repeating-linear-gradient(135deg,var(--accent) 0 3px,transparent 3px 7px);opacity:.5}
+#bar-cushion{background:repeating-linear-gradient(135deg,var(--tent) 0 3px,transparent 3px 7px);opacity:.7}
 #bar-covered{background:var(--bad);opacity:.6}
 #bar-over{background:var(--bad)}
 .big.tent{color:var(--accent);opacity:.7} .pill.tent{background:var(--accent-soft);color:var(--accent)}
@@ -265,7 +265,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     let tone="",pill="";
     if(left<0){tone="bad";pill="Over until payday by "+money(-left)}
     else if(real<0){tone="tent";pill=`Counts on ${money(owed)} owed to you`}
-    else if(left<cap*0.1){tone="warn";pill="Running low"}
+    else if(left<cap*0.1||real<cap*0.1){tone="warn";pill="Running low"}
     $("big").textContent=money(Math.max(left,0));$("big").className="big "+tone;
     $("eyebrow").textContent=left<0?"Out of spending money":owed>0?"Left until payday · tentative":"Left until payday";
     const d=w.days_to_payday, next=day(w.next_payday).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
@@ -296,7 +296,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     let right=null;
     if(used>roof) right=[owed?`${money(over)} over · ${money(used-roof)} not covered`:`+${money(over)} over`,"var(--bad)"];
     else if(over>0) right=[`${money(over)} over · ${money(roof-used)} left once paid back`,"var(--bad)"];
-    else if(owed) right=[`+${money(owed)} owed`,"var(--accent)"];
+    else if(owed) right=[`+${money(owed)} owed`,"var(--tent)"];
     if(right&&capPct>22&&100-capPct>45){at(`${money(cap)} budget`,100-capPct);at(right[0],0,right[1])}
     else if(right) at(`${money(cap)} budget · ${right[0]}`,0,right[1]);
     else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}

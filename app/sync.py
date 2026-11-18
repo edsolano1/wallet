@@ -16,6 +16,18 @@ import time
 from . import db, plaid_client
 
 
+def _utc(v):
+    """Plaid's purchase time as 'YYYY-MM-DD HH:MM:SS' UTC, the same form as created_at."""
+    if not v:
+        return None
+    from datetime import datetime, timezone
+    if isinstance(v, str):
+        v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+    if v.tzinfo:
+        v = v.astimezone(timezone.utc)
+    return v.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def _account_map(conn) -> dict[str, tuple[int, str]]:
     """Plaid's account id -> (our row id, account type)."""
     return {
@@ -58,11 +70,12 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
             )
 
     pfc = tx.get("personal_finance_category") or {}
+    stamp = _utc(tx.get("authorized_datetime") or tx.get("datetime"))
     conn.execute(
         "INSERT INTO transactions (plaid_transaction_id, account_id, amount, date,"
         " merchant_name, name, pending, pending_transaction_id, category_id,"
-        " pfc_primary, pfc_detailed, authorized_date)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+        " pfc_primary, pfc_detailed, authorized_date, authorized_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
         " ON CONFLICT(plaid_transaction_id) DO UPDATE SET"
         "   amount = excluded.amount,"
         "   date = excluded.date,"
@@ -73,6 +86,7 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
         "   pfc_primary = excluded.pfc_primary,"
         "   pfc_detailed = excluded.pfc_detailed,"
         "   authorized_date = COALESCE(excluded.authorized_date, transactions.authorized_date),"
+        "   authorized_at = COALESCE(excluded.authorized_at, transactions.authorized_at),"
         "   updated_at = datetime('now')",
         (
             tx["transaction_id"],
@@ -87,6 +101,7 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
             pfc.get("primary"),
             pfc.get("detailed"),
             str(tx.get("authorized_date") or tx["date"]),
+            stamp,
         ),
     )
     if carried_seen:  # keeps the same-day order he made the purchases in

@@ -158,6 +158,9 @@ _LATER_COLUMNS = {
         # The day he made the purchase. `date` is when the bank posted it, which can
         # lag by days; the wallet dates everything by this one when Plaid has it.
         "authorized_date": "TEXT",
+        # The time of the purchase in UTC, when the bank gives one (many don't). Orders
+        # same-day charges; without it they fall back to when the sync first saw them.
+        "authorized_at": "TEXT",
     },
     "answers": {"note": "TEXT", "share": "REAL", "note_done": "INTEGER NOT NULL DEFAULT 0", "reply": "TEXT"},
 }
