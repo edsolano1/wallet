@@ -310,14 +310,18 @@ def snapshot(conn, today: date) -> dict:
     def cost(rs):
         return round(wallet._cost(rs) - wallet._paid_back(rs), 2)
 
-    counted.sort(key=lambda r: (r["date"], r["pending"]), reverse=True)
+    # Newest first: by purchase day, then by when the charge first showed up that day.
+    counted.sort(key=lambda r: (r["date"], r.get("seen") or ""), reverse=True)
     owing, paid_for = _owed(conn)
 
     def label(r):
         """A Zelle back says who sent it and what for, not the bank's raw line."""
         m = re.search(r"zelle payment from ([a-z]+)", r["what"] or "", re.I)
         if float(r["amount"]) <= 0 or not m:
-            return r["what"] or "Charge", None
+            name = r["what"] or "Charge"
+            if "nayax" in name.lower():
+                name = "Water machine (Nayax)"
+            return name, None
         why = paid_for.get(r["pid"])
         return f"Zelle from {m.group(1).title()}", "Paid back · " + (" + ".join(why) if why else "what for? tell Claude")
 

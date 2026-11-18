@@ -38,13 +38,15 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
     # the pending row, so the charge is never counted twice.
     carried_category = None
     carried_note = None
+    carried_seen = None
     if pending_ref:
         prior = conn.execute(
-            "SELECT id, category_id FROM transactions WHERE plaid_transaction_id = ?",
+            "SELECT id, category_id, created_at FROM transactions WHERE plaid_transaction_id = ?",
             (pending_ref,),
         ).fetchone()
         if prior:
             carried_category = prior["category_id"]
+            carried_seen = prior["created_at"]
             carried_note = conn.execute(
                 "SELECT tag, note FROM transaction_notes WHERE transaction_id = ?", (prior["id"],)
             ).fetchone()
@@ -87,6 +89,9 @@ def _store(conn, tx: dict, accounts: dict) -> bool:
             str(tx.get("authorized_date") or tx["date"]),
         ),
     )
+    if carried_seen:  # keeps the same-day order he made the purchases in
+        conn.execute("UPDATE transactions SET created_at = ? WHERE plaid_transaction_id = ?",
+                     (carried_seen, tx["transaction_id"]))
     if carried_note:
         conn.execute(
             "INSERT OR IGNORE INTO transaction_notes (transaction_id, tag, note)"

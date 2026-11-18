@@ -55,11 +55,12 @@ def is_gas_station(row) -> bool:
     return any(x in raw for x in GAS_STATIONS_LIKE)
 
 # Online grocery orders the bank files elsewhere (Beyond's Shopify store).
-GROCERY_LIKE = ("beyond plant", "beyond meat", "beyondmeat", "watermill")  # Watermill Express: drinking water
+# Watermill Express: drinking water. Its machines bill through Nayax, the card reader company.
+GROCERY_LIKE = ("beyond plant", "beyond meat", "beyondmeat", "watermill", "nayax")
 
 # Pending holds bigger than the real charge: (merchant fragment, hold, what it really costs).
 # Watermill Express holds $3.00 and settles at $1.75.
-HOLDS = [("watermill", 3.00, 1.75)]
+HOLDS = [("watermill", 3.00, 1.75), ("nayax", 3.00, 1.75)]
 
 
 def _real_amount(row: dict) -> dict:
@@ -478,7 +479,7 @@ def _rows(conn, start: date, end: date) -> list[dict]:
         _real_amount(dict(r))
         for r in conn.execute(
             "SELECT t.amount, COALESCE(t.authorized_date, t.date) AS date, t.date AS posted, t.pending, t.is_transfer, t.pfc_primary,"
-            " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name,"
+            " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, t.created_at AS seen,"
             " n.tag AS tag, a.type AS account_type,"
             " t.plaid_transaction_id AS pid, ans.answer AS answer, ans.who AS answer_who, ans.answered_on AS answered_on"
             " FROM transactions t"
