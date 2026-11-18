@@ -444,6 +444,8 @@ def _tip(row) -> float:
         return 0.0
     detailed = row["pfc_detailed"] or ""
     primary = row["pfc_primary"] or ""
+    if detailed == "FOOD_AND_DRINK_GROCERIES" or is_grocery(dict(row)):  # nobody tips at Safeway
+        return 0.0
     if detailed in TIP_ALWAYS_DETAILED:
         return amount * TIP_RATE
     if primary in TIP_PRIMARY and amount >= TIP_MIN:

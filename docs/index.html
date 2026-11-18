@@ -113,6 +113,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .row.paid .m,.row.paid .a{color:var(--muted);font-weight:500}
 .row.paid .a{text-decoration:line-through}
 .row.sum{border-top:1px solid var(--fg)}
+.row.tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.row.tap .d::after{content:" · tap to tell Claude";opacity:.7}
 .row.sum .m,.row.sum .a{font-weight:700}
 details.fold>summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:6px;position:relative;padding-right:22px}
 details.fold>summary::-webkit-details-marker{display:none}
@@ -204,7 +206,7 @@ details.fold.sub[open]{padding-bottom:4px}
   <div class="note" id="ask-why"></div>
   <label class="share">Their share <span>$</span><input id="ask-share" type="number" inputmode="decimal" step="0.01" min="0"></label>
   <textarea id="ask-note" rows="2" placeholder="Anything else? (optional, goes to Claude)"></textarea>
-  <div class="btns"><button class="main" id="ask-split">Split in half</button><button id="ask-solo">Just me</button><button class="later" id="ask-later">Ask me later</button></div>
+  <div class="btns"><button class="main" id="ask-split">Split in half</button><button id="ask-solo">Just me</button><button id="ask-save" hidden>Just save the note</button><button class="later" id="ask-later">Ask me later</button></div>
 </section></div>
 <span id="ask" hidden></span>
 <script>
@@ -292,7 +294,7 @@ details.fold.sub[open]{padding-bottom:4px}
       const m=document.createElement("div");m.className="m";m.textContent=t.merchant;
       const a=document.createElement("div");a.className="a"+(t.amount>0?" in":"");a.textContent=(t.amount>0?"+":"")+money(Math.abs(t.amount));
       const x=document.createElement("div");x.className="d";x.textContent=`${fmt(t.date)} · ${t.category}${t.pending?" · pending":""}${t.tip?` · +${money(t.tip)} tip est.`:""}`;
-      r.append(m,a,x);list.appendChild(r)});
+      r.append(m,a,x);if(t.id&&t.amount<0){r.classList.add("tap");r.onclick=()=>tell(t)}list.appendChild(r)});
     const u=new Date(w.updated);
     $("updated").textContent="Updated "+u.toLocaleString("en-US",{weekday:"short",hour:"numeric",minute:"2-digit"});
     const broken=(w.banks||[]).filter(b=>!b.ok).map(b=>b.name);
@@ -343,32 +345,49 @@ details.fold.sub[open]{padding-bottom:4px}
   // "Was this split?" for charges that look shared. Answers go to the wallet's next
   // run; until then this phone remembers them so the same question doesn't come back.
   const store=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||"null");localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
-  let snoozed=false, open=[];
+  let snoozed=false, open=[], cur=null, manual=false;
   function ask(w){
     const done=store("wallet.answered")||{};
     open=(w.questions||[]).filter(q=>!done[q.id]);
     $("ask").textContent=open.length?`Was ${open[0].merchant} ${"$"+open[0].amount.toFixed(2)} split?`:"";
+    if(manual)return;
     if(!open.length||snoozed||location.hash){$("sheet").hidden=true;return}
-    const q=open[0];
+    const q=cur=open[0];modeSheet(false);
     $("ask-count").textContent=open.length>1?`Quick question · 1 of ${open.length}`:"Quick question";
     $("ask-q").textContent=`Was ${q.merchant} ${"$"+q.amount.toFixed(2)} split?`;
     if($("ask-share").dataset.q!==q.id){$("ask-share").dataset.q=q.id;$("ask-share").value=(q.amount/2).toFixed(2)}
     $("ask-why").textContent=`${fmt(q.date)}${q.pending?" · pending":""} · ${q.why}.`;
     $("sheet").hidden=false;
   }
+  // Tapping any charge opens the same card for it: split it, mark it yours, or just
+  // leave Claude a note about it.
+  function modeSheet(m){manual=m;$("ask-save").hidden=!m;$("ask-later").textContent=m?"Cancel":"Ask me later"}
+  function tell(t){
+    const amt=-t.amount+(t.tip||0);
+    cur={id:t.id,merchant:t.merchant,amount:amt,date:t.date,pending:t.pending};modeSheet(true);
+    $("ask-count").textContent="Tell Claude";
+    $("ask-q").textContent=`${t.merchant} $${amt.toFixed(2)}`;
+    $("ask-share").dataset.q=t.id;$("ask-share").value=(amt/2).toFixed(2);
+    $("ask-why").textContent=`${fmt(t.date)}${t.pending?" · pending":""} · ${t.category}. Split it, mark it yours, or just leave a note.`;
+    $("sheet").hidden=false;$("ask-note").focus();
+  }
   async function answer(kind){
-    const q=open[0];if(!q)return;
-    const done=store("wallet.answered")||{};done[q.id]=kind;store("wallet.answered",done);
-    const note=$("ask-note").value.trim();$("ask-note").value="";
+    const q=cur;if(!q)return;
+    const note=$("ask-note").value.trim();
+    if(kind==="note"&&!note){$("ask-note").focus();return}
+    $("ask-note").value="";
+    if(kind!=="note"){const done=store("wallet.answered")||{};done[q.id]=kind;store("wallet.answered",done)}
     const a={id:q.id,answer:kind};if(note)a.note=note;
     const share=parseFloat($("ask-share").value);
     if(kind==="split"&&share>0&&Math.abs(share-q.amount/2)>=0.01)a.share=share;
     const queue=store("wallet.queue")||[];queue.push(a);store("wallet.queue",queue);
+    if(manual){modeSheet(false);cur=null;$("sheet").hidden=true;msg("Sent to Claude.");spin(true);try{await pull(true)}finally{spin(false)}if(last)ask(last);return}
     if(last)ask(last);
     if(!open.length){$("sheet").hidden=true;spin(true);try{await pull(true)}finally{spin(false)}}
   }
+  $("ask-save").onclick=()=>answer("note");
   $("ask-split").onclick=()=>answer("split");$("ask-solo").onclick=()=>answer("solo");
-  $("ask-later").onclick=()=>{snoozed=true;$("sheet").hidden=true};
+  $("ask-later").onclick=()=>{if(manual){modeSheet(false);cur=null;$("ask-note").value="";$("sheet").hidden=true;if(last)ask(last);return}snoozed=true;$("sheet").hidden=true};
 
   // Upcoming bills: checking, less every card balance and the bills due before payday,
   // then the next pay cycle on top of what's left.

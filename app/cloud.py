@@ -245,6 +245,11 @@ def notes() -> None:
             " COALESCE(t.merchant_name, t.name) AS merchant, t.amount, t.pending"
             " FROM answers a LEFT JOIN transactions t ON t.plaid_transaction_id = a.plaid_transaction_id"
             " WHERE a.note IS NOT NULL AND TRIM(a.note) <> ''")]
+        rows += [dict(r) for r in conn.execute(  # notes on any charge he tapped
+            "SELECT t.plaid_transaction_id AS id, 'note' AS answer, NULL AS share, n.note, n.updated_at AS answered_on,"
+            " COALESCE(t.merchant_name, t.name) AS merchant, t.amount, t.pending"
+            " FROM transaction_notes n JOIN transactions t ON t.id = n.transaction_id"
+            " WHERE n.note IS NOT NULL AND TRIM(n.note) <> ''")]
         conn.close()
     new = [r for r in rows if f'{r["id"]}|{r["note"]}' not in seen]
     print(json.dumps(new, indent=1) if new else "none")
@@ -255,7 +260,8 @@ def notes() -> None:
 def answer(raw: str) -> None:
     """
     Store answers sent from the page: a JSON list of {"id", "answer", "who"?, "note"?}.
-    The note is for Claude to read; it never changes the arithmetic.
+    The note is for Claude to read; it never changes the arithmetic. "note" is a note on
+    any charge he tapped, with no split answer; it goes to transaction_notes.
     It arrives as a workflow input, so anything malformed is dropped, not trusted.
     """
     try:
@@ -265,10 +271,18 @@ def answer(raw: str) -> None:
     db.migrate()
     with db.connect() as conn:
         for a in given if isinstance(given, list) else []:
-            if not isinstance(a, dict) or a.get("answer") not in ("split", "solo", "settled"):
+            if not isinstance(a, dict) or a.get("answer") not in ("split", "solo", "settled", "note"):
                 continue
             pid = str(a.get("id", ""))[:80]
-            if not conn.execute("SELECT 1 FROM transactions WHERE plaid_transaction_id = ?", (pid,)).fetchone():
+            row = conn.execute("SELECT id FROM transactions WHERE plaid_transaction_id = ?", (pid,)).fetchone()
+            if not row:
+                continue
+            if a["answer"] == "note":
+                text = str(a.get("note") or "").strip()[:500]
+                if text:
+                    conn.execute("INSERT INTO transaction_notes (transaction_id, note) VALUES (?, ?)"
+                                 " ON CONFLICT(transaction_id) DO UPDATE SET note = excluded.note,"
+                                 " updated_at = datetime('now')", (row[0], text))
                 continue
             who = str(a["who"])[:40] if a.get("who") and a["answer"] == "split" else None
             note = str(a.get("note") or "").strip()[:500] or None
@@ -308,6 +322,7 @@ def snapshot(conn, today: date) -> dict:
         return f"Zelle from {m.group(1).title()}", "Paid back · " + (" + ".join(why) if why else "what for? tell Claude")
 
     charges = [{
+        "id": r["pid"],
         "merchant": label(r)[0],
         "amount": round(float(r["amount"]), 2),
         "date": r["date"],
