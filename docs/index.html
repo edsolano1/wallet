@@ -115,12 +115,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .row.sum{border-top:1px solid var(--fg)}
 .row.tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .row.sum .m,.row.sum .a{font-weight:700}
-.menu{padding:4px 0;gap:0}
-.menu button{display:flex;align-items:center;gap:10px;width:100%;padding:16px 20px;background:none;border:0;border-top:1px solid var(--line);color:var(--fg);font:600 16px var(--body);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.menu button:first-child{border-top:0}
-.menu button:active{background:var(--accent-soft)}
-.menu button b{margin-left:auto;font-weight:600;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
-.menu button i{font-style:normal;font-size:20px;line-height:1;color:var(--muted)}
+.menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.menu button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:112px;padding:14px 12px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
+.menu button:active{transform:scale(.96);background:var(--accent-soft)}
+.menu .ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent);margin-bottom:2px}
+.menu .lb{font:600 14px/1.2 var(--body)}
+.menu button b{margin-top:auto;font-weight:600;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .top{display:flex;flex-direction:column;gap:2px}
 .top h1{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.1;margin:0}
 .cardhead{display:flex;flex-direction:column;gap:6px}
@@ -147,13 +147,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     </details>
   </section>
   <div class="msg" id="msg" hidden></div>
-  <nav class="menu card" aria-label="Sections">
-    <button data-go="bills" id="t-bills-tile" hidden><span>Upcoming bills</span><b id="t-bills">—</b><i aria-hidden="true">›</i></button>
-    <button data-go="charges"><span>Recent charges</span><b id="recent-n">—</b><i aria-hidden="true">›</i></button>
-    <button data-go="needs" id="go-needs"><span>Groceries &amp; gas</span><b id="t-needs">—</b><i aria-hidden="true">›</i></button>
-    <button data-go="fund" id="go-fund"><span>Black Friday Fund</span><b id="t-fund">—</b><i aria-hidden="true">›</i></button>
-    <button data-go="accounts" id="go-acct"><span>Accounts</span><b id="t-acct">—</b><i aria-hidden="true">›</i></button>
-    <button data-go="details"><span>Details</span><b id="t-today">—</b><i aria-hidden="true">›</i></button>
+  <nav class="menu" aria-label="Sections">
+    <button data-go="charges"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><span class="lb">Recent charges</span><b id="recent-n">—</b></button>
+    <button data-go="accounts" id="go-acct"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg></span><span class="lb">Accounts</span><b id="t-acct">—</b></button>
+    <button data-go="bills" id="t-bills-tile"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></span><span class="lb">Upcoming bills</span><b id="t-bills">—</b></button>
+    <button data-go="needs" id="go-needs"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg></span><span class="lb">Groceries &amp; gas</span><b id="t-needs">—</b></button>
+    <button data-go="details"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg></span><span class="lb">Details</span><b id="t-today">—</b></button>
+    <button data-go="fund" id="go-fund"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8c-1.5-3.5-5-4-5-1.5S10 8 12 8zm0 0c1.5-3.5 5-4 5-1.5S14 8 12 8z"/></svg></span><span class="lb">Black Friday Fund</span><b id="t-fund">—</b></button>
   </nav>
   <div class="meta"><span id="updated"></span></div>
   </div>
@@ -300,13 +300,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(right&&capPct>22&&100-capPct>45){at(`${money(cap)} budget`,100-capPct);at(right[0],0,right[1])}
     else if(right) at(`${money(cap)} budget · ${right[0]}`,0,right[1]);
     else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
-    $("t-today").textContent="";
+    $("t-today").textContent="How it's counted";
     $("go-needs").hidden=!w.needs;if(w.needs)$("t-needs").textContent=money(w.needs.reduce((s,n)=>s+n.left,0))+" left";
     $("go-fund").hidden=!w.fund;if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);ask(w);
-    const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`latest ${fmt(w.charges[0].date)}`:"";
+    const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`latest ${fmt(w.charges[0].date)}`:"none yet";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>{
       const r=document.createElement("div");r.className="row";
@@ -413,7 +413,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   function drawBills(w){
     const b=w.bills;$("t-bills-tile").hidden=!b;if(!b)return;
     const span=c=>`${fmt(c.from)} – ${fmt(c.to)}`;
-    $("t-bills").textContent=money(b.now.left)+" left after";
+    $("t-bills").textContent=money(b.now.left)+" after";
     const row=(m,a,d,cls,ac)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",m),el("div","a"+(ac?" "+ac:""),a),el("div","d",d||""));return r};
     // Money coming in is green, money going out is red, paid bills are crossed off.
     const tone=n=>n<0?"out":"in", outTone=n=>n>0?"out":"in";
