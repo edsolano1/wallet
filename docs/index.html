@@ -89,6 +89,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .dayhead+.row{border-top:0}
 .row .m .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
 #sp-ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
+#sp-ring path,#sp-ring circle[data-cat]{cursor:pointer;transition:opacity .15s}
+.legend [data-cat]{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .15s;padding:3px 0}
+.pickhead{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;padding-top:12px;border-top:1px solid var(--line)}
+.pickhead i{width:10px;height:10px;border-radius:3px;flex:none}
+.pickhead span{color:var(--muted);font-size:13px}
+.pickhead .link{margin-left:auto;padding:0}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;cursor:pointer}
 .tile span{font-size:12px;color:var(--muted)} .tile b{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
@@ -190,7 +196,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     </section>
     <section class="card">
       <h2>What you spent it on</h2>
+      <p class="note">Tap a slice or a category to see its charges.</p>
       <div class="ringrow"><svg id="sp-ring" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true"></svg><div class="legend" id="sp-cats"></div></div>
+      <div id="sp-pick" hidden></div>
       <div class="list" id="sp-back"></div>
     </section>
     <section class="card">
@@ -378,6 +386,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     mark.hidden=!(owed||used>w.allowance);mark.style.left=`calc(${budgetEnd/total*100}% - 1px)`;
   }
 
+  // Which category the where-it-went ring is showing; survives a data refresh.
+  let spPick=null;
+  const attr=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
   function drawSpent(w){
     drawBar($("sp-fill"),$("sp-cap"),$("sp-keys"),w,true);
     const end=day(w.next_payday);end.setDate(end.getDate()-1);
@@ -387,14 +398,38 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const cats={};mine.forEach(t=>{const c=catOf(t);cats[c]=(cats[c]||0)-t.amount+(t.tip||0)});
     const spend=Object.entries(cats).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1]);
     const total=spend.reduce((s,[,v])=>s+v,0)||1, R=48, C=2*Math.PI*R;
+    // Slices are separate arcs (not dashed circles) so each one can be tapped.
     let svg=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>`, off=0;
-    spend.forEach(([c,v])=>{const len=v/total*C;svg+=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="${catColor(c)}" stroke-width="14" stroke-dasharray="${Math.max(len-1.5,0.5)} ${C-Math.max(len-1.5,0.5)}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;off+=len});
-    svg+=`<text x="60" y="60" text-anchor="middle" font-size="20">${money(total)}</text><text x="60" y="77" text-anchor="middle" font-size="9" style="font-weight:500;fill:var(--muted)">before paybacks</text>`;
+    const pt=a=>`${(60+R*Math.sin(a)).toFixed(2)} ${(60-R*Math.cos(a)).toFixed(2)}`;
+    spend.forEach(([c,v])=>{const a0=off/total*2*Math.PI, a1=(off+v)/total*2*Math.PI;off+=v;
+      const tag=`data-cat="${attr(c)}" fill="none" stroke="${catColor(c)}" stroke-width="16"`;
+      svg+=spend.length===1?`<circle cx="60" cy="60" r="${R}" ${tag}/>`
+        :`<path d="M${pt(a0)}A${R} ${R} 0 ${a1-a0>Math.PI?1:0} 1 ${pt(Math.max(a1-0.035,a0+0.01))}" ${tag}/>`});
+    svg+=`<text id="sp-mid" x="60" y="60" text-anchor="middle" font-size="20">${money(total)}</text><text id="sp-midsub" x="60" y="77" text-anchor="middle" font-size="9" style="font-weight:500;fill:var(--muted)">before paybacks</text>`;
     $("sp-ring").innerHTML=svg;
     const lg=$("sp-cats");lg.innerHTML="";
-    spend.forEach(([c,v])=>{const d=el("div"),i=el("i");i.style.background=catColor(c);const b=el("b",null,money(v));b.append(el("small",null,Math.round(v/total*100)+"%"));d.append(i,el("span",null,c),b);lg.append(d)});
+    spend.forEach(([c,v])=>{const d=el("div"),i=el("i");d.dataset.cat=c;i.style.background=catColor(c);d.append(i,el("span",null,c),el("b",null,money(v)));lg.append(d)});
     const back=$("sp-back");back.innerHTML="";
-    Object.entries(cats).filter(([,v])=>v<-0.5).forEach(([c,v])=>{const r=el("div","row");r.append(el("div","m",c==="Money back"?"Card money back":c),el("div","a in","+"+money(-v)),el("div","d","came back into spending money"));back.append(r)});
+    Object.entries(cats).filter(([,v])=>v<-0.5).forEach(([c,v])=>{const r=el("div","row tap");r.dataset.cat=c;r.append(el("div","m",c==="Money back"?"Card money back":c),el("div","a in","+"+money(-v)),el("div","d","came back into spending money · tap to see"));back.append(r)});
+    // Tapping a slice, a category, or a came-back line lists just those charges under the
+    // ring; tapping it again (or Show all) goes back to everything.
+    const pick=c=>{
+      spPick=c;
+      $("sp-ring").querySelectorAll("[data-cat]").forEach(e=>e.style.opacity=!c||e.dataset.cat===c?1:.22);
+      lg.querySelectorAll("[data-cat]").forEach(e=>e.style.opacity=!c||e.dataset.cat===c?1:.4);
+      const box=$("sp-pick");box.innerHTML="";box.hidden=!c;
+      const ts=c?mine.filter(t=>catOf(t)===c):[], sum=ts.reduce((s,t)=>s-t.amount+(t.tip||0),0);
+      $("sp-mid").textContent=c?(sum<0?"+"+money(-sum):money(sum)):money(total);
+      $("sp-midsub").textContent=c?(sum>0?Math.round(sum/total*100)+"% of spending":"came back"):"before paybacks";
+      if(!c)return;
+      const h=el("div","pickhead"),dot=el("i");dot.style.background=catColor(c);
+      const x=el("button","link","Show all");x.onclick=()=>pick(null);
+      h.append(dot,el("b",null,c==="Money back"?"Card money back":c),el("span",null,`${ts.length} charge${ts.length===1?"":"s"} · ${sum<0?"+"+money(-sum):money(sum)}`),x);
+      const l=el("div","list");ts.forEach(t=>l.append(chargeRow(t,false)));box.append(h,l);
+    };
+    const tap=e=>{const t=e.target.closest("[data-cat]");if(t)pick(spPick===t.dataset.cat?null:t.dataset.cat)};
+    $("sp-ring").onclick=tap;lg.onclick=tap;back.onclick=tap;
+    pick(spPick&&cats[spPick]!=null?spPick:null);
     const list=$("sp-list");list.innerHTML="";
     if(!mine.length)list.append(el("div","note","No charges yet this paycheck."));
     let cur=null;
@@ -569,7 +604,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Each section is its own screen; the phone's back button returns home.
   // The home screen is the big number and a menu; each item is its own screen, and the
   // phone's back button (or "‹ Money") returns home.
-  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent)$/.test(v)?v:""));scrollTo(0,0)}
+  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent)$/.test(v)?v:""));if(v!=="spent"&&spPick&&last){spPick=null;drawSpent(last)}scrollTo(0,0)}
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
   addEventListener("hashchange",show);show();
   // Starts the GitHub update right now. The token stays on this phone only.
