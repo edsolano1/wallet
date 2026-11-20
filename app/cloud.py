@@ -125,8 +125,11 @@ def _owed(conn) -> tuple[dict | None, dict, dict]:
     paid_for: dict[str, list[str]] = {}  # Zelle id -> what it paid for
     # Charge id -> {"paid": paid back so far, "due": still owed}, so a charge can show its payback.
     back: dict[str, dict] = {}
+    # Zelle id -> how much of it went to requests tied to a charge. That part already shows
+    # on the charge, so the where-it-went screen doesn't count it a second time.
+    linked: dict[str, float] = {}
     if not asks:
-        return None, paid_for, back
+        return None, paid_for, back, linked
 
     items = []
     def keep(a, left):
@@ -153,6 +156,7 @@ def _owed(conn) -> tuple[dict | None, dict, dict]:
         for a in people:  # named requests first, then the open splits
             need = a["amount"]
             match = (a.get("match") or a.get("who") or "").lower()
+            rows = _charges_for(conn, a.get("for"))
             fits = [z for z in pool if z["date"] >= a["since"] and z["left"] > 0 and match in z["name"]]
             # A Zelle for exactly this amount is the one that paid it, even if another came first.
             fits.sort(key=lambda z: abs(z["left"] - need) >= 0.01)
@@ -163,16 +167,17 @@ def _owed(conn) -> tuple[dict | None, dict, dict]:
                 z["left"] -= take
                 need -= take
                 paid_for.setdefault(z["pid"], []).append(a["what"])
+                if rows:
+                    linked[z["pid"]] = linked.get(z["pid"], 0.0) + take
             keep(a, need)
             due = need if need >= OWED_SLACK else 0.0
-            rows = _charges_for(conn, a.get("for"))
             whole = sum(r["amt"] for r in rows)
             for r in rows:  # a request covering two charges is shared by their size
                 part = r["amt"] / whole if whole else 1 / len(rows)
                 b = back.setdefault(r["pid"], {"paid": 0.0, "due": 0.0})
                 b["paid"] += (a["amount"] - due) * part
                 b["due"] += due * part
-    return ({"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None), paid_for, back
+    return ({"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None), paid_for, back, linked
 
 
 # Reads his popup notes with Claude, paid from the API credit that comes with his plan.
@@ -345,7 +350,7 @@ def snapshot(conn, today: date) -> dict:
 
     # Newest first: by purchase day, then by when the charge first showed up that day.
     counted.sort(key=lambda r: (r["date"], r.get("seen") or ""), reverse=True)
-    owing, paid_for, back = _owed(conn)
+    owing, paid_for, back, linked = _owed(conn)
 
     def label(r):
         """A Zelle back says who sent it and what for, not the bank's raw line."""
@@ -370,6 +375,7 @@ def snapshot(conn, today: date) -> dict:
         # Paid back on this charge so far, and what's still coming (from the owed list).
         "back": round(back.get(r["pid"], {}).get("paid", 0.0), 2),
         "back_due": round(back.get(r["pid"], {}).get("due", 0.0), 2),
+        "linked": round(linked.get(r["pid"], 0.0), 2),  # on a Zelle back: the part shown on its charge
     } for r in counted]  # the whole paycheck (and at least 3 days), for the where-it-went screen
 
     period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]

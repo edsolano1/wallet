@@ -369,17 +369,22 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   const catColor=(()=>{const seen={};let n=0;return c=>CAT[c]||(seen[c]=seen[c]||SPARE[n++%SPARE.length])})();
 
   const cents=n=>"$"+Math.abs(n).toFixed(2);
+  // What a line really cost him: a charge less the paybacks tied to it; money in less the
+  // part of it that's already shown on a charge.
+  const own=t=>-t.amount+(t.tip||0)-(t.back||0)+(t.linked||0);
   function chargeRow(t,dot){
     const r=el("div","row"), m=el("div","m");
     if(dot){const d=el("i","dot");d.style.background=catColor(catOf(t));m.append(d)}
     m.append(t.merchant);
-    const a=el("div","a "+(t.amount>0?"in":"out"),(t.amount>0?"+":"")+money(Math.abs(t.amount)));
+    // A charge shows his share: what's left after the paybacks tied to it (his rule,
+    // 2026-11-19: "I didn't spend $41, that was split between two people").
+    const a=el("div","a "+(t.amount>0?"in":"out"),t.amount>0?"+"+cents(t.amount):cents(-t.amount-(t.back||0)));
     const x=el("div","d",`${dot?"":fmt(t.date)+" · "}${t.category}${t.pending?" · pending":""}${t.tip?` · +${money(t.tip)} tip est.`:""}`);
     r.append(m,a,x);if(t.id&&t.amount<0){r.classList.add("tap");r.onclick=()=>tell(t)}
     // Paid back on this charge (all the Zelles for it added together), and anything still coming.
     if(t.back||t.back_due){const b=el("div","pb"+(t.back?"":" due"));
-      const parts=[];if(t.back)parts.push(`+${cents(t.back)} paid back`);if(t.back_due)parts.push(`${cents(t.back_due)} still coming`);
-      b.append(el("span","ic","↩"),parts.join(" · ")+(t.back&&!t.back_due?` · yours ${cents(-t.amount+(t.tip||0)-t.back)}`:""));r.append(b)}
+      const parts=[];if(t.back)parts.push(`Charged ${cents(t.amount)}`,`${cents(t.back)} paid back`);if(t.back_due)parts.push(`${cents(t.back_due)} still coming`);
+      b.append(el("span","ic","↩"),parts.join(" · "));r.append(b)}
     return r;
   }
 
@@ -422,8 +427,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const end=day(w.next_payday);end.setDate(end.getDate()-1);
     const whole=(w.set_aside||0)+(w.moved_in||0)+Math.max(-w.rolled_over,0)+w.allowance;
     $("sp-range").textContent=`${fmt(w.period_start)} – ${end.toLocaleDateString("en-US",{month:"short",day:"numeric"})} · ${money(whole)} of spending money this paycheck`;
-    const mine=w.charges.filter(t=>t.date>=w.period_start);
-    const cats={};mine.forEach(t=>{const c=catOf(t);cats[c]=(cats[c]||0)-t.amount+(t.tip||0)});
+    // A Zelle that's fully shown on its charge isn't listed again here.
+    const mine=w.charges.filter(t=>t.date>=w.period_start&&!(t.amount>0&&t.linked>=t.amount-0.005));
+    const cats={};mine.forEach(t=>{const c=catOf(t);cats[c]=(cats[c]||0)+own(t)});
     const spend=Object.entries(cats).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1]);
     const total=spend.reduce((s,[,v])=>s+v,0)||1, R=48, C=2*Math.PI*R;
     // Slices are separate arcs (not dashed circles) so each one can be tapped.
@@ -433,7 +439,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const tag=`data-cat="${attr(c)}" fill="none" stroke="${catColor(c)}" stroke-width="16"`;
       svg+=spend.length===1?`<circle cx="60" cy="60" r="${R}" ${tag}/>`
         :`<path d="M${pt(a0)}A${R} ${R} 0 ${a1-a0>Math.PI?1:0} 1 ${pt(Math.max(a1-0.035,a0+0.01))}" ${tag}/>`});
-    svg+=`<text id="sp-mid" x="60" y="60" text-anchor="middle" font-size="20">${money(total)}</text><text id="sp-midsub" x="60" y="77" text-anchor="middle" font-size="9" style="font-weight:500;fill:var(--muted)">before paybacks</text>`;
+    svg+=`<text id="sp-mid" x="60" y="60" text-anchor="middle" font-size="20">${money(total)}</text><text id="sp-midsub" x="60" y="77" text-anchor="middle" font-size="9" style="font-weight:500;fill:var(--muted)">your share</text>`;
     $("sp-ring").innerHTML=svg;
     const lg=$("sp-cats");lg.innerHTML="";
     spend.forEach(([c,v])=>{const d=el("div"),i=el("i");d.dataset.cat=c;i.style.background=catColor(c);d.append(i,el("span",null,c),el("b",null,money(v)));lg.append(d)});
@@ -444,9 +450,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const dim=c=>{
       $("sp-ring").querySelectorAll("[data-cat]").forEach(e=>e.style.opacity=!c||e.dataset.cat===c?1:.22);
       lg.querySelectorAll("[data-cat]").forEach(e=>e.style.opacity=!c||e.dataset.cat===c?1:.4);
-      const ts=c?mine.filter(t=>catOf(t)===c):[], sum=ts.reduce((s,t)=>s-t.amount+(t.tip||0),0);
+      const ts=c?mine.filter(t=>catOf(t)===c):[], sum=ts.reduce((s,t)=>s+own(t),0);
       $("sp-mid").textContent=c?(sum<0?"+"+money(-sum):money(sum)):money(total);
-      $("sp-midsub").textContent=c?(sum>0?Math.round(sum/total*100)+"% of spending":"came back"):"before paybacks";
+      $("sp-midsub").textContent=c?(sum>0?Math.round(sum/total*100)+"% of spending":"came back"):"your share";
       return [ts,sum];
     };
     // Tapping a slice, a category, or a came-back line pops that category's charges out of
@@ -459,7 +465,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const share=sum>0?` · ${Math.round(sum/total*100)}% of what you spent`:"";
       const pb=ts.reduce((s,t)=>s+(t.back||0),0);
       top.append(eb,el("div","amt",sum<0?"+"+money(-sum):money(sum)),el("div","sub",`${ts.length} charge${ts.length===1?"":"s"} this paycheck${share}`));
-      if(pb>0.5&&sum>0)top.append(el("div","sub",`↩ ${money(pb)} of it paid back, so ${money(sum-pb)} was yours`));
+      if(pb>0.5&&sum>0)top.append(el("div","sub",`↩ Your share after ${cents(pb)} paid back (charged ${cents(sum+pb)})`));
       const xb=el("button","pop-x","×");xb.setAttribute("aria-label","Close");
       const list=el("div","pop-list");
       ts.forEach((t,i)=>{const r=chargeRow(t,false);r.style.animationDelay=120+i*40+"ms";list.append(r)});
@@ -481,7 +487,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(!mine.length)list.append(el("div","note","No charges yet this paycheck."));
     let cur=null;
     mine.forEach(t=>{
-      if(t.date!==cur){cur=t.date;const net=mine.filter(x=>x.date===cur).reduce((s,x)=>s-x.amount+(x.tip||0),0);
+      if(t.date!==cur){cur=t.date;const net=mine.filter(x=>x.date===cur).reduce((s,x)=>s+own(x),0);
         const h=el("div","dayhead");h.append(el("span",null,day(cur).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})),el("span",null,net>=0?money(net)+" spent":"+"+money(-net)));list.append(h)}
       list.append(chargeRow(t,true))});
   }
