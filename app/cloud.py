@@ -62,7 +62,29 @@ def owed(conn) -> dict | None:
     return _owed(conn)[0]
 
 
-def _owed(conn) -> tuple[dict | None, dict]:
+def _charges_for(conn, spec) -> list[dict]:
+    """
+    The charge(s) a payback request was for. owed.json names them by a piece of the
+    merchant name and the purchase day ({"match": "luv sushi", "on": "2026-11-13"}), which
+    still finds the charge after a pending one posts under a new id; app splits name the id.
+    """
+    out = []
+    for f in spec or []:
+        if f.get("pid"):
+            r = conn.execute("SELECT plaid_transaction_id AS pid, -amount AS amt FROM transactions"
+                             " WHERE plaid_transaction_id = ?", (f["pid"],)).fetchone()
+        else:
+            r = conn.execute(
+                "SELECT plaid_transaction_id AS pid, -amount AS amt FROM transactions"
+                " WHERE amount < 0 AND COALESCE(authorized_date, date) = ?"
+                " AND LOWER(COALESCE(merchant_name, '') || ' ' || name) LIKE ? ORDER BY pending, id DESC LIMIT 1",
+                (f["on"], f"%{f['match'].lower()}%")).fetchone()
+        if r:
+            out.append(dict(r))
+    return out
+
+
+def _owed(conn) -> tuple[dict | None, dict, dict]:
     """
     What people still owe him, shown as possible money back, never counted in the wallet.
 
@@ -98,10 +120,13 @@ def _owed(conn) -> tuple[dict | None, dict]:
                      "amount": round(r["share"] if r["share"] is not None else full / 2, 2),
                      "since": r["answered_on"],
                      "note": "; ".join(x for x in ("pending, tip estimated" if r["pending"] else "",
-                                                     f"Claude: {r['reply']}" if r["reply"] else "") if x)})
+                                                     f"Claude: {r['reply']}" if r["reply"] else "") if x),
+                     "for": [{"pid": r["pid"]}]})
     paid_for: dict[str, list[str]] = {}  # Zelle id -> what it paid for
+    # Charge id -> {"paid": paid back so far, "due": still owed}, so a charge can show its payback.
+    back: dict[str, dict] = {}
     if not asks:
-        return None, paid_for
+        return None, paid_for, back
 
     items = []
     def keep(a, left):
@@ -139,7 +164,15 @@ def _owed(conn) -> tuple[dict | None, dict]:
                 need -= take
                 paid_for.setdefault(z["pid"], []).append(a["what"])
             keep(a, need)
-    return ({"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None), paid_for
+            due = need if need >= OWED_SLACK else 0.0
+            rows = _charges_for(conn, a.get("for"))
+            whole = sum(r["amt"] for r in rows)
+            for r in rows:  # a request covering two charges is shared by their size
+                part = r["amt"] / whole if whole else 1 / len(rows)
+                b = back.setdefault(r["pid"], {"paid": 0.0, "due": 0.0})
+                b["paid"] += (a["amount"] - due) * part
+                b["due"] += due * part
+    return ({"total": round(sum(i["left"] for i in items), 2), "items": items} if items else None), paid_for, back
 
 
 # Reads his popup notes with Claude, paid from the API credit that comes with his plan.
@@ -312,7 +345,7 @@ def snapshot(conn, today: date) -> dict:
 
     # Newest first: by purchase day, then by when the charge first showed up that day.
     counted.sort(key=lambda r: (r["date"], r.get("seen") or ""), reverse=True)
-    owing, paid_for = _owed(conn)
+    owing, paid_for, back = _owed(conn)
 
     def label(r):
         """A Zelle back says who sent it and what for, not the bank's raw line."""
@@ -334,6 +367,9 @@ def snapshot(conn, today: date) -> dict:
                     else PRETTY.get(r["pfc_primary"] or "", (r["pfc_primary"] or "").replace("_", " ").title())),
         "pending": bool(r["pending"]),
         "tip": round(wallet._tip(r), 2),
+        # Paid back on this charge so far, and what's still coming (from the owed list).
+        "back": round(back.get(r["pid"], {}).get("paid", 0.0), 2),
+        "back_due": round(back.get(r["pid"], {}).get("due", 0.0), 2),
     } for r in counted]  # the whole paycheck (and at least 3 days), for the where-it-went screen
 
     period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]

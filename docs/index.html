@@ -87,6 +87,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .dayhead{display:flex;justify-content:space-between;font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:14px 0 2px}
 .dayhead:first-child{padding-top:0}
 .dayhead+.row{border-top:0}
+.row .pb{grid-column:1/-1;justify-self:start;display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:3px 10px 3px 4px;border-radius:99px;
+  font:600 12px var(--body);font-variant-numeric:tabular-nums;color:var(--accent);background:var(--accent-soft)}
+.row .pb .ic{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--surface);font-size:11px;line-height:1}
+.row .pb.due{color:var(--muted);background:none;border:1px dashed var(--line);padding-left:4px}
+.row .pb.due .ic{background:var(--line);color:var(--fg)}
 .row .m .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
 #sp-ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
 #sp-ring path,#sp-ring circle[data-cat]{cursor:pointer;transition:opacity .15s}
@@ -363,6 +368,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   const catOf=t=>(t.category||"Other").split(" · ")[0];
   const catColor=(()=>{const seen={};let n=0;return c=>CAT[c]||(seen[c]=seen[c]||SPARE[n++%SPARE.length])})();
 
+  const cents=n=>"$"+Math.abs(n).toFixed(2);
   function chargeRow(t,dot){
     const r=el("div","row"), m=el("div","m");
     if(dot){const d=el("i","dot");d.style.background=catColor(catOf(t));m.append(d)}
@@ -370,6 +376,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const a=el("div","a "+(t.amount>0?"in":"out"),(t.amount>0?"+":"")+money(Math.abs(t.amount)));
     const x=el("div","d",`${dot?"":fmt(t.date)+" · "}${t.category}${t.pending?" · pending":""}${t.tip?` · +${money(t.tip)} tip est.`:""}`);
     r.append(m,a,x);if(t.id&&t.amount<0){r.classList.add("tap");r.onclick=()=>tell(t)}
+    // Paid back on this charge (all the Zelles for it added together), and anything still coming.
+    if(t.back||t.back_due){const b=el("div","pb"+(t.back?"":" due"));
+      const parts=[];if(t.back)parts.push(`+${cents(t.back)} paid back`);if(t.back_due)parts.push(`${cents(t.back_due)} still coming`);
+      b.append(el("span","ic","↩"),parts.join(" · ")+(t.back&&!t.back_due?` · yours ${cents(-t.amount+(t.tip||0)-t.back)}`:""));r.append(b)}
     return r;
   }
 
@@ -447,7 +457,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const wrap=el("div","pop"), card=el("div","pop-card");wrap.id="sp-pop";card.style.setProperty("--c",catColor(c));
       const top=el("div","pop-top"), eb=el("div","eyebrow");eb.append(el("i"),c==="Money back"?"Card money back":c);
       const share=sum>0?` · ${Math.round(sum/total*100)}% of what you spent`:"";
+      const pb=ts.reduce((s,t)=>s+(t.back||0),0);
       top.append(eb,el("div","amt",sum<0?"+"+money(-sum):money(sum)),el("div","sub",`${ts.length} charge${ts.length===1?"":"s"} this paycheck${share}`));
+      if(pb>0.5&&sum>0)top.append(el("div","sub",`↩ ${money(pb)} of it paid back, so ${money(sum-pb)} was yours`));
       const xb=el("button","pop-x","×");xb.setAttribute("aria-label","Close");
       const list=el("div","pop-list");
       ts.forEach((t,i)=>{const r=chargeRow(t,false);r.style.animationDelay=120+i*40+"ms";list.append(r)});
