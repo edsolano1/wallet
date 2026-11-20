@@ -91,10 +91,29 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 #sp-ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
 #sp-ring path,#sp-ring circle[data-cat]{cursor:pointer;transition:opacity .15s}
 .legend [data-cat]{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .15s;padding:3px 0}
-.pickhead{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;padding-top:12px;border-top:1px solid var(--line)}
-.pickhead i{width:10px;height:10px;border-radius:3px;flex:none}
-.pickhead span{color:var(--muted);font-size:13px}
-.pickhead .link{margin-left:auto;padding:0}
+/* Category pop-up: springs out of the slice that was tapped; X or a tap outside closes it. */
+.pop{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:20px 16px;background:rgba(0,0,0,.5);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:fadein .25s ease both}
+.pop.out{animation:fadeout .2s ease both}
+@keyframes fadein{from{opacity:0}} @keyframes fadeout{to{opacity:0}}
+.pop-card{position:relative;width:100%;max-width:420px;max-height:78vh;display:flex;flex-direction:column;border-radius:26px;overflow:hidden;
+  background:var(--surface);border:1px solid color-mix(in srgb,var(--c) 45%,var(--line));box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.pop-card.in{animation:popin .5s cubic-bezier(.34,1.56,.64,1) both}
+.pop-card.out{animation:popout .2s cubic-bezier(.5,0,.75,0) both}
+@keyframes popin{from{transform:scale(.12) rotate(-8deg);opacity:0}60%{opacity:1}}
+@keyframes popout{to{transform:scale(.12);opacity:0}}
+.pop-top{padding:22px 20px 16px;background:linear-gradient(150deg,color-mix(in srgb,var(--c) 38%,var(--surface)),var(--surface) 80%)}
+.pop-top .eyebrow{display:flex;align-items:center;gap:8px;color:var(--c)}
+.pop-top .eyebrow i{width:10px;height:10px;border-radius:3px;background:var(--c);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.5);opacity:.6}}
+.pop-top .amt{font-family:var(--display);font-variation-settings:"wdth" 118;font-weight:800;font-size:48px;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:6px}
+.pop-top .sub{font-size:13px;color:var(--muted)}
+.pop-x{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;border:0;display:grid;place-items:center;font-size:20px;line-height:1;
+  background:color-mix(in srgb,var(--fg) 10%,transparent);color:var(--fg);cursor:pointer}
+.pop-list{overflow-y:auto;padding:4px 20px 14px;overscroll-behavior:contain}
+.pop-list .row{animation:rowin .4s cubic-bezier(.22,1.2,.36,1) both}
+@keyframes rowin{from{opacity:0;transform:translateY(14px)}}
+@media (prefers-reduced-motion:reduce){.pop,.pop-card.in,.pop-card.out,.pop-list .row,.pop-top .eyebrow i{animation:none}}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;cursor:pointer}
 .tile span{font-size:12px;color:var(--muted)} .tile b{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
@@ -198,7 +217,6 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       <h2>What you spent it on</h2>
       <p class="note">Tap a slice or a category to see its charges.</p>
       <div class="ringrow"><svg id="sp-ring" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true"></svg><div class="legend" id="sp-cats"></div></div>
-      <div id="sp-pick" hidden></div>
       <div class="list" id="sp-back"></div>
     </section>
     <section class="card">
@@ -413,23 +431,40 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     Object.entries(cats).filter(([,v])=>v<-0.5).forEach(([c,v])=>{const r=el("div","row tap");r.dataset.cat=c;r.append(el("div","m",c==="Money back"?"Card money back":c),el("div","a in","+"+money(-v)),el("div","d","came back into spending money · tap to see"));back.append(r)});
     // Tapping a slice, a category, or a came-back line lists just those charges under the
     // ring; tapping it again (or Show all) goes back to everything.
-    const pick=c=>{
-      spPick=c;
+    const dim=c=>{
       $("sp-ring").querySelectorAll("[data-cat]").forEach(e=>e.style.opacity=!c||e.dataset.cat===c?1:.22);
       lg.querySelectorAll("[data-cat]").forEach(e=>e.style.opacity=!c||e.dataset.cat===c?1:.4);
-      const box=$("sp-pick");box.innerHTML="";box.hidden=!c;
       const ts=c?mine.filter(t=>catOf(t)===c):[], sum=ts.reduce((s,t)=>s-t.amount+(t.tip||0),0);
       $("sp-mid").textContent=c?(sum<0?"+"+money(-sum):money(sum)):money(total);
       $("sp-midsub").textContent=c?(sum>0?Math.round(sum/total*100)+"% of spending":"came back"):"before paybacks";
-      if(!c)return;
-      const h=el("div","pickhead"),dot=el("i");dot.style.background=catColor(c);
-      const x=el("button","link","Show all");x.onclick=()=>pick(null);
-      h.append(dot,el("b",null,c==="Money back"?"Card money back":c),el("span",null,`${ts.length} charge${ts.length===1?"":"s"} · ${sum<0?"+"+money(-sum):money(sum)}`),x);
-      const l=el("div","list");ts.forEach(t=>l.append(chargeRow(t,false)));box.append(h,l);
+      return [ts,sum];
     };
-    const tap=e=>{const t=e.target.closest("[data-cat]");if(t)pick(spPick===t.dataset.cat?null:t.dataset.cat)};
+    // Tapping a slice, a category, or a came-back line pops that category's charges out of
+    // the spot he tapped. The X or a tap outside closes it.
+    const pick=(c,x,y)=>{
+      spPick=c;const [ts,sum]=dim(c);
+      const old=$("sp-pop");if(old)old.remove();
+      const wrap=el("div","pop"), card=el("div","pop-card");wrap.id="sp-pop";card.style.setProperty("--c",catColor(c));
+      const top=el("div","pop-top"), eb=el("div","eyebrow");eb.append(el("i"),c==="Money back"?"Card money back":c);
+      const share=sum>0?` · ${Math.round(sum/total*100)}% of what you spent`:"";
+      top.append(eb,el("div","amt",sum<0?"+"+money(-sum):money(sum)),el("div","sub",`${ts.length} charge${ts.length===1?"":"s"} this paycheck${share}`));
+      const xb=el("button","pop-x","×");xb.setAttribute("aria-label","Close");
+      const list=el("div","pop-list");
+      ts.forEach((t,i)=>{const r=chargeRow(t,false);r.style.animationDelay=120+i*40+"ms";list.append(r)});
+      if(!ts.length)list.append(el("div","note","Nothing here this paycheck."));
+      card.append(top,xb,list);wrap.append(card);document.body.append(wrap);
+      const cr=card.getBoundingClientRect();
+      card.style.transformOrigin=`${(x??cr.left+cr.width/2)-cr.left}px ${(y??cr.top)-cr.top}px`;
+      card.classList.add("in");
+      let gone=false;
+      const close=()=>{if(gone)return;gone=true;spPick=null;dim(null);card.classList.replace("in","out");wrap.classList.add("out");setTimeout(()=>wrap.remove(),200)};
+      xb.onclick=close;wrap.onclick=e=>{if(e.target===wrap)close()};
+      list.addEventListener("click",e=>{if(e.target.closest(".row.tap"))close()});  // the tell-Claude sheet opens in its place
+    };
+    const tap=e=>{const t=e.target.closest("[data-cat]");if(t)pick(t.dataset.cat,e.clientX,e.clientY)};
     $("sp-ring").onclick=tap;lg.onclick=tap;back.onclick=tap;
-    pick(spPick&&cats[spPick]!=null?spPick:null);
+    if(!$("sp-pop"))spPick=null;
+    dim(spPick);
     const list=$("sp-list");list.innerHTML="";
     if(!mine.length)list.append(el("div","note","No charges yet this paycheck."));
     let cur=null;
@@ -604,7 +639,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Each section is its own screen; the phone's back button returns home.
   // The home screen is the big number and a menu; each item is its own screen, and the
   // phone's back button (or "‹ Money") returns home.
-  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent)$/.test(v)?v:""));if(v!=="spent"&&spPick&&last){spPick=null;drawSpent(last)}scrollTo(0,0)}
+  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent)$/.test(v)?v:""));if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}scrollTo(0,0)}
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
   addEventListener("hashchange",show);show();
   // Starts the GitHub update right now. The token stays on this phone only.
