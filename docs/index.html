@@ -217,6 +217,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       <h2>The whole paycheck</h2>
       <div class="track tall"><div class="fill" id="sp-fill"></div><b class="cap" id="sp-cap" hidden></b></div>
       <div class="legend" id="sp-keys"></div>
+      <h2 id="sp-billhead" hidden>Bills this pay cycle</h2>
+      <div class="list" id="sp-bills"></div>
     </section>
     <section class="card">
       <h2>What you spent it on</h2>
@@ -368,7 +370,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   const catOf=t=>(t.category||"Other").split(" · ")[0];
   const catColor=(()=>{const seen={};let n=0;return c=>CAT[c]||(seen[c]=seen[c]||SPARE[n++%SPARE.length])})();
 
-  const cents=n=>"$"+Math.abs(n).toFixed(2);
+  const cents=n=>"$"+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   // What a line really cost him: a charge less the paybacks tied to it; money in less the
   // part of it that's already shown on a charge.
   const own=t=>-t.amount+(t.tip||0)-(t.back||0)+(t.linked||0);
@@ -395,6 +397,16 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   function payParts(w){
     const owed=(w.owed&&w.owed.total)||0, cap=w.allowance, used=Math.max(w.spent-w.paid_back,0), out=[];
     const name=s=>(s||"").replace(/^(taken out )?for (the )?/i,"");
+    // The whole paycheck (his ask, 2026-11-19: "where did the rest of the $2,000 go"):
+    // this pay cycle's bills first, then whatever no plan has claimed, then spending money.
+    const pc=w.paycheck, bills=(w.bills&&w.bills.now&&w.bills.now.items)||[];
+    if(pc){
+      const paid=bills.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0), due=bills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
+      if(paid>0)out.push({c:"var(--tent)",v:paid,label:"Bills paid"});
+      if(due>0)out.push({c:"var(--tent)",v:due,label:"Bills still due",soft:true});
+      const extra=pc.amount-paid-due-w.per_period;
+      if(extra>0.5)out.push({c:"var(--teal)",v:extra,label:"Extra, not budgeted"});
+    }
     if(w.set_aside>0)out.push({c:"var(--purple)",v:w.set_aside,label:name(w.set_aside_label)||"Set aside"});
     if(w.moved_in>0)out.push({c:"var(--tent)",v:w.moved_in,label:name(w.moved_in_label)||"Taken out"});
     if(w.rolled_over<0)out.push({c:"var(--warn)",v:-w.rolled_over,label:"Last paycheck's overspend"});
@@ -410,8 +422,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     ps.forEach(p=>{
       if(p.spent)budgetEnd=at+w.allowance;
       const i=el("i",p.stripes?"stripes":null);i.style.left=at/total*100+"%";i.style.width=p.v/total*100+"%";
-      if(!p.stripes)i.style.background=p.c;fill.append(i);at+=p.v;
-      const sw=el("i",p.stripes?"stripes":null);if(!p.stripes)sw.style.background=p.c;
+      if(!p.stripes)i.style.background=p.c;if(p.soft)i.style.opacity=.45;fill.append(i);at+=p.v;
+      const sw=el("i",p.stripes?"stripes":null);if(!p.stripes)sw.style.background=p.c;if(p.soft)sw.style.opacity=.45;
       if(big){const d=el("div");d.append(sw,el("span",null,p.label),el("b",null,money(p.v)));keys.append(d)}
       else{const d=el("span");const b=el("b",null,money(p.v));d.append(sw,p.label+" ",b);keys.append(d)}
     });
@@ -426,7 +438,14 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     drawBar($("sp-fill"),$("sp-cap"),$("sp-keys"),w,true);
     const end=day(w.next_payday);end.setDate(end.getDate()-1);
     const whole=(w.set_aside||0)+(w.moved_in||0)+Math.max(-w.rolled_over,0)+w.allowance;
-    $("sp-range").textContent=`${fmt(w.period_start)} – ${end.toLocaleDateString("en-US",{month:"short",day:"numeric"})} · ${money(whole)} of spending money this paycheck`;
+    const range=`${fmt(w.period_start)} – ${end.toLocaleDateString("en-US",{month:"short",day:"numeric"})}`;
+    $("sp-range").textContent=w.paycheck?`${range} · paycheck ${cents(w.paycheck.amount)} on ${fmt(w.paycheck.date)}, ${money(w.per_period)} of it spending money`
+      :`${range} · ${money(whole)} of spending money this paycheck`;
+    // Every bill this pay cycle, paid or still coming.
+    const bl=$("sp-bills");bl.innerHTML="";const its=(w.bills&&w.bills.now&&w.bills.now.items)||[];
+    $("sp-billhead").hidden=!its.length;
+    its.forEach(b=>{const r=el("div","row");r.append(el("div","m",b.what),el("div","a out",cents(b.amount)),
+      el("div","d",(b.paid?"Paid ✓":`Due ${fmt(b.due)}`)+(b.card?" · on a card":"")+(b.est?" · estimate":"")));if(b.paid)r.style.opacity=.75;bl.append(r)});
     // A Zelle that's fully shown on its charge isn't listed again here.
     const mine=w.charges.filter(t=>t.date>=w.period_start&&!(t.amount>0&&t.linked>=t.amount-0.005));
     const cats={};mine.forEach(t=>{const c=catOf(t);cats[c]=(cats[c]||0)+own(t)});

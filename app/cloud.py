@@ -338,6 +338,16 @@ def answer(raw: str) -> None:
         conn.commit()
 
 
+def _paycheck(conn, start: date) -> dict | None:
+    """The pay deposit that started this pay period, so the bar can show the whole check."""
+    r = conn.execute(
+        "SELECT t.amount, t.date FROM transactions t JOIN accounts a ON a.id = t.account_id"
+        " WHERE a.mask = ? AND t.amount > 0 AND t.pfc_detailed = 'INCOME_SALARY'"
+        " AND t.date BETWEEN ? AND ? ORDER BY t.amount DESC LIMIT 1",
+        (wallet.BILLS_ACCOUNT, (start - timedelta(days=3)).isoformat(), (start + timedelta(days=3)).isoformat())).fetchone()
+    return {"amount": round(float(r[0]), 2), "date": r[1]} if r else None
+
+
 def snapshot(conn, today: date) -> dict:
     s = wallet.summary(conn, today)
     start = date.fromisoformat(s["period_start"])
@@ -429,6 +439,7 @@ def snapshot(conn, today: date) -> dict:
         "fund": fund,
         "owed": owing,
         "bills": wallet.upcoming_bills(conn, today, s, (owing or {}).get("total", 0.0)),
+        "paycheck": _paycheck(conn, start),
         "questions": questions,
         "banks": [{"name": b["name"], "ok": b["status"] == "healthy"} for b in banks],
         "updated": datetime.now(HOME).isoformat(timespec="seconds"),
