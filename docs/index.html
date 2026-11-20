@@ -10,16 +10,16 @@
 <style>
 :root{
   --bg:#F2F4F1; --surface:#FFFFFF; --line:#DCE2DD; --fg:#15201A; --muted:#5D6A62;
-  --accent:#1F6E48; --accent-soft:#E2EFE7; --warn:#A86A12; --warn-soft:#F7EBD6; --bad:#B3261E; --bad-soft:#F8E1DF; --tent:#3E6FD8; --tent-soft:#E1E9FA;
+  --accent:#1F6E48; --accent-soft:#E2EFE7; --warn:#A86A12; --warn-soft:#F7EBD6; --bad:#B3261E; --bad-soft:#F8E1DF; --tent:#3E6FD8; --tent-soft:#E1E9FA; --purple:#7A4FC9; --pink:#C2387A; --teal:#127A86; --slate:#5B6B8C;
   --display:"Archivo","Helvetica Neue",Arial,sans-serif;
   --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0E1411; --surface:#161F1A; --line:#26322B; --fg:#E5EDE8; --muted:#90A097;
-  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; color-scheme:dark}}
+  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; --purple:#B39CF0; --pink:#F08BB8; --teal:#4FC3CF; --slate:#9AA8C4; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0E1411; --surface:#161F1A; --line:#26322B; --fg:#E5EDE8; --muted:#90A097;
-  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; color-scheme:dark}
+  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; --purple:#B39CF0; --pink:#F08BB8; --teal:#4FC3CF; --slate:#9AA8C4; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--fg);margin:0}
 body{font-family:var(--body);font-size:15px;line-height:1.45;padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
@@ -70,17 +70,25 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 #pull{position:absolute;top:12px;right:12px;width:42px;height:42px;border-radius:50%;border:0;background:var(--accent-soft);color:var(--accent);-webkit-tap-highlight-color:transparent;display:grid;place-items:center;cursor:pointer}
 #pull.spin svg{animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.track{position:relative;height:12px;border-radius:999px;background:var(--line);margin-top:14px}
+.paybar{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding:0;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.track{position:relative;height:14px;border-radius:999px;background:var(--line)}
 .track .fill{position:absolute;inset:0;border-radius:999px;overflow:hidden}
-.track i{position:absolute;top:0;bottom:0;left:0}
-#bar-ok{background:var(--bad)}
-#bar-cushion{background:repeating-linear-gradient(135deg,var(--accent) 0 3px,transparent 3px 7px);opacity:.8}
-#bar-covered{background:var(--bad)}
-#bar-over{background:var(--bad)}
+.track i{position:absolute;top:0;bottom:0;left:0;box-shadow:inset -2px 0 0 var(--surface)}
+.track.tall{height:30px;border-radius:10px;margin-top:4px} .track.tall .fill{border-radius:10px}
+.stripes{background:repeating-linear-gradient(135deg,var(--accent) 0 3px,transparent 3px 7px)}
 .big.tent{color:var(--accent);opacity:.7} .pill.tent{background:var(--accent-soft);color:var(--accent)}
-.track .cap{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--fg);border-radius:2px}
-.tracklab{position:relative;height:18px;font-size:12px;color:var(--muted);margin-top:4px}
-.tracklab span{position:absolute;white-space:nowrap}
+.track .cap{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--fg);border-radius:2px}
+.keys{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.keys span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.keys i,.legend i.stripes{width:10px;height:10px;border-radius:3px;flex:none}
+.keys b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+.paybar .more{font:600 12px var(--body);color:var(--accent)}
+.legend small{color:var(--muted);font-size:12px;margin-left:6px;font-variant-numeric:tabular-nums}
+.dayhead{display:flex;justify-content:space-between;font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:14px 0 2px}
+.dayhead:first-child{padding-top:0}
+.dayhead+.row{border-top:0}
+.row .m .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
+#sp-ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;cursor:pointer}
 .tile span{font-size:12px;color:var(--muted)} .tile b{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
@@ -119,7 +127,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .menu button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:112px;padding:14px 12px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
 .menu button:active{transform:scale(.96);background:var(--accent-soft)}
-.menu .ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent);margin-bottom:2px}
+.menu .ic{--c:var(--accent);display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c);margin-bottom:2px}
+.menu [data-go=charges] .ic{--c:var(--bad)} .menu [data-go=accounts] .ic{--c:var(--tent)} .menu [data-go=bills] .ic{--c:var(--warn)}
+.menu [data-go=needs] .ic{--c:var(--teal)} .menu [data-go=details] .ic{--c:var(--slate)} .menu [data-go=fund] .ic{--c:var(--pink)}
 .menu .lb{font:600 14px/1.2 var(--body)}
 .menu button b{margin-top:auto;font-weight:600;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .top{display:flex;flex-direction:column;gap:2px}
@@ -139,8 +149,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="big skel" id="big">$—</div>
     <div class="tentative" id="tentative" hidden></div>
     <span class="pill" id="pill" hidden></span>
-    <div class="track" aria-hidden="true"><div class="fill"><i id="bar-ok"></i><i id="bar-cushion"></i><i id="bar-covered"></i><i id="bar-over"></i></div><b class="cap" id="bar-cap" hidden></b></div>
-    <div class="tracklab" id="tracklab"></div>
+    <button class="paybar" data-go="spent" aria-label="Where this paycheck went">
+      <div class="track"><div class="fill" id="bar-fill"></div><b class="cap" id="bar-cap" hidden></b></div>
+      <div class="keys" id="bar-keys"></div>
+      <span class="more">Where it went ›</span>
+    </button>
     <details class="owed" id="owed" hidden>
       <summary><span>Owed to you</span><b id="owed-total">—</b><i aria-hidden="true">›</i></summary>
       <div class="note" id="owed-sub"></div>
@@ -165,6 +178,26 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <section class="card" id="bills-next"></section>
     <section class="card" id="bills-later" hidden></section>
     <p class="note">Cards count everything you've bought, posted or not, plus tips not added yet. A bill is crossed off when it shows up at your bank.</p>
+  </div>
+
+  <div data-view="spent" hidden>
+    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Where it went</h1></header>
+    <p class="note" id="sp-range"></p>
+    <section class="card">
+      <h2>The whole paycheck</h2>
+      <div class="track tall"><div class="fill" id="sp-fill"></div><b class="cap" id="sp-cap" hidden></b></div>
+      <div class="legend" id="sp-keys"></div>
+    </section>
+    <section class="card">
+      <h2>What you spent it on</h2>
+      <div class="ringrow"><svg id="sp-ring" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true"></svg><div class="legend" id="sp-cats"></div></div>
+      <div class="list" id="sp-back"></div>
+    </section>
+    <section class="card">
+      <h2>Every charge this paycheck</h2>
+      <p class="note">Tap a charge to split it, mark it yours, or tell Claude about it.</p>
+      <div class="list" id="sp-list"></div>
+    </section>
   </div>
 
   <div data-view="charges" hidden>
@@ -261,7 +294,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   let last=null;
   function render(w){last=w;
     // The big number counts money people owe him (tentative). The confirmed figure
-    // sits under it, and the owed part shows on the bar in blue until it lands.
+    // sits under it, and the owed part shows on the bar as green stripes until it lands.
     const cap=w.allowance, owed=(w.owed&&w.owed.total)||0, real=w.left, left=real+owed;
     let tone="",pill="";
     if(left<0){tone="bad";pill="Over until payday by "+money(-left)}
@@ -278,45 +311,16 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
-    // The bar is the paycheck's spending money plus what he's owed. Solid green is spending
-    // inside the budget, soft red is overspend the owed money covers, solid red is overspend
-    // nothing covers. The stripes are only what's still left of the owed money, so the
-    // stripes match the big number when he's over (2026-11-17: the old full-width stripes
-    // under a thin red bar read as $71 left when the number said $47).
-    const used=Math.max(w.spent-w.paid_back,0), roof=cap+owed, scale=Math.max(used,roof,1);
-    const pct=v=>Math.max(v,0)/scale*100+"%", seg=(id,from,width)=>{$(id).style.left=pct(from);$(id).style.width=pct(width)};
-    // His rule (2026-11-17): green is money coming in, red is money spent. So all
-    // spending is red, and the green stripes are the owed money still to come in.
-    seg("bar-ok",0,Math.min(used,cap));
-    seg("bar-cushion",Math.max(used,cap),roof-Math.max(used,cap));
-    seg("bar-covered",cap,Math.min(used,roof)-cap);
-    seg("bar-over",roof,used-roof);
-    const capPct=cap/scale*100;
-    $("bar-cap").hidden=used<=cap&&!owed;$("bar-cap").style.left=`calc(${capPct}% - 1px)`;
-    const lab=$("tracklab");lab.innerHTML="";
-    const at=(text,rightPct,color)=>{const s=el("span",null,text);s.style.right=rightPct+"%";if(color){s.style.color=color;s.style.fontWeight="600"}lab.append(s);return s};
-    const over=used-cap;
-    let right=null;
-    if(used>roof) right=[owed?`${money(over)} over · ${money(used-roof)} not covered`:`+${money(over)} over`,"var(--bad)"];
-    else if(over>0) right=[`${money(over)} over · ${money(roof-used)} left once paid back`,"var(--bad)"];
-    else if(owed) right=[`+${money(owed)} owed`,"var(--accent)"];
-    if(right&&capPct>22&&100-capPct>45){at(`${money(cap)} budget`,100-capPct);at(right[0],0,right[1])}
-    else if(right) at(`${money(cap)} budget · ${right[0]}`,0,right[1]);
-    else{const a=el("span",null,`${money(used)} of ${money(cap)} spent`);a.style.left="0";lab.append(a)}
+    drawBar($("bar-fill"),$("bar-cap"),$("bar-keys"),w,false);
     $("t-today").textContent="How it's counted";
     $("go-needs").hidden=!w.needs;if(w.needs)$("t-needs").textContent=money(w.needs.reduce((s,n)=>s+n.left,0))+" left";
     $("go-fund").hidden=!w.fund;if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);ask(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawSpent(w);ask(w);
     const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`latest ${fmt(w.charges[0].date)}`:"none yet";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
-    w.charges.forEach(t=>{
-      const r=document.createElement("div");r.className="row";
-      const m=document.createElement("div");m.className="m";m.textContent=t.merchant;
-      const a=document.createElement("div");a.className="a"+(t.amount>0?" in":"");a.textContent=(t.amount>0?"+":"")+money(Math.abs(t.amount));
-      const x=document.createElement("div");x.className="d";x.textContent=`${fmt(t.date)} · ${t.category}${t.pending?" · pending":""}${t.tip?` · +${money(t.tip)} tip est.`:""}`;
-      r.append(m,a,x);if(t.id&&t.amount<0){r.classList.add("tap");r.onclick=()=>tell(t)}list.appendChild(r)});
+    w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
     const u=new Date(w.updated);
     $("updated").textContent="Updated "+u.toLocaleString("en-US",{weekday:"short",hour:"numeric",minute:"2-digit"});
     const broken=(w.banks||[]).filter(b=>!b.ok).map(b=>b.name);
@@ -324,6 +328,81 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   }
 
   const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e};
+
+  // His color rule (2026-11-17, -19): green is money in or still his, red is money spent,
+  // and colorful is fine everywhere else. Each spending category keeps its own color.
+  const CAT={"Food & drink":"var(--pink)","Groceries":"var(--teal)","Gas":"var(--warn)","Entertainment":"var(--purple)",
+    "Transportation":"var(--tent)","Shopping":"#D9622B","Personal care":"#8C6D3F","Medical":"#4F8A3C","Paid back":"var(--accent)","Money back":"var(--accent)"};
+  const SPARE=["var(--slate)","#B0563C","#6B7F2E","#9A4A8C"];
+  const catOf=t=>(t.category||"Other").split(" · ")[0];
+  const catColor=(()=>{const seen={};let n=0;return c=>CAT[c]||(seen[c]=seen[c]||SPARE[n++%SPARE.length])})();
+
+  function chargeRow(t,dot){
+    const r=el("div","row"), m=el("div","m");
+    if(dot){const d=el("i","dot");d.style.background=catColor(catOf(t));m.append(d)}
+    m.append(t.merchant);
+    const a=el("div","a "+(t.amount>0?"in":"out"),(t.amount>0?"+":"")+money(Math.abs(t.amount)));
+    const x=el("div","d",`${dot?"":fmt(t.date)+" · "}${t.category}${t.pending?" · pending":""}${t.tip?` · +${money(t.tip)} tip est.`:""}`);
+    r.append(m,a,x);if(t.id&&t.amount<0){r.classList.add("tap");r.onclick=()=>tell(t)}
+    return r;
+  }
+
+  // The bar is the whole paycheck's spending money, left to right: what came off the top
+  // (set-asides, last paycheck's overspend), what he's spent (red), what's left (green),
+  // and money owed to him still to come in (green stripes). Overspend runs red into the
+  // stripes, so what's left of the stripes always matches the big number.
+  function payParts(w){
+    const owed=(w.owed&&w.owed.total)||0, cap=w.allowance, used=Math.max(w.spent-w.paid_back,0), out=[];
+    const name=s=>(s||"").replace(/^(taken out )?for (the )?/i,"");
+    if(w.set_aside>0)out.push({c:"var(--purple)",v:w.set_aside,label:name(w.set_aside_label)||"Set aside"});
+    if(w.moved_in>0)out.push({c:"var(--tent)",v:w.moved_in,label:name(w.moved_in_label)||"Taken out"});
+    if(w.rolled_over<0)out.push({c:"var(--warn)",v:-w.rolled_over,label:"Last paycheck's overspend"});
+    out.push({c:"var(--bad)",v:used,label:used>cap?`Spent (${money(used-cap)} over)`:"Spent",spent:true});
+    if(cap-used>0)out.push({c:"var(--accent)",v:cap-used,label:"Left"});
+    const coming=Math.min(owed,Math.max(cap+owed-used,0));
+    if(coming>0)out.push({v:coming,label:used>cap?"Owed, after the overspend":"Owed to you",stripes:true});
+    return out;
+  }
+  function drawBar(fill,mark,keys,w,big){
+    const ps=payParts(w), total=Math.max(ps.reduce((s,p)=>s+p.v,0),1);
+    fill.innerHTML="";keys.innerHTML="";let at=0,budgetEnd=0;
+    ps.forEach(p=>{
+      if(p.spent)budgetEnd=at+w.allowance;
+      const i=el("i",p.stripes?"stripes":null);i.style.left=at/total*100+"%";i.style.width=p.v/total*100+"%";
+      if(!p.stripes)i.style.background=p.c;fill.append(i);at+=p.v;
+      const sw=el("i",p.stripes?"stripes":null);if(!p.stripes)sw.style.background=p.c;
+      if(big){const d=el("div");d.append(sw,el("span",null,p.label),el("b",null,money(p.v)));keys.append(d)}
+      else{const d=el("span");const b=el("b",null,money(p.v));d.append(sw,p.label+" ",b);keys.append(d)}
+    });
+    const owed=(w.owed&&w.owed.total)||0, used=Math.max(w.spent-w.paid_back,0);
+    mark.hidden=!(owed||used>w.allowance);mark.style.left=`calc(${budgetEnd/total*100}% - 1px)`;
+  }
+
+  function drawSpent(w){
+    drawBar($("sp-fill"),$("sp-cap"),$("sp-keys"),w,true);
+    const end=day(w.next_payday);end.setDate(end.getDate()-1);
+    const whole=(w.set_aside||0)+(w.moved_in||0)+Math.max(-w.rolled_over,0)+w.allowance;
+    $("sp-range").textContent=`${fmt(w.period_start)} – ${end.toLocaleDateString("en-US",{month:"short",day:"numeric"})} · ${money(whole)} of spending money this paycheck`;
+    const mine=w.charges.filter(t=>t.date>=w.period_start);
+    const cats={};mine.forEach(t=>{const c=catOf(t);cats[c]=(cats[c]||0)-t.amount+(t.tip||0)});
+    const spend=Object.entries(cats).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1]);
+    const total=spend.reduce((s,[,v])=>s+v,0)||1, R=48, C=2*Math.PI*R;
+    let svg=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>`, off=0;
+    spend.forEach(([c,v])=>{const len=v/total*C;svg+=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="${catColor(c)}" stroke-width="14" stroke-dasharray="${Math.max(len-1.5,0.5)} ${C-Math.max(len-1.5,0.5)}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;off+=len});
+    svg+=`<text x="60" y="60" text-anchor="middle" font-size="20">${money(total)}</text><text x="60" y="77" text-anchor="middle" font-size="9" style="font-weight:500;fill:var(--muted)">before paybacks</text>`;
+    $("sp-ring").innerHTML=svg;
+    const lg=$("sp-cats");lg.innerHTML="";
+    spend.forEach(([c,v])=>{const d=el("div"),i=el("i");i.style.background=catColor(c);const b=el("b",null,money(v));b.append(el("small",null,Math.round(v/total*100)+"%"));d.append(i,el("span",null,c),b);lg.append(d)});
+    const back=$("sp-back");back.innerHTML="";
+    Object.entries(cats).filter(([,v])=>v<-0.5).forEach(([c,v])=>{const r=el("div","row");r.append(el("div","m",c==="Money back"?"Card money back":c),el("div","a in","+"+money(-v)),el("div","d","came back into spending money"));back.append(r)});
+    const list=$("sp-list");list.innerHTML="";
+    if(!mine.length)list.append(el("div","note","No charges yet this paycheck."));
+    let cur=null;
+    mine.forEach(t=>{
+      if(t.date!==cur){cur=t.date;const net=mine.filter(x=>x.date===cur).reduce((s,x)=>s-x.amount+(x.tip||0),0);
+        const h=el("div","dayhead");h.append(el("span",null,day(cur).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})),el("span",null,net>=0?money(net)+" spent":"+"+money(-net)));list.append(h)}
+      list.append(chargeRow(t,true))});
+  }
 
   // The ring is this paycheck's spending money: what's gone, what groceries and gas still
   // need, and what's free. Over budget, the whole ring turns red.
@@ -490,7 +569,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Each section is its own screen; the phone's back button returns home.
   // The home screen is the big number and a menu; each item is its own screen, and the
   // phone's back button (or "‹ Money") returns home.
-  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges)$/.test(v)?v:""));scrollTo(0,0)}
+  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent)$/.test(v)?v:""));scrollTo(0,0)}
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
   addEventListener("hashchange",show);show();
   // Starts the GitHub update right now. The token stays on this phone only.

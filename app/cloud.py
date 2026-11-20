@@ -334,7 +334,7 @@ def snapshot(conn, today: date) -> dict:
                     else PRETTY.get(r["pfc_primary"] or "", (r["pfc_primary"] or "").replace("_", " ").title())),
         "pending": bool(r["pending"]),
         "tip": round(wallet._tip(r), 2),
-    } for r in counted[:25]]
+    } for r in counted]  # the whole paycheck (and at least 3 days), for the where-it-went screen
 
     period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]
     ask_from = max(wallet.SPLIT_ASK_FROM, today - timedelta(days=14)).isoformat()
