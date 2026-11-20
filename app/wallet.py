@@ -34,8 +34,19 @@ TIP_MIN = 30.00
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 
-# What has been bought out of the Black Friday Fund so far, so the page can say what is left.
-FUND_SPENT = [("Acer monitor, Micro Center, Nov 8", 409.14)]
+# The Black Friday Fund as he runs it (his update, 2026-11-20). The real money is the $450 he
+# moved Chase -> Ally Spending on Nov 16 and back to Chase checking on Nov 20 (lands Nov 23);
+# that transfer is not spending money. The first $450 bought the monitor and is done.
+# SET_ASIDE above is only what came off his spending money; this is what the fund holds.
+FUND_SAVED = 450.00
+FUND_SPENT = [
+    ("Trimmer + socks, Amazon", 143.30),
+    ("Prime, one month (ends Dec 20)", 14.99),
+]
+# Ordered but charged only when it ships: kept out of what's left so the fund doesn't look bigger.
+FUND_HELD = [("Philips i9000 shaver", 218.18)]
+# Money he expects back into the fund but hasn't seen land.
+FUND_CREDIT_TO_CONFIRM = [("Amazon card credit", 16.00)]
 
 # Needs, not wants (his words, 2026-11-11): groceries and gas have to happen every month,
 # so each gets a soft envelope per paycheck. They are INSIDE spending money, not on top of
@@ -243,6 +254,14 @@ MOVED_LABEL = "for the Oct 26 Costco run"
 COVERED = [
     {"merchant": "micro center", "low": 395.00, "high": 425.00,
      "after": date(2026, 11, 7), "before": date(2026, 11, 22)},
+    # Black Friday orders on Amazon, paid from the fund (Nov 20): the trimmer and socks
+    # (charged as they ship) and a month of Prime. Any Amazon charge this size in this
+    # window is taken as one of them.
+    {"merchant": "amazon", "low": 1.00, "high": 160.00, "after": date(2026, 11, 19), "before": date(2026, 11, 27)},
+    {"merchant": "amzn", "low": 1.00, "high": 160.00, "after": date(2026, 11, 19), "before": date(2026, 11, 27)},
+    # The shaver, charged when it ships.
+    {"merchant": "amazon", "low": 200.00, "high": 240.00, "after": date(2026, 12, 20), "before": date(2027, 1, 25)},
+    {"merchant": "amzn", "low": 200.00, "high": 240.00, "after": date(2026, 12, 20), "before": date(2027, 1, 25)},
 ]
 
 # Bills and money movement. None of this is spending money; it is handled before

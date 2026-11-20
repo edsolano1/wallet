@@ -405,13 +405,16 @@ def snapshot(conn, today: date) -> dict:
                       "left": round(max(budget - used, 0), 2)})
     still_needed = sum(n["left"] for n in needs)
 
-    saved = sum(a for day, a in wallet.SET_ASIDE.items() if day <= today)
-    planned = sum(wallet.SET_ASIDE.values())
     used_fund = sum(a for _, a in wallet.FUND_SPENT)
-    fund = {"name": "Black Friday Fund", "saved": saved, "planned": planned,
-            "spent": round(used_fund, 2), "left": round(saved - used_fund, 2),
-            "left_planned": round(planned - used_fund, 2),
-            "items": [{"what": w, "amount": a} for w, a in wallet.FUND_SPENT]}
+    held = sum(a for _, a in wallet.FUND_HELD)
+    credit = sum(a for _, a in wallet.FUND_CREDIT_TO_CONFIRM)
+    left = wallet.FUND_SAVED - used_fund - held
+    fund = {"name": "Black Friday Fund", "saved": wallet.FUND_SAVED, "planned": wallet.FUND_SAVED,
+            "spent": round(used_fund, 2), "held": round(held, 2), "credit": round(credit, 2),
+            "left": round(left, 2), "left_planned": round(left, 2),
+            "items": [{"what": w, "amount": a, "kind": "spent"} for w, a in wallet.FUND_SPENT]
+                     + [{"what": w, "amount": a, "kind": "held"} for w, a in wallet.FUND_HELD]
+                     + [{"what": w, "amount": a, "kind": "credit"} for w, a in wallet.FUND_CREDIT_TO_CONFIRM]}
 
     banks = [dict(r) for r in conn.execute(
         "SELECT institution_name AS name, status, last_sync_at, last_sync_error FROM items")]

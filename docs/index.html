@@ -689,11 +689,15 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   function drawFund(f){
     if(!f){$("fund-card").hidden=true;return}
     $("fund-card").hidden=false;
-    $("fund-left").textContent=money(f.left);
-    const pending=f.planned-f.saved;
-    $("fund-sub").textContent=`left of ${money(f.saved)} saved`+(pending>0?` · +${money(pending)} more on the next payday, ${money(f.left_planned)} total`:"");
-    $("fund-bar").style.width=(f.saved>0?Math.min(100,f.spent/f.saved*100):0)+"%";
-    $("fund-items").textContent=f.items.map(i=>`${i.what}: ${money(i.amount)}`).join(" · ");
+    // What's left already keeps back anything ordered but not charged yet (his rule, Nov 20).
+    $("fund-left").textContent=cents(f.left);
+    $("fund-sub").textContent=`left of ${money(f.saved)}`+(f.credit?` · ${cents(f.left+f.credit)} once the ${money(f.credit)} card credit is confirmed`:"");
+    $("fund-bar").style.width=(f.saved>0?Math.min(100,((f.spent||0)+(f.held||0))/f.saved*100):0)+"%";
+    const L=$("fund-items");L.className="list";L.innerHTML="";
+    (f.items||[]).forEach(i=>{const r=el("div","row"), k=i.kind||"spent";
+      r.append(el("div","m",i.what),el("div","a "+(k==="credit"?"in":"out"),(k==="credit"?"+":"")+cents(i.amount)),
+        el("div","d",k==="held"?"Held until it ships, Dec 29 to Jan 15":k==="credit"?"To confirm, not counted yet":"Paid from the fund"));
+      if(k!=="spent")r.style.opacity=.8;L.append(r)});
   }
 
   function drawAccounts(w){
