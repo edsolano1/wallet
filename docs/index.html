@@ -75,7 +75,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .track .fill{position:absolute;inset:0;border-radius:999px;overflow:hidden}
 .track i{position:absolute;top:0;bottom:0;left:0;box-shadow:inset -2px 0 0 var(--surface)}
 .track.tall{height:30px;border-radius:10px;margin-top:4px} .track.tall .fill{border-radius:10px}
-.stripes{background:repeating-linear-gradient(135deg,var(--accent) 0 3px,transparent 3px 7px)}
+.stripes{background:repeating-linear-gradient(135deg,var(--sc,var(--accent)) 0 3px,transparent 3px 7px)}
 .big.tent{color:var(--accent);opacity:.7} .pill.tent{background:var(--accent-soft);color:var(--accent)}
 .track .cap{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--fg);border-radius:2px}
 .keys{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
@@ -333,10 +333,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const cap=w.allowance, owed=(w.owed&&w.owed.total)||0, real=w.left, left=real+owed;
     let tone="",pill="";
     if(left<0){tone="bad";pill="Over until payday by "+money(-left)}
-    else if(real<0){tone="tent";pill=`Counts on ${money(owed)} owed to you`}
+    else if(real<0){tone="tent"}
     else if(left<cap*0.1){tone="warn";pill="Running low"}
     $("big").textContent=money(Math.max(left,0));$("big").className="big "+tone;
-    $("eyebrow").textContent=left<0?"Out of spending money":owed>0?"Left until payday · tentative":"Left until payday";
+    $("eyebrow").textContent=left<0?"Out of spending money":"Left until payday";
     const d=w.days_to_payday, next=day(w.next_payday).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
     $("sub").textContent=`${money(w.spent-w.paid_back)} of ${money(cap)} spent since payday. Next check ${next}, ${d} day${d===1?"":"s"} away.`;
     const parts=[];
@@ -408,35 +408,35 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const add=o=>{if(o.v>0.005)head.push(o)};
     const paid=bills.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0), due=bills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
     if(pc){
-      add({key:"bills",grp:"Bills",c:"var(--tent)",v:paid,label:"Bills paid"});
-      add({key:"bills",grp:"Bills",c:"var(--tent)",v:due,label:"Bills still due",soft:true});
-      add({key:"extra",grp:"Not planned",c:"var(--teal)",v:pc.amount-paid-due-w.per_period,label:"Extra, not budgeted"});
+      add({key:"bills",grp:"Bills",c:"var(--tent)",v:paid,label:"Bills"});
+      add({key:"bills",grp:"Bills",c:"var(--tent)",v:due,label:"Bills",stripes:true,sub:true});
+      add({key:"extra",grp:"Unassigned",c:"var(--teal)",v:pc.amount-paid-due-w.per_period,label:"Unassigned"});
     }
     add({key:"fund",grp:"Set aside",c:"var(--purple)",v:w.set_aside,label:name(w.set_aside_label)||"Set aside"});
     add({key:"moved",grp:"Set aside",c:"var(--slate)",v:w.moved_in,label:name(w.moved_in_label)||"Taken out"});
     add({key:"over",grp:"Set aside",c:"var(--warn)",v:-w.rolled_over,label:"Last paycheck's overspend"});
     const tail=[], coming=Math.min(owed,Math.max(budget+owed-share,0));
     if(budget-share>0.005)tail.push({key:"left",grp:"Spending",c:"var(--accent)",v:budget-share,label:"Left to spend"});
-    if(coming>0.005)tail.push({key:"owed",grp:"Coming in",v:coming,label:share>budget?"Owed, after the overspend":"Owed to you",stripes:true});
+    if(coming>0.005)tail.push({key:"owed",grp:"Coming in",c:"var(--accent)",v:coming,label:"Owed",stripes:true});
     return {owed,mine,cats,spend,back,came,share,budget,pc,bills,paid,due,head,tail,spentAt:head.reduce((s,p)=>s+p.v,0)};
   }
   const slices=(m,split)=>[...m.head,
     ...(split?m.spend.map(([c,v])=>({key:"cat:"+c,grp:"Spending",c:catColor(c),v,label:c}))
-      :[{key:"spent",grp:"Spending",c:"var(--bad)",v:m.share,label:m.share>m.budget?`Spent (${money(m.share-m.budget)} over)`:"Spent"}]),
+      :[{key:"spent",grp:"Spending",c:"var(--bad)",v:m.share-m.came,label:"Spent"}]),
     ...m.tail];
-  const swatch=p=>{const sw=el("i",p.stripes?"stripes":null);if(!p.stripes)sw.style.background=p.c;if(p.soft)sw.style.opacity=.45;return sw};
-  const paint=p=>p.stripes?"color-mix(in srgb,var(--accent) 55%,transparent)":p.soft?`color-mix(in srgb,${p.c} 45%,transparent)`:p.c;
+  const swatch=p=>{const sw=el("i",p.stripes?"stripes":null);if(p.stripes)sw.style.setProperty("--sc",p.c);else sw.style.background=p.c;return sw};
+  const paint=p=>p.stripes?`color-mix(in srgb,${p.c} 55%,transparent)`:p.c;
+  // One legend line per name: bills paid and still due share a line, with their total.
+  const keyed=ps=>{const out=[];ps.forEach(p=>{const k=out.find(o=>o.key===p.key&&o.label===p.label);if(k)k.v+=p.v;else out.push({...p})});return out};
 
   function drawBar(fill,mark,keys,w){
     const m=plan(w), ps=slices(m,false), total=Math.max(ps.reduce((s,p)=>s+p.v,0),1);
     fill.innerHTML="";keys.innerHTML="";let at=0;
     ps.forEach(p=>{
       const i=el("i",p.stripes?"stripes":null);i.style.left=at/total*100+"%";i.style.width=p.v/total*100+"%";
-      if(!p.stripes)i.style.background=p.c;if(p.soft)i.style.opacity=.45;fill.append(i);at+=p.v;
-      const d=el("span");d.append(swatch(p),p.label+" ",el("b",null,money(p.v)));keys.append(d);
-      if(p.key==="spent"&&m.came>0.5){const c=el("span");c.append(swatch({c:"var(--accent)"}),"Came back ",el("b",null,"+"+money(m.came)));keys.append(c)}
-    });
-    mark.hidden=!(m.owed||m.share>m.budget);mark.style.left=`calc(${(m.spentAt+m.budget)/total*100}% - 1px)`;
+      if(p.stripes)i.style.setProperty("--sc",p.c);else i.style.background=p.c;fill.append(i);at+=p.v});
+    keyed(ps).forEach(p=>{const d=el("span");d.append(swatch(p.sub?{...p,stripes:false}:p),p.label+" ",el("b",null,money(p.key==="owed"?m.owed:p.v)));keys.append(d)});
+    mark.hidden=!(m.owed||m.share>m.budget);mark.style.left=`calc(${(m.spentAt+m.budget-m.came)/total*100}% - 1px)`;
   }
 
   // Tapping the home bar bends it into the ring on the where-it-went screen.
@@ -471,20 +471,21 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       :`${range} · ${money(w.per_period)} of spending money this paycheck`;
     // Each slice is its own arc so it can be tapped.
     const R=48, pt=a=>`${(60+R*Math.sin(a)).toFixed(2)} ${(60-R*Math.cos(a)).toFixed(2)}`;
-    let svg=`<defs><pattern id="sp-stripe" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.6" height="5" style="fill:var(--accent)"/></pattern></defs>`
+    const pat=(id,c)=>`<pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.6" height="5" style="fill:${c}"/></pattern>`;
+    let svg=`<defs>${pat("sp-stripe","var(--accent)")}${pat("sp-stripe-b","var(--tent)")}</defs>`
       +`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>`, off=0;
     ps.forEach(p=>{const a0=off/total*2*Math.PI, a1=(off+p.v)/total*2*Math.PI;off+=p.v;
-      const tag=`data-key="${attr(p.key)}" fill="none" stroke="${p.stripes?"url(#sp-stripe)":p.c}" stroke-width="16"${p.soft?' stroke-opacity=".45"':""}`;
+      const tag=`data-key="${attr(p.key)}" fill="none" stroke="${p.stripes?(p.key==="bills"?"url(#sp-stripe-b)":"url(#sp-stripe)"):p.c}" stroke-width="16"`;
       svg+=ps.length===1?`<circle cx="60" cy="60" r="${R}" ${tag}/>`
         :`<path d="M${pt(a0)}A${R} ${R} 0 ${a1-a0>Math.PI?1:0} 1 ${pt(Math.max(a1-0.022,a0+0.006))}" ${tag}/>`});
     const whole=m.pc?m.pc.amount+m.came:total;
     svg+=`<text id="sp-mid" x="60" y="61" text-anchor="middle" font-size="17">${money(whole)}</text><text id="sp-midsub" x="60" y="75" text-anchor="middle" font-size="7.5" style="font-weight:500;fill:var(--muted)">this paycheck</text>`;
     $("sp-ring").innerHTML=svg;
     const lg=$("sp-cats");lg.innerHTML="";let grp=null;
-    ps.forEach((p,i)=>{if(p.grp!==grp){grp=p.grp;lg.append(el("div","grp",grp))}
-      const d=el("div","item");d.dataset.key=p.key;d.style.animationDelay=60+i*35+"ms";d.append(swatch(p),el("span",null,p.label),el("b",null,money(p.v)));lg.append(d)});
+    keyed(ps).forEach((p,i)=>{if(p.grp!==grp){grp=p.grp;if(grp!==p.label)lg.append(el("div","grp",grp))}
+      const d=el("div","item");d.dataset.key=p.key;d.style.animationDelay=60+i*35+"ms";d.append(swatch(p.sub?{...p,stripes:false}:p),el("span",null,p.label),el("b",null,money(p.key==="owed"?m.owed:p.v)));lg.append(d)});
     const back=$("sp-back");back.innerHTML="";
-    m.back.forEach(([c,v])=>{const r=el("div","row tap");r.dataset.key="cat:"+c;r.append(el("div","m",c==="Money back"?"Card money back":c),el("div","a in","+"+money(-v)),el("div","d","came back, counted as money in · tap to see"));back.append(r)});
+    m.back.forEach(([c,v])=>{const r=el("div","row tap");r.dataset.key="cat:"+c;r.append(el("div","m",c==="Money back"?"Card money back":c),el("div","a in","+"+money(-v)),el("div","d","added to your spending money · tap to see"));back.append(r)});
 
     const sumOf=k=>k.startsWith("cat:")?(m.cats[k.slice(4)]||0):ps.filter(p=>p.key===k).reduce((s,p)=>s+p.v,0);
     const nameOf=k=>k==="bills"?"Bills":k.startsWith("cat:")?(k.slice(4)==="Money back"?"Card money back":k.slice(4)):(ps.find(p=>p.key===k)||{}).label||"";
@@ -514,7 +515,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
         rows=m.bills.map(b=>{const r=el("div","row");r.append(el("div","m",b.what),el("div","a out",cents(b.amount)),
           el("div","d",(b.paid?"Paid ✓":`Due ${fmt(b.due)}`)+(b.card?" · on a card":"")+(b.est?" · estimate":"")));if(b.paid)r.style.opacity=.75;return r});
       }else if(k==="extra"){
-        color="var(--teal)";say(`Your ${cents(m.pc.amount)} paycheck less this cycle's ${money(m.paid+m.due)} of bills and your ${money(w.per_period)} of spending money. Nothing is planned for it yet.`);
+        color="var(--teal)";say(`Left in checking from your ${cents(m.pc.amount)} paycheck after this cycle's ${money(m.paid+m.due)} of bills and your ${money(w.per_period)} of spending money. It isn't spending money; nothing is planned for it yet.`);
       }else if(k==="fund"){
         color="var(--purple)";say(`Set aside from this paycheck.${w.fund?` The fund has ${money(w.fund.left)} left.`:""}`);
       }else if(k==="moved"){
@@ -525,7 +526,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
         say(`Yours to spend until payday, ${day(w.next_payday).toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}.`);
       }else if(k==="owed"){
         stripes=true;amt=m.owed;title="Owed to you";
-        if(m.share>m.budget)say(`${money(Math.min(m.share-m.budget,m.owed))} of it covers this paycheck's overspend; the rest is yours when it lands.`);
+
         rows=((w.owed&&w.owed.items)||[]).map(o=>{const r=el("div","row");r.append(el("div","m",o.who?`${o.who} · ${o.what}`:o.what),el("div","a in","+"+cents(o.left)),el("div","d",`since ${fmt(o.since)}${o.note?" · "+o.note:""}`));return r});
       }
       const wrap=el("div","pop"), card=el("div","pop-card");wrap.id="sp-pop";card.style.setProperty("--c",color);
@@ -586,7 +587,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 
   // Money people owe him: possible money back, in neutral colors, until the Zelle lands.
   function drawOwed(w){
-    const o=w.owed;$("owed").hidden=$("tentative").hidden=!(o&&o.items.length);if($("owed").hidden)return;
+    const o=w.owed;$("owed").hidden=$("tentative").hidden=true;if(!(o&&o.items.length))return;
     $("tentative").innerHTML=`Confirmed <b>${w.left<0?"−":""}$${Math.round(Math.abs(w.left)).toLocaleString("en-US")}</b> · ${money(o.total)} still owed to you`;
     const cents=n=>"$"+n.toFixed(2);
     $("owed-total").textContent=cents(o.total);
