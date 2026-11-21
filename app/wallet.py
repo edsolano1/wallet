@@ -254,6 +254,11 @@ MOVED_LABEL = "for the Oct 26 Costco run"
 # his share of the Florida trip (Nov 20).
 COUNTED = [
     (date(2026, 10, 13), "venmo", 84.00),
+    # Three doors from an Auction Nation doors auction (receipts in his email). The bank
+    # files Auction Nation as automotive, which the bills rules skip. Denisse paid
+    # $160 of it back ("doors", Oct 13), linked in owed.json.
+    (date(2026, 10, 5), "auction nation", 12.55),
+    (date(2026, 10, 7), "auction nation", 149.94),
 ]
 
 # Already paid for out of money he had set aside, so it must not count twice.
