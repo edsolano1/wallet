@@ -618,3 +618,99 @@ def summary(conn, today: date | None = None) -> dict:
         "left": round(left, 2),
         "tip_estimate": round(tips, 2),
     }
+
+
+# ---- Monthly budget -------------------------------------------------------------------
+# His month-by-month plan (Nov 21, 2026): every month allots money to each bill, and the
+# two months a year with a third paycheck are the bonus. Amounts are his Monarch lines,
+# checked against his accounts on Nov 21 (Aidvantage, State Farm, Verizon, Plaid, Gmail).
+# `from`/`until` bound a line to months ("YYYY-MM", inclusive). `match` (a regex on the
+# merchant, or `cats` on Plaid's detailed category) finds what actually went out that
+# month; a line without one is shown as planned only. `paycheck` lines come out before
+# the deposit lands, so they're listed but not taken off take-home pay.
+PAYCHECK = 1986.71  # usual take-home deposit (some checks run up to $2,010.65)
+BUDGET = [
+    {"what": "Rent", "group": "Home", "amount": 542.00, "match": r"zelle payment to denisse", "lo": 541, "hi": 543},
+    {"what": "Gas & electric (your half)", "group": "Home", "amount": 110.00, "note": "varies, Denisse sends the request"},
+    {"what": "Phone (Verizon)", "group": "Home", "amount": 101.90, "match": r"verizon", "lo": 80, "hi": 140},
+    {"what": "Student loan", "group": "Loans", "amount": 699.33, "from": "2026-11", "match": r"aidvantage|dept ?of ?ed", "lo": 650, "hi": 760},
+    {"what": "Car insurance (State Farm)", "group": "Car", "amount": 253.80, "until": "2026-12", "match": r"state farm", "lo": 200, "hi": 270},
+    {"what": "GEICO, 6 months paid in full", "group": "Car", "amount": 1257.50, "from": "2026-12", "until": "2026-12", "match": r"geico", "lo": 1000, "hi": 1500,
+     "note": "due Dec 26, starts Dec 27"},
+    {"what": "Car insurance (save for GEICO)", "group": "Car", "amount": round(1257.50 / 6, 2), "from": "2027-01",
+     "note": "renews every 6 months"},
+    {"what": "Car maintenance", "group": "Car", "amount": 100.00, "note": "set aside for repairs"},
+    {"what": "Parking", "group": "Car", "amount": 30.00, "match": r"cash app\*gee", "lo": 1, "hi": 35},
+    {"what": "Kitty (vet)", "group": "Health", "amount": 125.00, "cats": {"MEDICAL_VETERINARY_SERVICES"}, "note": "before Denisse's half back"},
+    {"what": "Therapy", "group": "Health", "amount": 50.00, "cats": {"MEDICAL_PRIMARY_CARE"}},
+    {"what": "Fitness", "group": "Health", "amount": 25.00, "paycheck": True, "note": "comes out of your paycheck"},
+    {"what": "Anthropic", "group": "Subscriptions", "amount": 109.10, "match": r"anthropic", "lo": 15, "hi": 250},
+    {"what": "Spotify", "group": "Subscriptions", "amount": 14.17, "match": r"spotify", "lo": 5, "hi": 30},
+    {"what": "Ring", "group": "Subscriptions", "amount": 21.80, "match": r"^ring\b", "lo": 5, "hi": 25, "note": "two plans, cancel one to save $10.90"},
+    {"what": "Car wash", "group": "Subscriptions", "amount": round(21.00 * 13 / 12, 2), "match": r"cobblestone", "lo": 15, "hi": 30, "note": "every 4 weeks"},
+    {"what": "3-month subscription", "group": "Subscriptions", "amount": round(224.00 / 3, 2), "from": "2026-11", "note": "$224 every 3 months, next Nov 29"},
+    {"what": "Google One", "group": "Subscriptions", "amount": 19.99, "from": "2027-02", "match": r"google", "lo": 5, "hi": 30, "note": "free trial until Feb 13"},
+]
+
+
+def paydays_in(year: int, month: int) -> list[date]:
+    first = date(year, month, 1)
+    nxt = date(year + (month == 12), month % 12 + 1, 1)
+    d, _ = period_for(first)
+    if d < first:
+        d += timedelta(days=14)
+    out = []
+    while d < nxt:
+        out.append(d)
+        d += timedelta(days=14)
+    return out
+
+
+def _month_lines(key: str) -> list[dict]:
+    return [b for b in BUDGET if b.get("from", "0000-00") <= key <= b.get("until", "9999-99")]
+
+
+def monthly_budget(conn, today: date, months: int = 12) -> dict:
+    """This month with what actually went out, then the months after it as planned."""
+    out = []
+    y, m = today.year, today.month
+    for i in range(months):
+        key = f"{y:04d}-{m:02d}"
+        first = date(y, m, 1)
+        nxt = date(y + (m == 12), m % 12 + 1, 1)
+        pays = paydays_in(y, m)
+        lines = []
+        rows = None
+        if i == 0:  # only this month has actuals worth showing
+            rows = [dict(r) for r in conn.execute(
+                "SELECT -t.amount AS amt, COALESCE(t.merchant_name, '') || ' | ' || t.name AS what, t.pfc_detailed AS cat"
+                " FROM transactions t WHERE t.amount < 0 AND COALESCE(t.authorized_date, t.date) >= ?"
+                " AND COALESCE(t.authorized_date, t.date) < ?", (first.isoformat(), nxt.isoformat()))]
+        for b in _month_lines(key):
+            actual = None
+            if rows is not None and ("match" in b or "cats" in b):
+                if "cats" in b:
+                    hits = [r["amt"] for r in rows if r["cat"] in b["cats"]]
+                else:
+                    hits = [r["amt"] for r in rows if b["lo"] <= r["amt"] <= b["hi"]
+                            and any(re.search(b["match"], p.strip(), re.I) for p in r["what"].split("|"))]
+                actual = round(sum(hits), 2)
+            lines.append({"what": b["what"], "group": b["group"], "amount": b["amount"], "actual": actual,
+                          "paycheck": bool(b.get("paycheck")), "note": b.get("note", "")})
+        income = round(len(pays) * PAYCHECK, 2)
+        bills = round(sum(l["amount"] for l in lines if not l["paycheck"]), 2)
+        spending = round(len(pays) * PER_PERIOD, 2)
+        month = {"key": key, "label": first.strftime("%B %Y"), "paydays": [p.isoformat() for p in pays],
+                 "bonus": len(pays) == 3, "income": income, "bills": bills, "spending": spending,
+                 "left": round(income - bills - spending, 2), "lines": lines}
+        if i == 0:
+            got = conn.execute(
+                "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t JOIN accounts a ON a.id = t.account_id"
+                " WHERE a.mask = ? AND t.amount > 0 AND t.pfc_detailed = 'INCOME_SALARY' AND t.date >= ? AND t.date < ?",
+                (BILLS_ACCOUNT, first.isoformat(), nxt.isoformat())).fetchone()[0]
+            spent_rows = _rows(conn, first, min(nxt, today + timedelta(days=1)))
+            month["income_actual"] = round(float(got), 2)
+            month["spending_actual"] = round(_cost(spent_rows) - _paid_back(spent_rows), 2)
+        out.append(month)
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return {"paycheck": PAYCHECK, "per_check": round(PER_PERIOD, 2), "months": out}
