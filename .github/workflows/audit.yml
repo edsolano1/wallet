@@ -1,0 +1,35 @@
+name: Spending check
+
+# One-time check of the wallet's rules against real transactions, paid from the plan's API
+# credit (ANTHROPIC_API_KEY), never his Claude subscription. Runs when app/audit.py changes
+# or by hand. The report is sealed (DB_KEY) and attached to the "db" release; the log shows
+# only sizes and token counts.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [app/audit.py, .github/workflows/audit.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      DB_KEY: ${{ secrets.DB_KEY }}
+      WALLET_KEY: ${{ secrets.WALLET_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: gh release download db -p finance.db.enc
+      - run: python -m app.cloud open
+      - run: python -m app.audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - run: gh release upload db audit.md.enc --clobber
