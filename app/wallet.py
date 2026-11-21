@@ -644,13 +644,16 @@ BUDGET = [
     {"what": "Car insurance (save for GEICO)", "group": "Car", "amount": round(1257.50 / 6, 2), "from": "2027-01",
      "note": "renews every 6 months"},
     {"what": "Car maintenance", "group": "Car", "amount": 100.00, "note": "set aside for repairs"},
-    {"what": "Car registration", "group": "Car", "amount": round(76.48 / 12, 2), "note": "$76.48 a year, due Jun 30"},
     {"what": "Parking", "group": "Car", "amount": 30.00, "match": r"cash app\*gee", "lo": 1, "hi": 35},
     {"what": "Kitty (vet)", "group": "Health", "amount": 125.00, "cats": {"MEDICAL_VETERINARY_SERVICES"}, "note": "before Denisse's half back"},
     {"what": "Therapy", "group": "Health", "amount": 50.00, "cats": {"MEDICAL_PRIMARY_CARE"}},
     {"what": "Prescription", "group": "Health", "amount": 24.67, "match": r"safeway", "lo": 24.66, "hi": 24.68,
      "note": "monthly copay"},
     {"what": "Fitness", "group": "Health", "amount": 25.00, "paycheck": True, "note": "comes out of your paycheck"},
+    # Small costs that come once a year or every few months, grouped (his call, Nov 21):
+    # car registration $76.48 (Jun 30), lab work ~$185, a refill ~$30 every 3 months, Costco share ~$30.
+    {"what": "Small yearly stuff", "group": "Yearly", "amount": round((76.48 + 185 + 120 + 30) / 12, 2),
+     "note": "about $411 a year: car registration, lab work, a refill, Costco share"},
     {"what": "Anthropic", "group": "Subscriptions", "amount": 109.10, "match": r"anthropic", "lo": 15, "hi": 250},
     {"what": "Spotify", "group": "Subscriptions", "amount": 14.17, "match": r"spotify", "lo": 5, "hi": 30},
     {"what": "Ring", "group": "Subscriptions", "amount": 21.80, "match": r"^ring\b", "lo": 5, "hi": 25, "note": "two plans, cancel one to save $10.90"},
