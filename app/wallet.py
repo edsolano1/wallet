@@ -259,6 +259,14 @@ COUNTED = [
     # $160 of it back ("doors", Oct 13), linked in owed.json.
     (date(2026, 10, 5), "auction nation", 12.55),
     (date(2026, 10, 7), "auction nation", 149.94),
+    # His share of things Denisse paid for, sent to her by Zelle (Nov 20: "my amount is
+    # spending of course"). Not her "aps" requests ($99.64 Oct 16, $43.15 Nov 13): those
+    # are the electric bill. Not the $542 rent.
+    (date(2026, 10, 5), "zelle payment to denisse", 9.43),
+    (date(2026, 10, 19), "zelle payment to denisse", 9.50),
+    (date(2026, 10, 19), "zelle payment to denisse", 25.00),
+    (date(2026, 10, 30), "zelle payment to denisse", 10.00),
+    (date(2026, 11, 13), "zelle payment to denisse", 11.28),
 ]
 
 # Already paid for out of money he had set aside, so it must not count twice.
