@@ -141,9 +141,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .owed[open] summary i{transform:rotate(90deg)}
 .owed .note{margin:6px 0 2px}
 .owed .row .a{color:var(--muted)}
-.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+/* The charge menu drops in from the top so the keyboard and the app's buttons never cover it (Nov 21). */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px 16px;overflow-y:auto}
 .sheet .card{width:100%;max-width:440px;gap:12px;animation:up .35s cubic-bezier(.2,1.2,.4,1)}
-@keyframes up{from{transform:translateY(60px);opacity:0}}
+@keyframes up{from{transform:translateY(-40px);opacity:0}}
 .sheet .q{font-family:var(--display);font-weight:800;font-size:24px;line-height:1.15}
 .sheet textarea{font:15px var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;resize:none;width:100%}
 .sheet .share{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
