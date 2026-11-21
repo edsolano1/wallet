@@ -695,8 +695,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("fund-bar").style.width=(f.saved>0?Math.min(100,((f.spent||0)+(f.held||0))/f.saved*100):0)+"%";
     const L=$("fund-items");L.className="list";L.innerHTML="";
     (f.items||[]).forEach(i=>{const r=el("div","row"), k=i.kind||"spent";
-      r.append(el("div","m",i.what),el("div","a "+(k==="credit"?"in":"out"),(k==="credit"?"+":"")+cents(i.amount)),
-        el("div","d",k==="held"?"Held until it ships, Dec 29 to Jan 15":k==="credit"?"To confirm, not counted yet":"Paid from the fund"));
+      const plus=k==="credit"||k==="back";
+      r.append(el("div","m",i.what),el("div","a "+(plus?"in":"out"),(plus?"+":"")+cents(i.amount)),
+        el("div","d",k==="held"?"Held until it ships, Dec 29 to Jan 15":k==="credit"?"To confirm, not counted yet":k==="back"?"Back into the fund":"Paid from the fund"));
       if(k!=="spent")r.style.opacity=.8;L.append(r)});
   }
 

@@ -45,8 +45,11 @@ FUND_SPENT = [
 ]
 # Ordered but charged only when it ships: kept out of what's left so the fund doesn't look bigger.
 FUND_HELD = [("Philips i9000 shaver", 218.18)]
+# Money back into the fund that he has confirmed. The ~$16 Amazon card overpayment credit
+# was used against the $143.30 Amazon order (confirmed Nov 20).
+FUND_CREDITS = [("Amazon card credit, used on the order", 16.00)]
 # Money he expects back into the fund but hasn't seen land.
-FUND_CREDIT_TO_CONFIRM = [("Amazon card credit", 16.00)]
+FUND_CREDIT_TO_CONFIRM = []
 
 # Needs, not wants (his words, 2026-11-11): groceries and gas have to happen every month,
 # so each gets a soft envelope per paycheck. They are INSIDE spending money, not on top of

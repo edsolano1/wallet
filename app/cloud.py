@@ -408,12 +408,14 @@ def snapshot(conn, today: date) -> dict:
     used_fund = sum(a for _, a in wallet.FUND_SPENT)
     held = sum(a for _, a in wallet.FUND_HELD)
     credit = sum(a for _, a in wallet.FUND_CREDIT_TO_CONFIRM)
-    left = wallet.FUND_SAVED - used_fund - held
+    back = sum(a for _, a in wallet.FUND_CREDITS)
+    left = wallet.FUND_SAVED - used_fund - held + back
     fund = {"name": "Black Friday Fund", "saved": wallet.FUND_SAVED, "planned": wallet.FUND_SAVED,
             "spent": round(used_fund, 2), "held": round(held, 2), "credit": round(credit, 2),
             "left": round(left, 2), "left_planned": round(left, 2),
             "items": [{"what": w, "amount": a, "kind": "spent"} for w, a in wallet.FUND_SPENT]
                      + [{"what": w, "amount": a, "kind": "held"} for w, a in wallet.FUND_HELD]
+                     + [{"what": w, "amount": a, "kind": "back"} for w, a in wallet.FUND_CREDITS]
                      + [{"what": w, "amount": a, "kind": "credit"} for w, a in wallet.FUND_CREDIT_TO_CONFIRM]}
 
     banks = [dict(r) for r in conn.execute(
