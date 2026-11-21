@@ -127,7 +127,7 @@ BILLS = [
     {"what": "Spotify", "amount": 14.17, "day": 24, "match": r"spotify", "lo": 5, "hi": 30, "card": True},
     {"what": "Ring", "amount": 10.90, "day": 1, "match": r"^ring\b", "lo": 5, "hi": 25, "card": True},
     {"what": "Student loan autopay", "amount": 699.33, "day": 28, "start": date(2026, 11, 28), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 650, "hi": 760},
-    {"what": "State Farm", "amount": 233.50, "day": 10, "match": r"state farm", "lo": 200, "hi": 270},
+    {"what": "State Farm", "amount": 253.80, "day": 6, "match": r"state farm", "lo": 200, "hi": 270},
     {"what": "Parking", "amount": 30.00, "day": 9, "match": r"cash app\*gee", "lo": 25, "hi": 35},
     {"what": "Car wash", "amount": 21.00, "every": 28, "anchor": date(2026, 11, 13), "match": r"cobblestone", "lo": 15, "hi": 30, "card": True},
     {"what": "GEICO, paid in full", "amount": 1257.50, "once": date(2026, 12, 26), "match": r"geico", "lo": 1000, "hi": 1500},
