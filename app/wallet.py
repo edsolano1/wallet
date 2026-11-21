@@ -249,6 +249,13 @@ MOVED = [
 ]
 MOVED_LABEL = "for the Oct 26 Costco run"
 
+# Charges the bank files as transfers that he says were really spending.
+# (date, merchant fragment, amount). The Oct 13 Venmo to his brother Cristian was
+# his share of the Florida trip (Nov 20).
+COUNTED = [
+    (date(2026, 10, 13), "venmo", 84.00),
+]
+
 # Already paid for out of money he had set aside, so it must not count twice.
 # The Acer monitor: cash from his monitor returns plus money put by beforehand.
 COVERED = [
@@ -382,6 +389,14 @@ def _moved_to(row) -> date | None:
     return None
 
 
+def _is_counted(row) -> bool:
+    """A transfer he said was really spending (COUNTED)."""
+    return any(when.isoformat() in (row["date"], row.get("posted"))
+               and merchant in (row["what"] or "").lower()
+               and abs(-float(row["amount"]) - amount) < 0.01
+               for when, merchant, amount in COUNTED)
+
+
 def _is_covered(row) -> bool:
     """Paid with money set aside for it, so it is not spending money."""
     name = (row["what"] or "").lower()
@@ -437,6 +452,8 @@ def _is_spending(row) -> bool:
         return False
     # Before the is_transfer and name rules below, either of which would drop it.
     if _is_payback(row):
+        return True
+    if _is_counted(row):
         return True
     if row["is_transfer"]:
         return False
