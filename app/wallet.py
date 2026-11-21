@@ -277,6 +277,10 @@ COUNTED = [
 # Already paid for out of money he had set aside, so it must not count twice.
 # The Acer monitor: cash from his monitor returns plus money put by beforehand.
 COVERED = [
+    # A monthly prescription copay, budgeted as a health bill (Nov 21), not spending money.
+    # Exact amount only, so an ordinary grocery run there still counts.
+    {"merchant": "safeway", "low": 24.66, "high": 24.68,
+     "after": date(2026, 1, 1), "before": date(2099, 1, 1)},
     {"merchant": "micro center", "low": 395.00, "high": 425.00,
      "after": date(2026, 11, 7), "before": date(2026, 11, 22)},
     # Black Friday orders on Amazon, paid from the fund (Nov 20): the trimmer and socks
@@ -640,9 +644,12 @@ BUDGET = [
     {"what": "Car insurance (save for GEICO)", "group": "Car", "amount": round(1257.50 / 6, 2), "from": "2027-01",
      "note": "renews every 6 months"},
     {"what": "Car maintenance", "group": "Car", "amount": 100.00, "note": "set aside for repairs"},
+    {"what": "Car registration", "group": "Car", "amount": round(76.48 / 12, 2), "note": "$76.48 a year, due Jun 30"},
     {"what": "Parking", "group": "Car", "amount": 30.00, "match": r"cash app\*gee", "lo": 1, "hi": 35},
     {"what": "Kitty (vet)", "group": "Health", "amount": 125.00, "cats": {"MEDICAL_VETERINARY_SERVICES"}, "note": "before Denisse's half back"},
     {"what": "Therapy", "group": "Health", "amount": 50.00, "cats": {"MEDICAL_PRIMARY_CARE"}},
+    {"what": "Prescription", "group": "Health", "amount": 24.67, "match": r"safeway", "lo": 24.66, "hi": 24.68,
+     "note": "monthly copay"},
     {"what": "Fitness", "group": "Health", "amount": 25.00, "paycheck": True, "note": "comes out of your paycheck"},
     {"what": "Anthropic", "group": "Subscriptions", "amount": 109.10, "match": r"anthropic", "lo": 15, "hi": 250},
     {"what": "Spotify", "group": "Subscriptions", "amount": 14.17, "match": r"spotify", "lo": 5, "hi": 30},
