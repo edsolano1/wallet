@@ -655,7 +655,7 @@ BUDGET = [
     {"what": "Spotify", "group": "Subscriptions", "amount": 14.17, "match": r"spotify", "lo": 5, "hi": 30},
     {"what": "Ring", "group": "Subscriptions", "amount": 21.80, "match": r"^ring\b", "lo": 5, "hi": 25, "note": "two plans, cancel one to save $10.90"},
     {"what": "Car wash", "group": "Subscriptions", "amount": round(21.00 * 13 / 12, 2), "match": r"cobblestone", "lo": 15, "hi": 30, "note": "every 4 weeks"},
-    {"what": "3-month subscription", "group": "Subscriptions", "amount": round(224.00 / 3, 2), "from": "2026-11", "note": "$224 every 3 months (Nov 29, Feb 28, May 29...)"},
+    {"what": "3-month subscription", "group": "Subscriptions", "amount": round(244.38 * 365 / 90 / 12, 2), "from": "2026-11", "note": "$244.38 with tax every 90 days, on a card the app can't see"},
     {"what": "Google One", "group": "Subscriptions", "amount": 19.99, "from": "2027-02", "match": r"google", "lo": 5, "hi": 30, "note": "$19.99 a month once the free trial ends Feb 13"},
 ]
 
