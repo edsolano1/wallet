@@ -117,7 +117,7 @@ BILLS = [
     {"what": "Rent", "amount": 542.00, "day": 20, "match": r"zelle payment to denisse", "lo": 541, "hi": 543},
     {"what": "Gas & electric (your half)", "amount": 110.00, "day": 16, "match": r"zelle payment to denisse", "lo": 30, "hi": 250,
      "sum": True, "each_hi": 200, "est": True},
-    {"what": "Verizon", "amount": 107.46, "day": 19, "match": r"verizon", "lo": 80, "hi": 140},
+    {"what": "Verizon", "amount": 101.90, "day": 19, "match": r"verizon", "lo": 80, "hi": 140},
     {"what": "Anthropic", "amount": 109.10, "day": 20, "match": r"anthropic", "lo": 15, "hi": 250, "card": True},
     {"what": "Spotify", "amount": 14.17, "day": 24, "match": r"spotify", "lo": 5, "hi": 30, "card": True},
     {"what": "Ring", "amount": 10.90, "day": 1, "match": r"^ring\b", "lo": 5, "hi": 25, "card": True},
