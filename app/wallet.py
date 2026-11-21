@@ -42,6 +42,8 @@ FUND_SAVED = 450.00
 FUND_SPENT = [
     ("Trimmer + socks, Amazon", 143.30),
     ("Prime, one month (ends Dec 20)", 14.99),
+    # Order sp-5798420, $37.64: $34.68 on a MicroPerfumes gift card, the rest on Sapphire.
+    ("MicroPerfumes, after the gift card", 2.96),
 ]
 # Ordered but charged only when it ships: kept out of what's left so the fund doesn't look bigger.
 FUND_HELD = [("Philips i9000 shaver", 218.18)]
@@ -282,6 +284,8 @@ COVERED = [
     # window is taken as one of them.
     {"merchant": "amazon", "low": 1.00, "high": 160.00, "after": date(2026, 11, 19), "before": date(2026, 11, 27)},
     {"merchant": "amzn", "low": 1.00, "high": 160.00, "after": date(2026, 11, 19), "before": date(2026, 11, 27)},
+    # MicroPerfumes order (Nov 20): the $2.96 left after the gift card.
+    {"merchant": "microperfumes", "low": 2.50, "high": 3.50, "after": date(2026, 11, 19), "before": date(2026, 11, 30)},
     # The shaver, charged when it ships.
     {"merchant": "amazon", "low": 200.00, "high": 240.00, "after": date(2026, 12, 20), "before": date(2027, 1, 25)},
     {"merchant": "amzn", "low": 200.00, "high": 240.00, "after": date(2026, 12, 20), "before": date(2027, 1, 25)},
