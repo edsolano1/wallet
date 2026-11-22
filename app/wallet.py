@@ -130,7 +130,6 @@ BILLS = [
     {"what": "State Farm", "amount": 253.80, "day": 6, "match": r"state farm", "lo": 200, "hi": 270},
     {"what": "Parking", "amount": 30.00, "day": 9, "match": r"cash app\*gee", "lo": 25, "hi": 35},
     {"what": "Car wash", "amount": 21.00, "every": 28, "anchor": date(2026, 11, 13), "match": r"cobblestone", "lo": 15, "hi": 30, "card": True},
-    {"what": "GEICO, paid in full", "amount": 1257.50, "once": date(2026, 12, 26), "match": r"geico", "lo": 1000, "hi": 1500},
 ]
 # His names for his accounts.
 NICKNAMES = {"7372": "Chase Checking", "9203": "Sapphire", "2098": "MGM Card", "1271": "Samsung Card", "4713": "Amazon Card"}
@@ -639,10 +638,10 @@ BUDGET = [
     {"what": "Phone (Verizon)", "group": "Home", "amount": 101.90, "match": r"verizon", "lo": 80, "hi": 140},
     {"what": "Student loan", "group": "Loans", "amount": 699.33, "from": "2026-11", "match": r"aidvantage|dept ?of ?ed", "lo": 650, "hi": 760},
     {"what": "Car insurance (State Farm)", "group": "Car", "amount": 253.80, "until": "2026-12", "match": r"state farm", "lo": 200, "hi": 270},
-    {"what": "GEICO, 6 months paid in full", "group": "Car", "amount": 1257.50, "from": "2026-12", "until": "2026-12", "match": r"geico", "lo": 1000, "hi": 1500,
-     "note": "due Dec 26, starts Dec 27"},
-    {"what": "Car insurance (save for GEICO)", "group": "Car", "amount": round(1257.50 / 6, 2), "from": "2027-01",
-     "note": "renews every 6 months"},
+    # GEICO's $1,257.50 (Dec 26) goes on a card that savings pays off, so it never hits a month;
+    # the budget pays savings back instead (Eddie, Nov 21).
+    {"what": "Car insurance (pay savings back for GEICO)", "group": "Car", "amount": round(1257.50 / 6, 2), "from": "2027-01",
+     "note": "savings paid the 6-month policy; this pays it back"},
     {"what": "Car maintenance", "group": "Car", "amount": 100.00, "note": "set aside for repairs"},
     {"what": "Parking", "group": "Car", "amount": 30.00, "match": r"cash app\*gee", "lo": 1, "hi": 35},
     {"what": "Kitty (vet)", "group": "Health", "amount": 125.00, "cats": {"MEDICAL_VETERINARY_SERVICES"}, "note": "before Denisse's half back"},
