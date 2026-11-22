@@ -276,6 +276,10 @@ COUNTED = [
 # Already paid for out of money he had set aside, so it must not count twice.
 # The Acer monitor: cash from his monitor returns plus money put by beforehand.
 COVERED = [
+    # Litter at a pet store comes out of the Kitty budget line (Nov 22), not spending money.
+    # D buys the food. Litter on Amazon or at Costco can't be told apart, so it still counts.
+    *({"merchant": m, "low": 1.00, "high": 80.00, "after": date(2026, 11, 22), "before": date(2099, 1, 1)}
+      for m in ("petsmart", "petco", "chewy")),
     # A monthly prescription copay, budgeted as a health bill (Nov 21), not spending money.
     # Exact amount only, so an ordinary grocery run there still counts.
     {"merchant": "safeway", "low": 24.66, "high": 24.68,
@@ -644,7 +648,9 @@ BUDGET = [
      "note": "savings paid the 6-month policy; this pays it back"},
     {"what": "Car maintenance", "group": "Car", "amount": 100.00, "note": "set aside for repairs"},
     {"what": "Parking", "group": "Car", "amount": 30.00, "match": r"cash app\*gee", "lo": 1, "hi": 35},
-    {"what": "Kitty (vet)", "group": "Health", "amount": 125.00, "cats": {"MEDICAL_VETERINARY_SERVICES"}, "note": "before Denisse's half back"},
+    # His half of the vet (~$140) plus litter (~$23); D buys the food (Eddie, Nov 22).
+    {"what": "Kitty (vet, litter)", "group": "Health", "amount": 165.00, "cats": {"MEDICAL_VETERINARY_SERVICES"},
+     "match": r"petsmart|petco|chewy", "lo": 1, "hi": 80, "note": "before Denisse's half back"},
     {"what": "Therapy", "group": "Health", "amount": 50.00, "cats": {"MEDICAL_PRIMARY_CARE"}},
     {"what": "Prescription", "group": "Health", "amount": 24.67, "match": r"safeway", "lo": 24.66, "hi": 24.68,
      "note": "monthly copay"},
@@ -698,11 +704,9 @@ def monthly_budget(conn, today: date, months: int = 12) -> dict:
         for b in _month_lines(key):
             actual = None
             if rows is not None and ("match" in b or "cats" in b):
-                if "cats" in b:
-                    hits = [r["amt"] for r in rows if r["cat"] in b["cats"]]
-                else:
-                    hits = [r["amt"] for r in rows if b["lo"] <= r["amt"] <= b["hi"]
-                            and any(re.search(b["match"], p.strip(), re.I) for p in r["what"].split("|"))]
+                hits = [r["amt"] for r in rows if r["cat"] in b.get("cats", ())
+                        or ("match" in b and b["lo"] <= r["amt"] <= b["hi"]
+                            and any(re.search(b["match"], p.strip(), re.I) for p in r["what"].split("|")))]
                 actual = round(sum(hits), 2)
             lines.append({"what": b["what"], "group": b["group"], "amount": b["amount"], "actual": actual,
                           "paycheck": bool(b.get("paycheck")), "note": b.get("note", "")})
