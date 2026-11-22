@@ -669,9 +669,9 @@ BUDGET = [
      "note": "monthly copay"},
     {"what": "Fitness", "group": "Health", "amount": 25.00, "paycheck": True, "note": "comes out of your paycheck"},
     # Small costs that come once a year or every few months, grouped (his call, Nov 21):
-    # car registration $76.48 (Jun 30), lab work ~$185, a refill ~$30 every 3 months, Costco share ~$30.
-    {"what": "Small yearly stuff", "group": "Yearly", "amount": round((76.48 + 185 + 120 + 30) / 12, 2),
-     "note": "about $411 a year: car registration, lab work, a refill, Costco share"},
+    # car registration $76.48 (Jun 30), lab work ~$200 (the $371 in Oct 2026 covered three years), a refill ~$30 every 3 months, Costco share ~$30.
+    {"what": "Small yearly stuff", "group": "Yearly", "amount": round((76.48 + 200 + 120 + 30) / 12, 2),
+     "note": "about $426 a year: car registration, lab work, a refill, Costco share"},
     {"what": "Anthropic", "group": "Subscriptions", "amount": 109.10, "match": r"anthropic", "lo": 15, "hi": 250},
     {"what": "Spotify", "group": "Subscriptions", "amount": 14.17, "match": r"spotify", "lo": 5, "hi": 30},
     {"what": "Ring", "group": "Subscriptions", "amount": 21.80, "match": r"^ring\b", "lo": 5, "hi": 25, "note": "two plans, cancel one to save $10.90"},
@@ -743,16 +743,17 @@ def monthly_budget(conn, today: date, months: int = 12) -> dict:
 
 
 # ---- Money moves (Eddie, Nov 22) -------------------------------------------------------
-# Each payday he moves two round amounts out of Chase checking himself: rent and the loan
-# into Chase Savings, the quarterly and yearly bills into Ally. Before rent and the loan
-# come out he moves their money back, and when a quarterly or yearly bill lands on a card
-# he pulls that amount back from Ally. The app reminds him; it never moves money.
+# He moves round amounts out of Chase checking himself. The first paycheck of each month
+# puts rent into Chase Savings, and he moves it back before rent goes out; the loan comes
+# straight out of checking after the second paycheck (Eddie, Nov 22). Every paycheck sends
+# the quarterly and yearly money to Ally Savings, and when one of those bills lands on a
+# card he pulls that amount back. The app reminds him; it never moves money.
 MOVES_FROM = date(2026, 11, 27)   # first payday under this plan
-TO_CHASE_SAVINGS = 625.00          # rent $542 + loan $699.33 is $620.67 a paycheck, rounded up
-TO_ALLY = 250.00                   # the quarterly and yearly bills are $243.44 a paycheck, rounded up
+TO_CHASE_SAVINGS = 550.00          # rent is $542; first paycheck of the month only
+TO_ALLY = 250.00                   # the quarterly and yearly bills are about $244 a paycheck, rounded up
 CHASE_SAVINGS, ALLY_SPENDING, ALLY_SAVINGS = "6725", "2628", "2617"
 ALLY_KEEP = 100.00                 # leave this in Ally Spending; anything past it earns more in savings
-SAVED_BILLS = {"Rent": 542.00, "Student loan autopay": 700.00}  # bill -> round amount to move back
+SAVED_BILLS = {"Rent": 542.00}  # bill -> amount to move back; the loan autopays from checking
 SAVED_FROM = date(2026, 12, 1)     # bills due before this were paid from checking as before
 MOVE_BACK_DAYS = 6                 # start asking this many days before the bill is due
 # Quarterly and yearly bills that land on a card and come back out of Ally.
@@ -764,6 +765,8 @@ FROM_ALLY = [
     {"what": "Car registration", "match": r"az mvd|mvd fee|servicearizona"},
 ]
 FROM_ALLY_SINCE = date(2026, 11, 22)
+# Big ones on a card the app can't see yet (the new card isn't linked): date, what, amount.
+FROM_ALLY_KNOWN = [(date(2026, 12, 26), "GEICO, 6 months, on the new card", 1257.50, r"geico")]
 
 
 def _tx(conn, mask: str, a: date, b: date):
@@ -779,6 +782,10 @@ def _moved(conn, mask: str, pattern: str, lo: float, a: date, b: date, sign: int
     return any(float(r["amount"]) * sign >= lo and re.search(pattern, r["what"]) for r in _tx(conn, mask, a, b))
 
 
+def _first_check(payday: date) -> bool:
+    return paydays_in(payday.year, payday.month)[:1] == [payday]
+
+
 def _bonus_check(payday: date) -> bool:
     """The third paycheck in a month: the bills are already covered by the other two."""
     return payday in paydays_in(payday.year, payday.month)[2:]
@@ -790,16 +797,18 @@ def money_moves(conn, today: date) -> list[dict]:
     moves = []
     if start >= MOVES_FROM and not _bonus_check(start):
         a, b = start - timedelta(days=1), nxt - timedelta(days=1)
-        moves.append({"id": f"pay-{start}-chase", "kind": "payday", "bank": "chase", "date": start.isoformat(),
-                      "what": "Rent and student loan", "amount": TO_CHASE_SAVINGS,
-                      "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
-                      "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
-                      "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", TO_CHASE_SAVINGS - 1, a, b, -1)})
-        moves.append({"id": f"pay-{start}-ally", "kind": "payday", "bank": "chase", "date": start.isoformat(),
+        if _first_check(start):
+            moves.append({"id": f"pay-{start}-chase", "kind": "payday", "bank": "chase", "date": start.isoformat(),
+                          "what": "Rent", "amount": TO_CHASE_SAVINGS,
+                          "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
+                          "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
+                          "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", TO_CHASE_SAVINGS - 1, a, b, -1)})
+        moves.append({"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
                       "what": "Quarterly and yearly bills", "amount": TO_ALLY,
-                      "from": "Chase checking ··7372", "to": "Ally Spending ··2628, then Ally Savings",
-                      "how": "Chase → Pay & transfer → to your Ally Checking ··2628 (1–3 days). Once it lands, move it to Ally Savings.",
+                      "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
+                      "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days.",
                       "done": _moved(conn, BILLS_ACCOUNT, r"ally", TO_ALLY - 1, a, b, -1)
+                              or _moved(conn, ALLY_SAVINGS, r"jpmorgan|chase", TO_ALLY - 1, a, b, 1)
                               or _moved(conn, ALLY_SPENDING, r"jpmorgan|chase", TO_ALLY - 1, a, b, 1)})
     # Before rent and the loan come out of checking, their money comes back from Chase Savings.
     for bill in BILLS:
@@ -830,6 +839,14 @@ def money_moves(conn, today: date) -> list[dict]:
             if ok and float(r["amt"]) >= f.get("lo", 0):
                 hits.append((r["day"], f["what"], round(float(r["amt"]), 2)))
                 break
+    for when, what, amt, pat in FROM_ALLY_KNOWN:
+        seen = any(re.search(pat, (r["what"] or "").lower()) for r in conn.execute(
+            "SELECT COALESCE(t.merchant_name, t.name) AS what FROM transactions t WHERE t.amount < 0"
+            " AND COALESCE(t.authorized_date, t.date) BETWEEN ? AND ?",
+            ((when - timedelta(days=30)).isoformat(), (when + timedelta(days=10)).isoformat())))
+        if not seen and today >= when - timedelta(days=MOVE_BACK_DAYS):
+            hits.append((when.isoformat(), what, amt))
+    hits.sort()
     pulled = 0.0
     for mask in (ALLY_SPENDING, ALLY_SAVINGS):
         pulled += sum(-float(r["amount"]) for r in _tx(conn, mask, FROM_ALLY_SINCE, today + timedelta(days=1))
@@ -840,7 +857,7 @@ def money_moves(conn, today: date) -> list[dict]:
             continue
         d = date.fromisoformat(day_)
         moves.append({"id": f"ally-{day_}-{what}", "kind": "ally", "bank": "ally", "date": day_,
-                      "what": f"{what}, charged {d:%b} {d.day}", "amount": round(amt - pulled, 2),
+                      "what": f"{what}, {'charged' if d <= today else 'due'} {d:%b} {d.day}", "amount": round(amt - pulled, 2),
                       "from": "Ally Savings ··2617", "to": "Chase checking ··7372",
                       "how": "Ally → Transfers → Savings to your Chase checking. Takes 1–3 days, so do it before the card is due.",
                       "done": False})

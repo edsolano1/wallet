@@ -702,7 +702,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const pay=open.some(m=>m.kind==="payday"), sum=open.reduce((a,m)=>a+m.amount,0);
     $("mv-count").textContent=open.length>1?`Money to move · ${open.length}`:"Money to move";
     $("mv-q").textContent=pay?"Payday: move your bill money":open.length?`Move ${money(sum)}`:"All moved";
-    $("mv-why").textContent=pay?"Rent and the loan wait in Chase Savings. Quarterly and yearly bills go to Ally. Spending money stays in checking."
+    $("mv-why").textContent=pay?"Rent waits in Chase Savings until it goes out. Quarterly and yearly money goes to Ally Savings. The loan and your spending money stay in checking."
       :open.length?"So each bill is covered before it comes out.":"The banks show everything moved.";
     const L=$("mv-list");L.innerHTML="";
     list.forEach(m=>{
