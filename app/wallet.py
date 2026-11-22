@@ -648,10 +648,12 @@ BUDGET = [
      "note": "savings paid the 6-month policy; this pays it back"},
     {"what": "Car maintenance", "group": "Car", "amount": 100.00, "note": "set aside for repairs"},
     {"what": "Parking", "group": "Car", "amount": 30.00, "match": r"cash app\*gee", "lo": 1, "hi": 35},
-    # His half of the vet (~$140) plus litter (~$23); D buys the food (Eddie, Nov 22).
-    {"what": "Kitty (vet, litter)", "group": "Health", "amount": 165.00, "cats": {"MEDICAL_VETERINARY_SERVICES"},
-     "match": r"petsmart|petco|chewy", "lo": 1, "hi": 80, "note": "before Denisse's half back"},
-    {"what": "Therapy", "group": "Health", "amount": 50.00, "cats": {"MEDICAL_PRIMARY_CARE"}},
+    # Kitty is monthly: his half of the monthly shot ($124.50) plus litter (~$23). Checkups are
+    # set aside: ~$250 a year, his half. The $500 fight visit this year was a one-off (Eddie, Nov 22).
+    {"what": "Kitty (monthly shot, litter)", "group": "Health", "amount": round(124.50 / 2 + 23, 2), "cats": {"MEDICAL_VETERINARY_SERVICES"},
+     "match": r"petsmart|petco|chewy", "lo": 1, "hi": 80, "note": "your half of the shot; D sends the other half"},
+    {"what": "Vet checkups (set aside)", "group": "Health", "amount": round(250 / 2 / 12, 2), "note": "about $250 a year, your half"},
+    {"what": "Therapy (set aside)", "group": "Health", "amount": 50.00, "cats": {"MEDICAL_PRIMARY_CARE"}, "note": "$150 a quarter"},
     {"what": "Prescription", "group": "Health", "amount": 24.67, "match": r"safeway", "lo": 24.66, "hi": 24.68,
      "note": "monthly copay"},
     {"what": "Fitness", "group": "Health", "amount": 25.00, "paycheck": True, "note": "comes out of your paycheck"},
