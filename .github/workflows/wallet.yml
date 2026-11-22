@@ -64,7 +64,15 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
-      - uses: actions/deploy-pages@v4
+      # GitHub sometimes can't find the artifact it was just handed ("No artifacts named
+      # github-pages"), a hiccup on its side. Wait and try once more before failing.
+      - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - if: steps.deploy.outcome == 'failure'
+        run: sleep 30
+      - if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
 
       # GitHub pauses scheduled runs after 60 quiet days; an empty commit now and then keeps it going.
       - name: Keep the schedule alive
