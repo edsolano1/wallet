@@ -38,7 +38,8 @@ SET_ASIDE_LABEL = "for the Black Friday Fund"
 # moved Chase -> Ally Spending on Nov 16 and back to Chase checking on Nov 20 (lands Nov 23);
 # that transfer is not spending money. The first $450 bought the monitor and is done.
 # SET_ASIDE above is only what came off his spending money; this is what the fund holds.
-FUND_SAVED = 450.00
+# Plus $75 he added on Nov 22 from unassigned checking (to Chase Savings) for two more items.
+FUND_SAVED = 525.00
 FUND_SPENT = [
     ("Trimmer + socks, Amazon", 143.30),
     ("Prime, one month (ends Dec 20)", 14.99),
