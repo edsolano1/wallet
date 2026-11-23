@@ -787,7 +787,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const bar=el("i");bar.style.height=Math.max(3,Math.abs(p.left)/mx*90)+"px";bar.style.background=p.left<0?"var(--bad)":"var(--accent)";if(!p.actual)bar.style.opacity=".55";
       c.append(v,bar,el("span",null,fmt(p.payday)+(p.actual?"":" · plan")));cols.append(c)});
     sum.append(cols);
-    sum.append(el("div","note","Whatever a paycheck leaves stays in the wallet and carries into the next one. Money moved into the Black Friday Fund leaves the wallet; what the fund buys comes out of the fund."));
+    sum.append(el("div","note","What a paycheck leaves stays in the wallet and carries into the next one. Card charges leave the wallet the moment they hit. Money moved into an envelope (the Black Friday Fund, savings) leaves the wallet; what the envelope buys comes out of the envelope."));
     const list=$("pc-list");list.innerHTML="";
     const row=(a,b,c,cls,ac)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",a),el("div","a"+(ac?" "+ac:""),b),el("div","d",c||""));return r};
     P.forEach(p=>{const box=el("section","card"),H=el("div","cardhead");
@@ -799,15 +799,17 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
         const b=el("i","bar2");b.style.width=Math.max(1,l.amount/top*100)+"%";b.style.background=sign>0?"var(--accent)":"var(--bad)";b.style.opacity=l.est?".45":"1";r.append(b);L.append(r)};
       p.in.forEach(l=>add(L,l,1,top));p.out.forEach(l=>add(L,l,-1,top));
       L.append(row("Money in","+"+money(p.total_in),"","sum","in"));L.append(row("Money out","−"+money(p.total_out),"","sum","out"));
-      const F=p.fund;
-      if(F&&(F.spent.length||F.held.length)){
-        L.append(el("div","grp","Black Friday Fund · paid from the fund, not the wallet"));
-        const ft=Math.max(F.in,...F.spent.map(s=>s.amount),...F.held.map(s=>s.amount),1);
-        F.spent.forEach(s=>add(L,{what:s.what,amount:s.amount},-1,ft));
-        F.held.forEach(s=>{const r=row(s.what,money(s.amount),"held until it ships","","");L.append(r)});
-        const used=F.spent.reduce((a,s)=>a+s.amount,0);
-        L.append(row("Fund spent this paycheck","−"+money(used),F.in?`${money(F.in)} went into the fund`:"","sum","out"));
+      const E=p.envelopes||{paid:[],held:[],in:0};
+      if(E.paid.length||E.held.length){
+        L.append(el("div","grp","Paid from envelopes, not the wallet"));
+        const et=Math.max(...E.paid.map(s=>s.amount),...E.held.map(s=>s.amount),1);
+        E.paid.forEach(s=>add(L,{what:`${s.what} · ${s.envelope}`,amount:s.amount,est:s.est},-1,et));
+        E.held.forEach(s=>L.append(row(s.what+" · Black Friday Fund",money(s.amount),"held until it ships","","")));
       }
+      if(p.check){const c=p.check,ok=Math.abs(c.off)<1;
+        const d=`Checking less cards ${sg(c.bank)}`+(c.owed>=1?` · plus ${money(c.owed)} the fund owes checking`:"");
+        const r=row(ok?"Matches your bank ✓":"Off from your bank by "+money(Math.abs(c.off)),sg(c.wallet),d+(p.ahead?" · before what's still to come":""),"","");
+        r.querySelector(".a").style.color=ok?"var(--accent)":"var(--bad)";L.append(r)}
       list.append(box)});
   }
 
