@@ -445,6 +445,7 @@ def snapshot(conn, today: date) -> dict:
         "owed": owing,
         "bills": wallet.upcoming_bills(conn, today, s, (owing or {}).get("total", 0.0)),
         "budget": wallet.monthly_budget(conn, today),
+        "paychecks": wallet.paycheck_flow(conn, today),
         "to_move": wallet.money_moves(conn, today),
         "paycheck": _paycheck(conn, start),
         "questions": questions,

@@ -168,6 +168,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .tile.wide div{display:flex;flex-direction:column;gap:2px}
 .tile.wide em{margin-left:auto;font-style:normal;font-size:13px;color:var(--muted);text-align:right}
 .tile.wide em b{display:block;font-size:20px;color:var(--fg)}
+.pcs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end;height:150px;margin-top:8px}
+.pcs .col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;font-size:12px;color:var(--muted);text-align:center}
+.pcs .col b{font-variant-numeric:tabular-nums;font-size:14px}
+.pcs .col i{display:block;width:60%;max-width:48px;border-radius:6px 6px 0 0;min-height:3px}
+.row .bar2{grid-column:1/-1;height:6px;border-radius:0 3px 3px 0;margin-top:4px}
 .months{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .months::-webkit-scrollbar{display:none}
 .months button{flex:0 0 auto;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:inherit;font:inherit;font-size:14px;font-weight:600}
@@ -227,6 +232,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <button data-go="details"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg></span><span class="lb">Details</span><b id="t-today">—</b></button>
     <button data-go="fund" id="go-fund"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8c-1.5-3.5-5-4-5-1.5S10 8 12 8zm0 0c1.5-3.5 5-4 5-1.5S14 8 12 8z"/></svg></span><span class="lb">Black Friday Fund</span><b id="t-fund">—</b></button>
     <button data-go="budget" id="go-budget" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 13.5h3M8 16.5h5M15 13.5h1.5M15 16.5h1.5"/></svg></span><span class="lb">Monthly budget</span><b id="t-budget">—</b></button>
+    <button data-go="paychecks" id="go-pc" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="lb">By paycheck</span><b id="t-pc">—</b></button>
   </nav>
   <div class="meta"><span id="updated"></span></div>
   </div>
@@ -236,6 +242,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <div class="months" id="bud-months" role="tablist" aria-label="Month"></div>
     <section class="card" id="bud-card"></section>
     <p class="note">Every bill gets its share each month. Most months have two paychecks; the two with a third are the bonus. Spending money is $PER a paycheck. This month shows what's actually gone out so far.</p>
+  </div>
+
+  <div data-view="paychecks" hidden>
+    <header class="top"><button class="back" data-go="">‹ Money</button><h1>By paycheck</h1></header>
+    <section class="card" id="pc-sum"></section>
+    <div id="pc-list" style="display:flex;flex-direction:column;gap:18px"></div>
+    <p class="note">Each paycheck's money in and out. The last month is what actually happened, with pending charges counted as spent; the rest is the plan. Black Friday buys aren't here because the fund paid for them.</p>
   </div>
 
   <div data-view="bills" hidden>
@@ -388,7 +401,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("go-fund").hidden=!w.fund;if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawSpent(w);moves(w);ask(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
     const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`latest ${fmt(w.charges[0].date)}`:"none yet";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
@@ -762,6 +775,31 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const L=el("div","list");later.forEach(i=>L.append(bill(i)));box.append(L)}
   }
 
+  function drawPaychecks(w){
+    const P=w.paychecks;$("go-pc").hidden=!(P&&P.length);if(!P||!P.length)return;
+    const nx=P.find(p=>!p.actual)||P[P.length-1];
+    $("t-pc").textContent=(nx.left<0?"−":"+")+money(Math.abs(nx.left))+" next";
+    const sum=$("pc-sum");sum.innerHTML="";
+    const S=el("div","cardhead");S.append(el("div","eyebrow","Left after each paycheck"));sum.append(S);
+    const cols=el("div","pcs"),mx=Math.max(...P.map(p=>Math.abs(p.left)),1);
+    P.forEach(p=>{const c=el("div","col"),v=el("b",null,(p.left<0?"−":"+")+money(Math.abs(p.left)));v.style.color=p.left<0?"var(--bad)":"var(--accent)";
+      const bar=el("i");bar.style.height=Math.max(3,Math.abs(p.left)/mx*90)+"px";bar.style.background=p.left<0?"var(--bad)":"var(--accent)";
+      c.append(v,bar,el("span",null,fmt(p.payday)+(p.actual?"":" · plan")));cols.append(c)});
+    sum.append(cols);
+    const list=$("pc-list");list.innerHTML="";
+    const row=(a,b,c,cls,ac)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",a),el("div","a"+(ac?" "+ac:""),b),el("div","d",c||""));return r};
+    P.forEach(p=>{const box=el("section","card"),H=el("div","cardhead");
+      H.append(el("div","eyebrow",`${fmt(p.payday)} – ${fmt(p.to)} · ${p.actual?"actual":"plan"}`));
+      const f=el("div","fundrow"),big=el("b",null,(p.left<0?"−":"+")+money(Math.abs(p.left)));big.style.color=p.left<0?"var(--bad)":"var(--accent)";
+      f.append(big,el("span",null,p.left<0?"short after everything":"left after everything"));H.append(f);box.append(H);
+      const L=el("div","list"),top=Math.max(p.total_in,p.total_out,1);box.append(L);
+      const add=(l,sign)=>{const r=row(l.what,(sign>0?"+":"−")+money(l.amount),l.est?(p.actual?"still to come":"planned"):"",l.est?"":"",sign>0?"in":"out");
+        const b=el("i","bar2");b.style.width=Math.max(1,l.amount/top*100)+"%";b.style.background=sign>0?"var(--accent)":"var(--bad)";b.style.opacity=l.est?".45":"1";r.append(b);L.append(r)};
+      p.in.forEach(l=>add(l,1));p.out.forEach(l=>add(l,-1));
+      L.append(row("Money in","+"+money(p.total_in),"","sum","in"));L.append(row("Money out","−"+money(p.total_out),"","sum","out"));
+      list.append(box)});
+  }
+
   let budMonth=0;
   function drawBudget(w){
     const B=w.budget;$("go-budget").hidden=!B;if(!B)return;
@@ -841,7 +879,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Each section is its own screen; the phone's back button returns home.
   // The home screen is the big number and a menu; each item is its own screen, and the
   // phone's back button (or "‹ Money") returns home.
-  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent|budget)$/.test(v)?v:""));if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}scrollTo(0,0)}
+  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent|budget|paychecks)$/.test(v)?v:""));if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}scrollTo(0,0)}
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
   $("paybar").onclick=morphToRing;
   addEventListener("hashchange",show);show();
