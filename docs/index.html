@@ -78,8 +78,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .stripes{background:repeating-linear-gradient(135deg,var(--sc,var(--accent)) 0 3px,transparent 3px 7px)}
 .big.tent{color:var(--accent);opacity:.7} .pill.tent{background:var(--accent-soft);color:var(--accent)}
 .track .cap{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--fg);border-radius:2px}
-.keys{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
-.keys span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.keys{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+.keys span{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.keys span b{margin-left:auto}
 .keys i,.legend i.stripes{width:10px;height:10px;border-radius:3px;flex:none}
 .keys b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
 .paybar .more{font:600 12px var(--body);color:var(--accent)}
@@ -186,13 +187,29 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .row.sum{border-top:1px solid var(--fg)}
 .row.tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .row.sum .m,.row.sum .a{font-weight:700}
-.menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.menu button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:112px;padding:14px 12px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
+.menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.menu button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:104px;padding:14px 12px;border-radius:18px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
 .menu button:active{transform:scale(.96);background:var(--accent-soft)}
 .menu .ic{--c:var(--accent);display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c);margin-bottom:2px}
 .menu [data-go=charges] .ic{--c:var(--bad)} .menu [data-go=accounts] .ic{--c:var(--tent)} .menu [data-go=bills] .ic{--c:var(--warn)}
 .menu [data-go=needs] .ic{--c:var(--teal)} .menu [data-go=details] .ic{--c:var(--slate)} .menu [data-go=fund] .ic{--c:var(--pink)}
 .menu .lb{font:600 14px/1.2 var(--body)}
+#big{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.menu .span3{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:12px}
+.menu .span3 .ic{margin-bottom:0}
+.menu .span3 b{margin:0 0 0 auto;font-size:15px}
+.menu #t-move-tile .ic{--c:var(--warn)}
+.menu #t-move-tile{border-color:var(--warn);animation:glow 2.4s ease-in-out infinite}
+.menu #t-move-tile b{color:var(--warn)}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--warn) 0%,transparent)}50%{box-shadow:0 0 18px 2px color-mix(in srgb,var(--warn) 45%,transparent)}}
+@media (prefers-reduced-motion:reduce){.menu #t-move-tile{animation:none}}
+.menu .needs2{display:flex;flex-direction:column;gap:3px;margin-left:auto;min-width:0}
+.menu .needs2 span{display:flex;justify-content:flex-end;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.menu .needs2 span.over b{color:var(--bad)}
+.menu .needs2 b{font-weight:600;color:var(--fg);white-space:nowrap}
+.hub{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hub button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:600 14px var(--body);text-align:left;cursor:pointer}
+.hub button b{font-weight:600;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .menu button b{margin-top:auto;font-weight:600;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .top{display:flex;flex-direction:column;gap:2px}
 .top h1{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.1;margin:0}
@@ -224,15 +241,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   </section>
   <div class="msg" id="msg" hidden></div>
   <nav class="menu" aria-label="Sections">
-    <button id="t-move-tile" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span><span class="lb">Money to move</span><b id="t-move">—</b></button>
-    <button data-go="charges"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><span class="lb">Recent charges</span><b id="recent-n">—</b></button>
+    <button id="t-move-tile" class="span3" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span><span class="lb">Pending</span><b id="t-move">—</b></button>
     <button data-go="accounts" id="go-acct"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg></span><span class="lb">Accounts</span><b id="t-acct">—</b></button>
     <button data-go="bills" id="t-bills-tile"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></span><span class="lb">Upcoming bills</span><b id="t-bills">—</b></button>
-    <button data-go="needs" id="go-needs"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg></span><span class="lb">Groceries &amp; gas</span><b id="t-needs">—</b></button>
-    <button data-go="details"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg></span><span class="lb">Details</span><b id="t-today">—</b></button>
-    <button data-go="fund" id="go-fund"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8c-1.5-3.5-5-4-5-1.5S10 8 12 8zm0 0c1.5-3.5 5-4 5-1.5S14 8 12 8z"/></svg></span><span class="lb">Black Friday Fund</span><b id="t-fund">—</b></button>
-    <button data-go="budget" id="go-budget" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 13.5h3M8 16.5h5M15 13.5h1.5M15 16.5h1.5"/></svg></span><span class="lb">Monthly budget</span><b id="t-budget">—</b></button>
-    <button data-go="paychecks" id="go-pc" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="lb">By paycheck</span><b id="t-pc">—</b></button>
+    <button data-go="needs" id="go-needs" class="span3"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg></span><span class="lb">Groceries &amp; gas</span><div class="needs2" id="t-needs"></div></button>
+    <button data-go="details" class="span3"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg></span><span class="lb">Details</span><b id="t-today">—</b></button>
   </nav>
   <div class="meta"><span id="updated"></span></div>
   </div>
@@ -262,6 +275,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <div data-view="spent" hidden>
     <header class="top"><button class="back" data-go="">‹ Money</button><h1>Where it went</h1></header>
     <p class="note" id="sp-range"></p>
+    <div class="hub"><button data-go="budget" id="go-budget" hidden>Monthly budget<b id="t-budget">—</b></button><button data-go="paychecks" id="go-pc" hidden>By paycheck<b id="t-pc">—</b></button></div>
     <section class="card">
       <h2>This paycheck</h2>
       <p class="note">Tap a slice or a line to see what's in it.</p>
@@ -397,12 +411,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
     drawBar($("bar-fill"),$("bar-cap"),$("bar-keys"),w);
     $("t-today").textContent="How it's counted";
-    $("go-needs").hidden=!w.needs;if(w.needs)$("t-needs").textContent=money(w.needs.reduce((s,n)=>s+n.left,0))+" left";
-    $("go-fund").hidden=!w.fund;if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
+    $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));t.append(r)})}
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
-    const list=$("list");list.innerHTML="";$("recent-n").textContent=w.charges.length?`latest ${fmt(w.charges[0].date)}`:"none yet";
+    const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
     const u=new Date(w.updated);
@@ -896,6 +909,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent|budget|paychecks)$/.test(v)?v:""));if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}scrollTo(0,0)}
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
   $("paybar").onclick=morphToRing;
+  document.querySelector("#home .hero").addEventListener("click",e=>{if(e.target.closest("#paybar,#owed,#pull,a,button"))return;location.hash="charges"});
   addEventListener("hashchange",show);show();
   // Starts the GitHub update right now. The token stays on this phone only.
   const spin=on=>$("pull").classList.toggle("spin",on);
