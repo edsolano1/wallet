@@ -803,12 +803,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       if(E.paid.length||E.held.length||E.moved.length){
         L.append(el("div","grp","Paid from envelopes, not the wallet"));
         const et=Math.max(...E.paid.map(s=>s.amount),...E.held.map(s=>s.amount),1);
-        E.paid.forEach(s=>add(L,{what:`${s.what} · ${s.envelope}`,amount:s.amount,est:s.est},-1,et));
+        E.paid.forEach(s=>{add(L,{what:`${s.what} · ${s.envelope}`,amount:s.amount,est:s.est},-1,et);if(s.cash)L.lastChild.querySelector(".d").textContent="paid in cash from the Costco returns"});
         E.held.forEach(s=>L.append(row(s.what+" · Black Friday Fund",money(s.amount),"held until it ships","","")));
-        E.moved.forEach(s=>L.append(row(s.what,money(s.amount),"stays in the fund · doesn't pay checking back","","")));
+        E.moved.forEach(s=>L.append(row(s.what,money(s.amount),"same pool as checking","","")));
       }
       if(p.check){const c=p.check,ok=Math.abs(c.off)<1;
-        const d=`Checking less cards ${sg(c.bank)}`+(c.owed>=1?` · plus ${money(c.owed)} the fund owes checking for what checking paid on the cards`:"");
+        const d=`Checking less cards ${sg(c.bank)}`+(c.owed>=1?` · plus ${money(c.owed)} of fund buys checking covered, held in Chase Savings`:"");
         const r=row(ok?"Matches your bank ✓":"Off from your bank by "+money(Math.abs(c.off)),sg(c.wallet),d+(p.ahead?" · before what's still to come":""),"","");
         r.querySelector(".a").style.color=ok?"var(--accent)":"var(--bad)";L.append(r)}
       list.append(box)});

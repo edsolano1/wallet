@@ -830,13 +830,8 @@ def money_moves(conn, today: date) -> list[dict]:
                           "from": "Chase Savings ··6725", "to": "Chase checking ··7372",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
                           "done": _moved(conn, BILLS_ACCOUNT, r"from sav|6725", back - 1, due - timedelta(days=10), today, 1)})
-    # Black Friday buys (and rent, once it's saved) that checking paid: Chase Savings pays it back.
-    owed = envelope_payback(conn, today)
-    if owed >= 1:
-        moves.append({"id": f"envelope-back-{owed:.0f}", "kind": "back", "bank": "chase", "date": today.isoformat(),
-                      "what": "The Black Friday Fund pays checking back for what it bought on your cards", "amount": owed,
-                      "from": "Chase Savings ··6725", "to": "Chase checking ··7372",
-                      "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.", "done": False})
+    # No reminder to pay checking back for envelope buys: Chase checking, Chase Savings and Ally
+    # Spending are one pool to him (Nov 23), so the wallet just counts that money as owed back.
     # Quarterly and yearly bills that landed on a card: that much comes back from Ally.
     hits = []
     for r in conn.execute(
@@ -898,6 +893,9 @@ def money_moves(conn, today: date) -> list[dict]:
 WALLET_FROM = date(2026, 10, 30)  # October's bonus paycheck; the chain starts that morning
 FUND_MERCHANTS = ("amazon", "micro center", "microperfume")
 FUND_TOPUPS = [(date(2026, 11, 22), 75.00)]  # decided in chat; counts until the transfer shows up
+# Fund buys paid partly in cash, which no bank sees. The Micro Center receipt (Nov 8) totals $709.14:
+# $409.14 on the Samsung card and $300 in cash from the Costco returns. Shown only; no bank effect.
+FUND_CASH = [(date(2026, 11, 8), "Micro Center, cash part", 300.00)]
 OTHER_MONTHLY = [("Kitty shot, your half", 66.50), ("Prescription", 24.67)]  # not in BILLS; due around the 20th
 FROM_CHASE_SAVINGS = r"from sav|6725"
 
@@ -1056,6 +1054,9 @@ def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
         lines_out.insert(0, ["Short from before", round(-carried, 2), False])
     tin, tout = sum(l[1] for l in lines_in), sum(l[1] for l in lines_out)
     held = [{"what": w, "amount": x} for w, x in FUND_HELD] if a <= today < b else []
+    env += [{"what": w, "envelope": "Black Friday Fund", "date": d.isoformat(), "amount": x, "est": False, "cash": True}
+            for d, w, x in FUND_CASH if a <= d < b]
+    env.sort(key=lambda e: e["date"])
     # Fund money moving between savings accounts: it stays in the fund, it doesn't pay checking back.
     moved = [{"what": "Moved from Ally into Chase Savings", "date": r["date"], "amount": round(float(r["amount"]), 2)}
              for r in conn.execute("""SELECT t.date, t.amount FROM transactions t JOIN accounts a ON a.id = t.account_id
