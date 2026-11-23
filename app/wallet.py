@@ -876,18 +876,44 @@ def money_moves(conn, today: date) -> list[dict]:
 
 # ---- Paycheck by paycheck ---------------------------------------------------------------
 # His ask (Nov 22): money in and money out for each paycheck, last month as it happened and
-# the next month as planned. Pending counts as spent. Black Friday buys are left out: the
-# fund paid for them with money already set aside.
+# the next month as planned. Pending counts as spent.
+# The wallet (Nov 23): whatever a paycheck leaves stays in the wallet and carries into the
+# next one. Moving money into an envelope (the Black Friday Fund) takes it out of the wallet;
+# what the fund then buys comes out of the envelope, shown on its own and not taken twice.
+WALLET_FROM = date(2026, 10, 30)  # the chain starts here, from checking minus cards that morning
 FUND_MERCHANTS = ("amazon", "micro center", "microperfume")
+FUND_TOPUPS = [(date(2026, 11, 22), 75.00)]  # decided here; counts until the transfer shows up
 OTHER_MONTHLY = [("Kitty shot, your half", 66.50), ("Prescription", 24.67)]  # not in BILLS; due around the 20th
 
 
-def _flow(conn, a: date, b: date, today: date) -> dict:
+def _opening(conn) -> float:
+    """Checking less every card balance on the morning of WALLET_FROM, worked back from today."""
+    since = WALLET_FROM.isoformat()
+    total = 0.0
+    for a in conn.execute("SELECT id, mask, type, current_balance, available_balance FROM accounts"
+                          " WHERE mask = ? OR type = 'credit'", (BILLS_ACCOUNT,)).fetchall():
+        moved = conn.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ?"
+                             " AND COALESCE(authorized_date, date) >= ?", (a["id"], since)).fetchone()[0]
+        if a["type"] == "credit":
+            held = 0.0 if a["mask"] in BALANCE_HAS_PENDING else conn.execute(
+                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = ? AND pending = 1",
+                (a["id"],)).fetchone()[0]
+            total -= float(a["current_balance"] or 0) - held + moved
+        else:
+            bal = a["available_balance"] if a["available_balance"] is not None else a["current_balance"]
+            total += float(bal or 0) - moved
+    return total
+
+
+def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
     """One paycheck's money in and out. Past days are actual; days still ahead are planned."""
     past = a <= today
-    lines_in, lines_out = [], []
+    lines_in = [["Carried over in the wallet", round(carried, 2), False]]
+    lines_out = []
+    fund_in, fund_spent = 0.0, []
     s = summary(conn, a)
     bills = upcoming_bills(conn, a, s, 0.0)["now"]["items"]
+    tops = [x for d, x in FUND_TOPUPS if a <= d < b]
     if past:
         rows = _rows(conn, a, b)
         acct = conn.execute("SELECT id FROM accounts WHERE mask = ?", (BILLS_ACCOUNT,)).fetchone()
@@ -898,57 +924,79 @@ def _flow(conn, a: date, b: date, today: date) -> dict:
         pay = sum(float(r["amount"]) for r in chk if r["pfc_detailed"] == "INCOME_SALARY")
         back = sum(float(r["amount"]) for r in chk if float(r["amount"]) > 0 and r["pfc_detailed"] != "INCOME_SALARY"
                    and r["transfer_kind"] not in ("self_transfer", "card_payment"))
-        lines_in = [["Paycheck", round(pay or PAYCHECK, 2), not pay]]
+        lines_in.append(["Paycheck", round(pay or PAYCHECK, 2), not pay])
         if back:
             lines_in.append(["Paid back to you", round(back, 2), False])
         for i in bills:
             if not i.get("move"):
                 lines_out.append([i["what"], i["amount"], not i["paid"]])
-        moved = sum(-float(r["amount"]) for r in chk if float(r["amount"]) < 0 and r["transfer_kind"] == "self_transfer")
-        if moved:
-            lines_out.append(["Moved to savings or the fund", round(moved, 2), False])
+        moves = [-float(r["amount"]) for r in chk if float(r["amount"]) < 0 and r["transfer_kind"] == "self_transfer"]
+        for x in list(tops):  # a top-up he has already made shows up as a transfer
+            if any(abs(m - x) < 0.01 for m in moves):
+                tops.remove(x)
+        if a < MOVES_FROM:
+            fund_in = sum(moves)  # before the payday moves began, every move out was the fund
+        elif moves:
+            lines_out.append(["Moved to savings", round(sum(moves), 2), False])
         for i in bills:
             if i.get("move") and not i["paid"]:
                 lines_out.append([i["what"], i["amount"], True])
         bill_re = [x["match"] for x in BILLS]
         other = 0.0
         for r in rows:
-            if float(r["amount"]) >= 0 or r["pid"] in mine and r["transfer_kind"] in ("self_transfer", "card_payment"):
-                continue
-            if _is_spending(r) or r["is_transfer"] or r["transfer_kind"] == "card_payment":
+            if float(r["amount"]) >= 0 or _is_spending(r) or r["is_transfer"] or r["transfer_kind"] == "card_payment":
                 continue
             if r["account_type"] != "credit" and r["pid"] not in mine:
                 continue  # Ally pays its own bills from the money moved there
             name = (r["what"] or "").lower() + " | " + (r["raw_name"] or "").lower()
-            if any(re.search(p, part.strip()) for p in bill_re for part in name.split("|")):
+            if any(re.search(pt, part.strip()) for pt in bill_re for part in name.split("|")):
                 continue
-            if r["pid"] in mine and r["transfer_kind"] in ("reimbursement",):
-                continue  # Zelle splits with D are already in spending or a bill
+            if r["pid"] in mine and r["transfer_kind"] == "reimbursement":
+                continue
             if _is_covered(r) and any(m in name for m in FUND_MERCHANTS):
+                fund_spent.append({"what": r["what"], "date": r["date"], "amount": round(-float(r["amount"]), 2)})
                 continue
             other += -float(r["amount"])
         if other >= 0.01:
             lines_out.append(["Other charges (Kitty, vet, one-offs)", round(other, 2), False])
-        spent = _cost(rows)
         still = max(s["left"], 0.0) if a <= today < b else 0.0
-        lines_out.append(["Spending money", round(spent + still, 2), bool(still)])
+        lines_out.append(["Spending money", round(_cost(rows) + still, 2), bool(still)])
     else:
-        lines_in = [["Paycheck", PAYCHECK, True]]
+        lines_in.append(["Paycheck", PAYCHECK, True])
         for i in bills:
             if not i["saved"] or i.get("move"):
                 lines_out.append([("To " + i["what"][3:] if i.get("move") else i["what"]), i["amount"], True])
         if a <= date(a.year, a.month, 20) < b:
             lines_out += [[w, amt, True] for w, amt in OTHER_MONTHLY]
         lines_out.append(["Spending money", round(PER_PERIOD - SET_ASIDE.get(a, 0.0), 2), True])
+    fund_in += sum(tops)
+    if fund_in:
+        lines_out.append(["Into the Black Friday Fund", round(fund_in, 2), bool(tops)])
     lines_out.sort(key=lambda l: -l[1])
+    if carried < 0:  # owed from before: money out, not negative money in
+        lines_in = lines_in[1:]
+        lines_out.insert(0, ["Short from before", round(-carried, 2), False])
     tin, tout = sum(l[1] for l in lines_in), sum(l[1] for l in lines_out)
+    fund = None
+    if fund_in or fund_spent:
+        fund = {"in": round(fund_in, 2), "spent": sorted(fund_spent, key=lambda f: f["date"]), "held": []}
+        if a <= today < b:
+            fund["held"] = [{"what": w, "amount": x} for w, x in FUND_HELD]
     return {"payday": a.isoformat(), "to": (b - timedelta(days=1)).isoformat(), "actual": past,
+            "carried": round(carried, 2),
             "in": [{"what": w, "amount": round(x, 2), "est": e} for w, x, e in lines_in],
             "out": [{"what": w, "amount": round(x, 2), "est": e} for w, x, e in lines_out],
-            "total_in": round(tin, 2), "total_out": round(tout, 2), "left": round(tin - tout, 2)}
+            "total_in": round(tin, 2), "total_out": round(tout, 2), "left": round(tin - tout, 2),
+            "fund": fund}
 
 
 def paycheck_flow(conn, today: date) -> list[dict]:
-    """Last month's two paychecks (the current one included), then the next two."""
+    """The wallet paycheck by paycheck from WALLET_FROM, each carrying into the next.
+    Returns last month's two paychecks (the current one included) and the next two."""
     start, _ = period_for(today)
-    return [_flow(conn, start + timedelta(days=14 * k), start + timedelta(days=14 * (k + 1)), today) for k in (-1, 0, 1, 2)]
+    out, carried, a = [], _opening(conn), WALLET_FROM
+    while a <= start + timedelta(days=28):
+        f = _flow(conn, a, a + timedelta(days=14), today, carried)
+        out.append(f)
+        carried, a = f["left"], a + timedelta(days=14)
+    return out[-4:]

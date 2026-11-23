@@ -777,26 +777,37 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 
   function drawPaychecks(w){
     const P=w.paychecks;$("go-pc").hidden=!(P&&P.length);if(!P||!P.length)return;
-    const nx=P.find(p=>!p.actual)||P[P.length-1];
-    $("t-pc").textContent=(nx.left<0?"−":"+")+money(Math.abs(nx.left))+" next";
+    const sg=n=>(n<0?"−":"")+money(Math.abs(n));
+    const cur=P.filter(p=>p.actual).pop()||P[0];
+    $("t-pc").textContent=sg(cur.left)+" in wallet";
     const sum=$("pc-sum");sum.innerHTML="";
-    const S=el("div","cardhead");S.append(el("div","eyebrow","Left after each paycheck"));sum.append(S);
+    const S=el("div","cardhead");S.append(el("div","eyebrow","In the wallet after each paycheck"));sum.append(S);
     const cols=el("div","pcs"),mx=Math.max(...P.map(p=>Math.abs(p.left)),1);
-    P.forEach(p=>{const c=el("div","col"),v=el("b",null,(p.left<0?"−":"+")+money(Math.abs(p.left)));v.style.color=p.left<0?"var(--bad)":"var(--accent)";
-      const bar=el("i");bar.style.height=Math.max(3,Math.abs(p.left)/mx*90)+"px";bar.style.background=p.left<0?"var(--bad)":"var(--accent)";
+    P.forEach(p=>{const c=el("div","col"),v=el("b",null,sg(p.left));v.style.color=p.left<0?"var(--bad)":"var(--accent)";
+      const bar=el("i");bar.style.height=Math.max(3,Math.abs(p.left)/mx*90)+"px";bar.style.background=p.left<0?"var(--bad)":"var(--accent)";if(!p.actual)bar.style.opacity=".55";
       c.append(v,bar,el("span",null,fmt(p.payday)+(p.actual?"":" · plan")));cols.append(c)});
     sum.append(cols);
+    sum.append(el("div","note","Whatever a paycheck leaves stays in the wallet and carries into the next one. Money moved into the Black Friday Fund leaves the wallet; what the fund buys comes out of the fund."));
     const list=$("pc-list");list.innerHTML="";
     const row=(a,b,c,cls,ac)=>{const r=el("div","row"+(cls?" "+cls:""));r.append(el("div","m",a),el("div","a"+(ac?" "+ac:""),b),el("div","d",c||""));return r};
     P.forEach(p=>{const box=el("section","card"),H=el("div","cardhead");
       H.append(el("div","eyebrow",`${fmt(p.payday)} – ${fmt(p.to)} · ${p.actual?"actual":"plan"}`));
-      const f=el("div","fundrow"),big=el("b",null,(p.left<0?"−":"+")+money(Math.abs(p.left)));big.style.color=p.left<0?"var(--bad)":"var(--accent)";
-      f.append(big,el("span",null,p.left<0?"short after everything":"left after everything"));H.append(f);box.append(H);
+      const f=el("div","fundrow"),big=el("b",null,sg(p.left));big.style.color=p.left<0?"var(--bad)":"var(--accent)";
+      f.append(big,el("span",null,p.left<0?"short in the wallet at the end":"in the wallet at the end"));H.append(f);box.append(H);
       const L=el("div","list"),top=Math.max(p.total_in,p.total_out,1);box.append(L);
-      const add=(l,sign)=>{const r=row(l.what,(sign>0?"+":"−")+money(l.amount),l.est?(p.actual?"still to come":"planned"):"",l.est?"":"",sign>0?"in":"out");
+      const add=(L,l,sign,top)=>{const r=row(l.what,(sign>0?"+":"−")+money(l.amount),l.est?(p.actual?"still to come":"planned"):"",l.est?"":"",sign>0?"in":"out");
         const b=el("i","bar2");b.style.width=Math.max(1,l.amount/top*100)+"%";b.style.background=sign>0?"var(--accent)":"var(--bad)";b.style.opacity=l.est?".45":"1";r.append(b);L.append(r)};
-      p.in.forEach(l=>add(l,1));p.out.forEach(l=>add(l,-1));
+      p.in.forEach(l=>add(L,l,1,top));p.out.forEach(l=>add(L,l,-1,top));
       L.append(row("Money in","+"+money(p.total_in),"","sum","in"));L.append(row("Money out","−"+money(p.total_out),"","sum","out"));
+      const F=p.fund;
+      if(F&&(F.spent.length||F.held.length)){
+        L.append(el("div","grp","Black Friday Fund · paid from the fund, not the wallet"));
+        const ft=Math.max(F.in,...F.spent.map(s=>s.amount),...F.held.map(s=>s.amount),1);
+        F.spent.forEach(s=>add(L,{what:s.what,amount:s.amount},-1,ft));
+        F.held.forEach(s=>{const r=row(s.what,money(s.amount),"held until it ships","","");L.append(r)});
+        const used=F.spent.reduce((a,s)=>a+s.amount,0);
+        L.append(row("Fund spent this paycheck","−"+money(used),F.in?`${money(F.in)} went into the fund`:"","sum","out"));
+      }
       list.append(box)});
   }
 
