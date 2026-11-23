@@ -109,11 +109,11 @@ def status() -> dict:
 
 
 @app.post("/api/link/token")
-def link_token() -> dict:
+def link_token(kind: str = "bank") -> dict:
     if not config.plaid_is_configured():
         raise HTTPException(400, "Plaid keys are missing from .env")
     try:
-        return {"link_token": plaid_client.create_link_token()}
+        return {"link_token": plaid_client.create_link_token(kind)}
     except Exception as e:
         raise HTTPException(502, f"Plaid refused to start a link session: {e}")
 

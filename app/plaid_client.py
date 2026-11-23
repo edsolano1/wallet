@@ -30,12 +30,14 @@ def client() -> plaid_api.PlaidApi:
     return plaid_api.PlaidApi(plaid.ApiClient(cfg))
 
 
-def create_link_token() -> str:
-    """A short lived token that lets the Plaid popup open. Safe to send to the page."""
+def create_link_token(kind: str = "bank") -> str:
+    """A short lived token that lets the Plaid popup open. Safe to send to the page.
+    kind "investments" links a brokerage or retirement account (Fidelity, Nov 22): those
+    have no bank transactions, so asking for them would hide the accounts."""
     req = LinkTokenCreateRequest(
         user=LinkTokenCreateRequestUser(client_user_id="local-user"),
         client_name="Personal Finance",
-        products=[Products("transactions")],
+        products=[Products("investments" if kind == "investments" else "transactions")],
         country_codes=[CountryCode("US")],
         language="en",
     )
@@ -134,6 +136,7 @@ def get_item_status(access_token: str) -> dict:
         "healthy": not err,
         "error_code": err.get("error_code"),
         "error_message": err.get("error_message"),
+        "products": {str(p) for p in (item.get("products") or []) + (item.get("billed_products") or [])},
     }
 
 

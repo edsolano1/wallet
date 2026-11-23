@@ -143,8 +143,11 @@ def sync_item(item_row, live: bool = False) -> dict:
                 f"({health['error_code']})"
             )
 
+        # An investments-only connection (Fidelity) has no transactions to pull; it
+        # only refreshes balances below.
+        bank = "transactions" in health.get("products", {"transactions"})
         try:
-            while True:
+            while bank:
                 a, m, r, cursor, has_more = plaid_client.sync_transactions(access_token, cursor)
                 for tx in a:
                     added += _store(conn, tx, accounts)

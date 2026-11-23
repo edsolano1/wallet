@@ -135,13 +135,15 @@ async function refresh() {
   btn.textContent = "Refresh";
 }
 
-async function connect() {
-  const btn = document.getElementById("connect");
+async function connect(kind) {
+  kind = kind === "investments" ? "investments" : "bank";
+  const btn = document.getElementById(kind === "investments" ? "connect-inv" : "connect");
+  const label = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Opening...";
   banner("");
   try {
-    const res = await fetch("/api/link/token", { method: "POST" });
+    const res = await fetch(`/api/link/token?kind=${kind}`, { method: "POST" });
     if (!res.ok) throw new Error((await res.json()).detail);
     const { link_token } = await res.json();
 
@@ -163,23 +165,24 @@ async function connect() {
           await refresh();
         }
         btn.disabled = false;
-        btn.textContent = "Connect a bank";
+        btn.textContent = label;
       },
       onExit: (err) => {
         banner(err ? `Link closed: ${err.error_message || err.error_code}` : "", err ? "bad" : "");
         btn.disabled = false;
-        btn.textContent = "Connect a bank";
+        btn.textContent = label;
       },
     });
     handler.open();
   } catch (e) {
     banner(String(e.message || e), "bad");
     btn.disabled = false;
-    btn.textContent = "Connect a bank";
+    btn.textContent = label;
   }
 }
 
-document.getElementById("connect").addEventListener("click", connect);
+document.getElementById("connect").addEventListener("click", () => connect("bank"));
+document.getElementById("connect-inv").addEventListener("click", () => connect("investments"));
 document.getElementById("refresh").addEventListener("click", refresh);
 load().catch(() => banner("Could not reach the server.", "bad"));
 
