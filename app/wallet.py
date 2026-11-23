@@ -126,7 +126,9 @@ BILLS = [
     {"what": "Verizon", "amount": 101.90, "day": 19, "match": r"verizon", "lo": 80, "hi": 140},
     {"what": "Anthropic", "amount": 109.10, "day": 20, "match": r"anthropic", "lo": 15, "hi": 250, "card": True},
     {"what": "Spotify", "amount": 14.17, "day": 24, "match": r"spotify", "lo": 5, "hi": 30, "card": True},
-    {"what": "Ring", "amount": 10.90, "day": 1, "match": r"^ring\b", "lo": 5, "hi": 25, "card": True},
+    # Two Ring plans, $10.90 each, both his (not split). Paid once both have landed.
+    {"what": "Ring (two plans)", "amount": 21.80, "day": 1, "match": r"^ring\b", "lo": 20, "hi": 25,
+     "sum": True, "each_lo": 5, "each_hi": 15, "card": True},
     {"what": "Student loan autopay", "amount": 699.33, "day": 28, "start": date(2026, 11, 28), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 650, "hi": 760},
     {"what": "State Farm", "amount": 253.80, "day": 6, "match": r"state farm", "lo": 200, "hi": 270},
     {"what": "Parking", "amount": 30.00, "day": 9, "match": r"cash app\*gee", "lo": 25, "hi": 35},
@@ -675,7 +677,7 @@ BUDGET = [
      "note": "about $426 a year: car registration, lab work, a refill, Costco share"},
     {"what": "Anthropic", "group": "Subscriptions", "amount": 109.10, "match": r"anthropic", "lo": 15, "hi": 250},
     {"what": "Spotify", "group": "Subscriptions", "amount": 14.17, "match": r"spotify", "lo": 5, "hi": 30},
-    {"what": "Ring", "group": "Subscriptions", "amount": 21.80, "match": r"^ring\b", "lo": 5, "hi": 25, "note": "two plans, cancel one to save $10.90"},
+    {"what": "Ring", "group": "Subscriptions", "amount": 21.80, "match": r"^ring\b", "lo": 5, "hi": 25, "note": "two plans, both yours"},
     {"what": "Car wash", "group": "Subscriptions", "amount": round(21.00 * 13 / 12, 2), "match": r"cobblestone", "lo": 15, "hi": 30, "note": "every 4 weeks"},
     {"what": "3-month subscription", "group": "Subscriptions", "amount": round(244.38 * 365 / 90 / 12, 2), "from": "2026-11", "note": "$244.38 with tax every 90 days, on a card the app can't see"},
     {"what": "Google One", "group": "Subscriptions", "amount": 19.99, "from": "2027-02", "match": r"google", "lo": 5, "hi": 30, "note": "$19.99 a month once the free trial ends Feb 13"},
@@ -1011,7 +1013,7 @@ def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
             amt = -float(r["amount"])
             name = (r["what"] or "").lower() + " | " + (r["raw_name"] or "").lower()
             bill = next((x for x in BILLS if any(re.search(x["match"], part.strip()) for part in name.split("|"))
-                         and x["lo"] <= amt <= x.get("each_hi", x["hi"])), None)
+                         and x.get("each_lo", x["lo"]) <= amt <= x.get("each_hi", x["hi"])), None)
             if not bill:
                 other += amt
             elif bill["what"] == "Rent" and r["date"] >= SAVED_FROM.isoformat():
@@ -1054,12 +1056,18 @@ def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
         lines_out.insert(0, ["Short from before", round(-carried, 2), False])
     tin, tout = sum(l[1] for l in lines_in), sum(l[1] for l in lines_out)
     held = [{"what": w, "amount": x} for w, x in FUND_HELD] if a <= today < b else []
+    # Fund money moving between savings accounts: it stays in the fund, it doesn't pay checking back.
+    moved = [{"what": "Moved from Ally into Chase Savings", "date": r["date"], "amount": round(float(r["amount"]), 2)}
+             for r in conn.execute("""SELECT t.date, t.amount FROM transactions t JOIN accounts a ON a.id = t.account_id
+                 WHERE a.mask = '6725' AND t.amount > 0 AND lower(t.name) LIKE '%ally%'
+                 AND COALESCE(t.authorized_date, t.date) >= ? AND COALESCE(t.authorized_date, t.date) < ?""",
+                 (a.isoformat(), b.isoformat()))]
     return {"payday": a.isoformat(), "to": (b - timedelta(days=1)).isoformat(), "actual": past,
             "carried": round(carried, 2), "ahead": round(ahead, 2),
             "in": [{"what": w, "amount": round(x, 2), "est": e} for w, x, e in lines_in],
             "out": [{"what": w, "amount": round(x, 2), "est": e} for w, x, e in lines_out],
             "total_in": round(tin, 2), "total_out": round(tout, 2), "left": round(tin - tout, 2),
-            "envelopes": {"in": round(fund_in, 2), "paid": sorted(env, key=lambda e: e["date"]), "held": held}}
+            "envelopes": {"in": round(fund_in, 2), "paid": sorted(env, key=lambda e: e["date"]), "held": held, "moved": moved}}
 
 
 def paycheck_flow(conn, today: date) -> list[dict]:
