@@ -161,6 +161,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .sheet .btns button.main.minus{background:var(--bad);border-color:var(--bad)}
 .menu .needs2 .mo{font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 /* Coins: + money rains up and in, − money spills out (his ask, Nov 23). */
+.freed{display:block;width:100%;margin:10px 0 0;padding:12px 14px;border-radius:14px;border:1px dashed var(--line);background:var(--surface);color:var(--fg);font:500 14px/1.35 var(--body);text-align:left;cursor:pointer}
+.sheet fieldset.rt{border:1px solid var(--line);border-radius:14px;padding:8px 12px 10px;margin:0;display:flex;flex-direction:column;gap:2px}
+.sheet fieldset.rt legend{font:600 13px var(--body);color:var(--muted);padding:0 4px}
+.sheet fieldset.rt label{display:flex;align-items:center;gap:10px;padding:8px 0;font:500 15px var(--body);cursor:pointer}
+.sheet fieldset.rt input{width:18px;height:18px;accent-color:var(--accent)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:45;background:var(--fg);color:var(--bg);font:600 15px var(--body);padding:12px 18px;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.25);animation:up .3s ease-out;white-space:nowrap}
 .pb.note-sent{color:var(--muted);background:none;padding-left:0;white-space:normal}
 .coins{position:fixed;inset:0;z-index:40;pointer-events:none;display:grid;place-items:center}
@@ -264,6 +269,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       <div class="list" id="owed-list"></div>
     </details>
   </section>
+  <button class="freed" id="freed" hidden></button>
   <div class="msg" id="msg" hidden></div>
   <nav class="menu" aria-label="Sections">
     <button id="t-move-tile" class="span3" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span><span class="lb">Set aside<small class="mvfor" id="t-move-for"></small></span><b id="t-move">—</b></button>
@@ -392,6 +398,15 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <div class="note" id="nd-why"></div>
   <div class="btns"><button class="main" id="nd-yes"></button><button id="nd-no"></button></div>
 </section></div>
+<div class="sheet" id="rt-sheet" hidden><section class="card">
+  <div class="eyebrow" id="rt-eyebrow"></div>
+  <div class="q" id="rt-q"></div>
+  <div class="note" id="rt-why"></div>
+  <fieldset class="rt" id="rt-future"><legend>Each paycheck's <b id="rt-amt"></b> goes to</legend></fieldset>
+  <fieldset class="rt" id="rt-left" hidden><legend>The <b id="rt-leftamt"></b> left in it goes to</legend></fieldset>
+  <textarea id="rt-note" rows="2" placeholder="Message to Claude (optional)"></textarea>
+  <div class="btns"><button class="main" id="rt-save">Save</button><button class="later" id="rt-later">Decide later</button></div>
+</section></div>
 <div class="coins" id="coins" hidden aria-live="polite"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <span id="ask" hidden></span>
@@ -442,8 +457,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.set_aside)parts.push(`${money(w.set_aside)} already set aside ${w.set_aside_label}.`);
     if(w.moved_in)parts.push(`${money(w.moved_in)} taken out ${w.moved_in_label}.`);
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
-    if(w.freed)parts.push(`${money(w.freed)} freed up (was Black Friday) is unassigned. It's in your wallet until you pick a home for it.`);
+
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
+    const E0=(w.ended||[])[0];$("freed").hidden=!(w.freed&&E0);
+    if(w.freed&&E0){$("freed").textContent=`${money(w.freed)} freed up (was ${E0.name}) is unassigned. Tap to choose where it goes ›`;$("freed").onclick=()=>routeSheet(w,E0)}
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
     drawBar($("bar-fill"),$("bar-cap"),$("bar-keys"),w);
     $("t-today").textContent="How it's counted";
@@ -451,7 +468,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     $("go-fund").hidden=!(w.fund&&w.fund.show!==false);if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);needsPop(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);needsPop(w);routePop(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
@@ -517,6 +534,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     }
     add({key:"fund",grp:"Set aside",c:"var(--purple)",v:w.set_aside,label:name(w.set_aside_label)||"Set aside"});
     if(E)add({key:"needs",grp:"Set aside",c:"var(--pink)",v:E.set_aside,label:"Groceries & gas"});
+    (w.routed||[]).forEach(r=>add({key:"routed",grp:"Set aside",c:"var(--slate)",v:r.amount,label:"To "+r.what}));
     add({key:"moved",grp:"Set aside",c:"var(--slate)",v:w.moved_in,label:name(w.moved_in_label)||"Taken out"});
     add({key:"over",grp:"Set aside",c:"var(--warn)",v:-w.rolled_over,label:"Last paycheck's overspend"});
     const tail=[], coming=Math.min(owed,Math.max(budget+owed-share,0));
@@ -757,6 +775,36 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   $("ask-later").onclick=()=>{if(manual){modeSheet(false);cur=null;$("ask-note").value="";$("sheet").hidden=true;if(last)ask(last);return}snoozed=true;$("sheet").hidden=true};
 
   function toast(t){const T=$("toast");T.textContent=t;T.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{T.hidden=true},3200)}
+
+  // A category ended: where its money goes from here (his feature, Nov 24). "Decide later" asks
+  // again next payday; whatever he types goes to Claude.
+  function routeSheet(w,E){
+    const opts=(box,name,extra)=>{box.querySelectorAll("label").forEach(l=>l.remove());
+      Object.entries(E.routes).forEach(([k,v])=>{const l=el("label"),i=document.createElement("input");i.type="radio";i.name=name;i.value=k;
+        if(k==="wallet")v=extra;l.append(i,v);box.append(l)})};
+    $("rt-eyebrow").textContent=`${E.name} ended`;
+    $("rt-q").textContent=`Where should its money go?`;
+    const envCut=(w.needs_env&&w.needs_env.set_aside)||300;
+    $("rt-why").textContent=`${E.name} used to take ${money(E.per_check)} a paycheck. Until you choose, it stays in your spending money. Sending all of it somewhere leaves ${money(w.per_period-envCut-E.per_check)} a paycheck for everything except groceries & gas.`;
+    $("rt-amt").textContent=money(E.per_check);opts($("rt-future"),"rt-f","Keep it in spending money");
+    $("rt-left").hidden=!(E.left>=1);if(E.left>=1){$("rt-leftamt").textContent=money(E.left);opts($("rt-left"),"rt-l","Into my wallet")}
+    $("rt-note").value="";
+    const pick=n=>{const c=document.querySelector(`input[name="${n}"]:checked`);return c?c.value:null};
+    $("rt-save").onclick=()=>{const f=pick("rt-f");if(!f){$("rt-future").scrollIntoView({block:"center"});return}
+      const a={id:E.id,answer:"route",future:f};const l=pick("rt-l");if(l)a.leftover=l;const n=$("rt-note").value.trim();if(n)a.note=n;
+      const q=store("wallet.queue")||[];q.push(a);store("wallet.queue",q);store("wallet.route."+E.id,"done");$("rt-sheet").hidden=true;
+      $("freed").hidden=true;spin(true);pull(true).finally(()=>spin(false))};
+    $("rt-later").onclick=()=>{const n=$("rt-note").value.trim();
+      if(n){const q=store("wallet.queue")||[];q.push({id:E.id,answer:"route",future:"later",note:n});store("wallet.queue",q);pull(true)}
+      store("wallet.route."+E.id,w.period_start);$("rt-sheet").hidden=true};
+    $("rt-sheet").hidden=false;
+  }
+  function routePop(w){
+    const E=(w.ended||[])[0];if(!E||!w.freed)return;
+    const seen=store("wallet.route."+E.id);if(seen==="done"||seen===w.period_start)return;
+    if(!$("sheet").hidden||!$("mv-sheet").hidden||!$("nd-sheet").hidden||location.hash)return;
+    routeSheet(w,E);
+  }
 
   // Coins for money in (+) and money out (−), like a party game but with dollars.
   function coins(amount,plus){

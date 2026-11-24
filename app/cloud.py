@@ -288,6 +288,14 @@ def notes() -> None:
             " COALESCE(t.merchant_name, t.name) AS merchant, t.amount, t.pending"
             " FROM transaction_notes n JOIN transactions t ON t.id = n.transaction_id"
             " WHERE n.note IS NOT NULL AND TRIM(n.note) <> ''")]
+        for q, kind in (("SELECT id, future AS answer, NULL AS share, note, answered_on FROM category_choices"
+                         " WHERE note IS NOT NULL AND TRIM(note) <> ''", "category"),
+                        ("SELECT 'msg-' || id AS id, 'message' AS answer, NULL AS share, body AS note,"
+                         " created_at AS answered_on FROM messages", "message")):
+            try:
+                rows += [dict(r, merchant=kind, amount=None, pending=0) for r in conn.execute(q)]
+            except sqlite3.OperationalError:
+                pass
         conn.close()
     new = [r for r in rows if f'{r["id"]}|{r["note"]}' not in seen]
     print(json.dumps(new, indent=1) if new else "none")
@@ -309,6 +317,22 @@ def answer(raw: str) -> None:
     db.migrate()
     with db.connect() as conn:
         for a in given if isinstance(given, list) else []:
+            if isinstance(a, dict) and a.get("answer") == "route":
+                cid = str(a.get("id", ""))[:40]
+                note = str(a.get("note") or "").strip()[:500] or None
+                future = a.get("future") if a.get("future") in wallet.ROUTES or a.get("future") == "later" else None
+                leftover = a.get("leftover") if a.get("leftover") in wallet.ROUTES else None
+                if cid not in {e["id"] for e in wallet.ENDED} or not future:
+                    continue
+                if future == "later":  # keep asking; just keep what he wrote
+                    if note:
+                        conn.execute("INSERT INTO messages (body) VALUES (?)", (f"[{cid}, deciding later] {note}",))
+                    continue
+                conn.execute("INSERT INTO category_choices (id, future, leftover, note, answered_on) VALUES (?, ?, ?, ?, ?)"
+                             " ON CONFLICT(id) DO UPDATE SET future = excluded.future, leftover = excluded.leftover,"
+                             " note = COALESCE(excluded.note, category_choices.note), answered_on = excluded.answered_on",
+                             (cid, future, leftover, note, datetime.now(HOME).date().isoformat()))
+                continue
             if isinstance(a, dict) and a.get("answer") in ("needs_add", "needs_keep"):
                 key = str(a.get("id", ""))[:10]
                 today = datetime.now(HOME).date()
@@ -471,6 +495,7 @@ def snapshot(conn, today: date) -> dict:
         "free": round(s["left"] - still_needed, 2),
         "fund": fund,
         "needs_leftover": wallet.needs_leftover(conn, today),
+        "ended": wallet.ended_open(conn),
         "needs_from": wallet.NEEDS_FROM.isoformat(),
         "owed": owing,
         "bills": wallet.upcoming_bills(conn, today, s, (owing or {}).get("total", 0.0)),

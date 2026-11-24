@@ -41,6 +41,41 @@ SET_ASIDE_LABEL = "for the Black Friday Fund"
 # until he picks a home for it (his words, Nov 24). Set "home" when he decides; the flag then goes.
 FREED = {"amount": 425.00, "from": date(2026, 11, 27), "home": None}
 
+# When a category ends, the app asks where its money goes (his feature, Nov 24): the money left in it
+# and the per-paycheck amount it used to take. Answers live in `category_choices`; "later" re-asks
+# each payday. A route other than "wallet" comes off the top of each paycheck from the one he answered in.
+ENDED = [{"id": "black-friday", "name": "Black Friday", "per_check": FREED["amount"], "from": FREED["from"], "left": 0.0}]
+ROUTES = {"loan": "Student loan saving", "cushion": "Cushion", "ally": "Ally Savings", "wallet": "Keep in spending money"}
+ROUTE_TO = {"loan": ("Ally Savings ··2617", r"ally"), "cushion": ("Chase Savings ··6725", r"to sav|6725"),
+            "ally": ("Ally Savings ··2617", r"ally")}
+
+
+def category_choices(conn) -> dict:
+    try:
+        return {r["id"]: dict(r) for r in conn.execute("SELECT * FROM category_choices")}
+    except Exception:  # an older database without the table
+        return {}
+
+
+def routed(conn, payday: date) -> list[dict]:
+    """Per-paycheck money from ended categories he sent somewhere, for the paycheck starting `payday`."""
+    ch, out = category_choices(conn), []
+    for e in ENDED:
+        c = ch.get(e["id"])
+        if not c or c["future"] not in ROUTE_TO:
+            continue
+        if payday >= max(e["from"], period_for(date.fromisoformat(c["answered_on"]))[0]):
+            out.append({"id": e["id"], "what": ROUTES[c["future"]], "from_name": e["name"], "amount": e["per_check"],
+                        "to": ROUTE_TO[c["future"]][0], "pattern": ROUTE_TO[c["future"]][1]})
+    return out
+
+
+def ended_open(conn) -> list[dict]:
+    """Ended categories still waiting for his answer."""
+    ch = category_choices(conn)
+    return [{"id": e["id"], "name": e["name"], "per_check": e["per_check"], "left": e["left"], "routes": ROUTES}
+            for e in ENDED if e["id"] not in ch]
+
 # The Black Friday Fund as he runs it (his update, 2026-11-20). The real money is the $450 he
 # moved Chase -> Ally Spending on Nov 16 and back to Chase checking on Nov 20 (lands Nov 23);
 # that transfer is not spending money. The first $450 bought the monitor and is done.
@@ -271,7 +306,7 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
                        " AND t.pfc_detailed = 'INCOME_SALARY' AND t.amount > 0 ORDER BY t.date DESC LIMIT 1",
                        (BILLS_ACCOUNT,)).fetchone()
     paycheck = float(pay["amount"]) if pay else 0.0
-    spend_next = PER_PERIOD - SET_ASIDE.get(nxt, 0.0)
+    spend_next = PER_PERIOD - SET_ASIDE.get(nxt, 0.0) - sum(r["amount"] for r in routed(conn, nxt))
     due_next = sum(i["amount"] for i in next_items if not i["paid"] and not i["saved"])
     left_next = left_now + paycheck - due_next - spend_next
     return {
@@ -797,16 +832,18 @@ def summary(conn, today: date | None = None) -> dict:
     prev_set = SET_ASIDE.get(prev_start, 0.0)
     moved_in = sum(a for (_, _, a), payday in MOVED if payday == start)
     prev_moved_in = sum(a for (_, _, a), payday in MOVED if payday == prev_start)
+    route_now = routed(conn, start)
+    route_prev = routed(conn, prev_start)
 
     # One paycheck of carry over, exactly as his page does it.
     prev_rows = _rows(conn, prev_start, start)
-    prev_cap = PER_PERIOD - prev_set - prev_moved_in
+    prev_cap = PER_PERIOD - prev_set - prev_moved_in - sum(r["amount"] for r in route_prev)
     roll = prev_cap - _cost(prev_rows) + _paid_back(prev_rows)
     prev_env = needs_effect(conn, prev_start, start, today)
     if prev_env:
         roll += -prev_env["set_aside"] + prev_env["spent"] - prev_env["over"] + prev_env["cashin"]
 
-    cap = PER_PERIOD - set_aside - moved_in + roll
+    cap = PER_PERIOD - set_aside - moved_in + roll - sum(r["amount"] for r in route_now)
     rows = _rows(conn, start, nxt)
     spent = _cost(rows)
     paid_back = _paid_back(rows)
@@ -836,7 +873,8 @@ def summary(conn, today: date | None = None) -> dict:
         "left": round(left, 2),
         "tip_estimate": round(tips, 2),
         "needs_env": env,
-        "freed": FREED["amount"] if start >= FREED["from"] and not FREED["home"] else 0.0,
+        "freed": FREED["amount"] if start >= FREED["from"] and not FREED["home"] and ended_open(conn) else 0.0,
+        "routed": [{"what": r["what"], "amount": r["amount"], "from": r["from_name"]} for r in route_now],
     }
 
 
@@ -1021,6 +1059,14 @@ def money_moves(conn, today: date) -> list[dict]:
                       "done": _moved(conn, BILLS_ACCOUNT, r"ally", ally - 1, a, b, -1)
                               or _moved(conn, ALLY_SAVINGS, r"jpmorgan|chase", ally - 1, a, b, 1)
                               or _moved(conn, ALLY_SPENDING, r"jpmorgan|chase", ally - 1, a, b, 1)})
+    for r in routed(conn, start):
+        sent = any(abs(-float(t["amount"]) - r["amount"]) < 1 and re.search(r["pattern"], t["what"])
+                   for t in _tx(conn, BILLS_ACCOUNT, start - timedelta(days=1), nxt))
+        moves.append({"id": f"route-{r['id']}-{start}", "kind": "fund", "bank": "chase", "date": start.isoformat(),
+                      "what": f"{r['what']} (was {r['from_name']})", "amount": r["amount"],
+                      "from": "Chase checking ··7372", "to": r["to"],
+                      "how": "Chase → Pay & transfer. Moves to Chase Savings are instant; to Ally take 1–3 days.",
+                      "done": sent})
     for d, x in FUND_REFILLS:
         if start <= d < nxt:
             moves.append({"id": f"fund-{d}", "kind": "fund", "bank": "chase", "date": d.isoformat(),
@@ -1192,6 +1238,11 @@ def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
         if from_ally:
             lines_in.append(["Back from Ally for a bill it covers", round(from_ally, 2), False])
         moves = [-float(r["amount"]) for r in chk if float(r["amount"]) < 0 and r["transfer_kind"] == "self_transfer"]
+        for rt in routed(conn, a):
+            hit = next((m for m in moves if abs(m - rt["amount"]) < 1), None)
+            if hit is not None:
+                moves.remove(hit)
+            lines_out.append(["To " + rt["what"], rt["amount"], hit is None])
         for x in list(tops):  # a top-up he has already made shows up as a transfer
             if any(abs(m - x) < 0.01 for m in moves):
                 tops.remove(x)
@@ -1259,7 +1310,10 @@ def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
         env_cut = sum(needs_budget(conn, n, a, b, today) for n in NEEDS_MONTHLY) if a >= NEEDS_FROM else 0.0
         if env_cut:
             lines_out.append(["Groceries & gas (set aside)", env_cut, True])
-        lines_out.append(["Spending money", round(PER_PERIOD - SET_ASIDE.get(a, 0.0) - env_cut, 2), True])
+        for rt in routed(conn, a):
+            lines_out.append(["To " + rt["what"], rt["amount"], True])
+        lines_out.append(["Spending money", round(PER_PERIOD - SET_ASIDE.get(a, 0.0) - env_cut
+                                                  - sum(rt["amount"] for rt in routed(conn, a)), 2), True])
         ahead = 0.0
     ahead += sum(tops)
     fund_in += sum(tops)

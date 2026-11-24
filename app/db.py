@@ -221,6 +221,15 @@ CREATE TABLE IF NOT EXISTS needs_cashins (
     answered_on TEXT NOT NULL
 );
 
+-- Where an ended category's money goes (the money left in it, and its per-paycheck amount).
+CREATE TABLE IF NOT EXISTS category_choices (
+    id          TEXT PRIMARY KEY,
+    future      TEXT NOT NULL,
+    leftover    TEXT,
+    note        TEXT,
+    answered_on TEXT NOT NULL
+);
+
 -- Anything he wants to tell Claude that is not about one transaction.
 CREATE TABLE IF NOT EXISTS messages (
     id         INTEGER PRIMARY KEY,
