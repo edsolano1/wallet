@@ -69,6 +69,9 @@ FUND_WATCH = [
     ("Rolling under-bed bins, 2-pack", 33.14, "Only if you need more room."),
     ("Babbel Lifetime", 199.20, "Buy at $159 or less. Probably won't fit the fund."),
     ("Feetures Crew socks, 3 more pairs", 43.20, "Wait for the January sale; buy if it beats $14.40 a pair."),
+    ("Carhartt fleece neck gaiter", 14.99, "Deciding."),
+    ("Under Armour touchscreen gloves", 16.11, "Deciding; size not picked yet."),
+    ("Under Armour fleece quarter-zip", 45.00, "About $45, an estimate; listing not picked yet."),
 ]
 # The fund is temporary: its home tile goes away after this day.
 FUND_SHOW_UNTIL = date(2027, 1, 31)

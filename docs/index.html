@@ -977,7 +977,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const line=(i,sign,cls,d)=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a "+cls,sign+cents(i.amount)),el("div","d",d));return r};
     group("Purchased",items.filter(i=>(i.kind||"spent")==="spent"||i.kind==="back"),i=>i.kind==="back"?line(i,"+","in","Back into the fund"):line(i,"","out","Paid from the fund"));
     group("Waiting to ship",items.filter(i=>i.kind==="held"),i=>line(i,"","out","Ordered, charged when it ships, Dec 28 to Jan 14"));
-    group("Watching for a better price",f.watch||[],i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a",i.price?cents(i.price):"watching"),el("div","d",i.note));return r});
+    group("Purchase list",(f.watch||[]).slice().sort((a,b)=>(a.price||0)-(b.price||0)),i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a",i.price?cents(i.price):"watching"),el("div","d",i.note));return r});
     group("Money to confirm",items.filter(i=>i.kind==="credit"),i=>line(i,"+","in","Not counted until it lands"));
     group("Bought earlier, with the first $450",items.filter(i=>i.kind==="earlier"),i=>{const r=line(i,"","",i.note);r.style.opacity=.75;return r});
   }
