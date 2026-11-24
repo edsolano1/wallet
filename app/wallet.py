@@ -147,7 +147,8 @@ BILLS = [
     {"what": "Ring (two plans)", "amount": 21.80, "day": 1, "match": r"^ring\b", "lo": 20, "hi": 25,
      "sum": True, "each_lo": 5, "each_hi": 15, "card": True},
     {"what": "Student loan autopay", "amount": 699.33, "day": 28, "start": date(2026, 11, 28), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 650, "hi": 760},
-    {"what": "State Farm", "amount": 253.80, "day": 6, "match": r"state farm", "lo": 200, "hi": 270},
+    # Last payment Dec 6: GEICO starts Dec 26, paid from Ally Savings and paid back monthly.
+    {"what": "State Farm", "amount": 253.80, "day": 6, "match": r"state farm", "lo": 200, "hi": 270, "end": date(2026, 12, 31)},
     {"what": "Parking", "amount": 30.00, "day": 9, "match": r"cash app\*gee", "lo": 25, "hi": 35},
     {"what": "Car wash", "amount": 21.00, "every": 28, "anchor": date(2026, 11, 13), "match": r"cobblestone", "lo": 15, "hi": 30, "card": True},
 ]
@@ -169,7 +170,7 @@ def _due_dates(b, start: date, end: date) -> list[date]:
     out, y, m = [], start.year, start.month
     while date(y, m, 1) < end:
         d = date(y, m, min(b["day"], 28))
-        if start <= d < end and d >= b.get("start", d):
+        if start <= d < end and b.get("start", d) <= d <= b.get("end", d):
             out.append(d)
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
     return out
