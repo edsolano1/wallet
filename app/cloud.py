@@ -433,8 +433,9 @@ def snapshot(conn, today: date) -> dict:
     held = sum(a for _, a in wallet.FUND_HELD)
     credit = sum(a for _, a in wallet.FUND_CREDIT_TO_CONFIRM)
     back = sum(a for _, a in wallet.FUND_CREDITS)
-    left = wallet.FUND_SAVED - used_fund - held + back
-    fund = {"name": "Black Friday Fund", "saved": wallet.FUND_SAVED, "planned": wallet.FUND_SAVED,
+    saved = wallet.FUND_SAVED + sum(x for d, x in wallet.FUND_REFILLS if d <= today)  # a refill counts from its payday
+    left = saved - used_fund - held + back
+    fund = {"name": "Black Friday Fund", "saved": saved, "planned": saved,
             "spent": round(used_fund, 2), "held": round(held, 2), "credit": round(credit, 2),
             "left": round(left, 2), "left_planned": round(left, 2),
             "items": [{"what": w, "amount": a, "kind": "spent"} for w, a in wallet.FUND_SPENT]

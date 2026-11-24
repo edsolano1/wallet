@@ -31,7 +31,11 @@ TIP_RATE = 0.20
 TIP_MIN = 30.00
 
 # Set aside off the top, by the payday that period starts on.
-SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00}
+# Refill from the Nov 27 paycheck's spending money (Nov 24): he's buying the Black Friday clothes,
+# board, heater and bins now and letting the fund go negative; the cushion stays untouched.
+# Estimate until the orders are placed (~$223.18 with tax against $114.45 left).
+FUND_REFILLS = [(date(2026, 11, 27), 108.73)]
+SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 
 # The Black Friday Fund as he runs it (his update, 2026-11-20). The real money is the $450 he
@@ -1013,6 +1017,13 @@ def money_moves(conn, today: date) -> list[dict]:
                       "done": _moved(conn, BILLS_ACCOUNT, r"ally", ally - 1, a, b, -1)
                               or _moved(conn, ALLY_SAVINGS, r"jpmorgan|chase", ally - 1, a, b, 1)
                               or _moved(conn, ALLY_SPENDING, r"jpmorgan|chase", ally - 1, a, b, 1)})
+    for d, x in FUND_REFILLS:
+        if start <= d < nxt:
+            moves.append({"id": f"fund-{d}", "kind": "fund", "bank": "chase", "date": d.isoformat(),
+                          "what": "Black Friday Fund refill", "amount": x,
+                          "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
+                          "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
+                          "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", x - 1, d - timedelta(days=1), nxt, -1)})
     # Before rent and the loan come out of checking, their money comes back from Chase Savings.
     for bill in BILLS:
         back = SAVED_BILLS.get(bill["what"])
@@ -1085,7 +1096,7 @@ def money_moves(conn, today: date) -> list[dict]:
 #    envelopes still owe checking, should equal the wallet.
 WALLET_FROM = date(2026, 10, 30)  # October's bonus paycheck; the chain starts that morning
 FUND_MERCHANTS = ("amazon", "micro center", "microperfume")
-FUND_TOPUPS = [(date(2026, 11, 22), 75.00)]  # decided in chat; counts until the transfer shows up
+FUND_TOPUPS = [(date(2026, 11, 22), 75.00), *FUND_REFILLS]  # decided in chat; counts until the transfer shows up
 # Fund buys paid partly in cash, which no bank sees. The Micro Center receipt (Nov 8) totals $709.14:
 # $409.14 on the Samsung card and $300 in cash from the Costco returns. Shown only; no bank effect.
 FUND_CASH = [(date(2026, 11, 8), "Micro Center, cash part", 300.00)]
