@@ -280,6 +280,10 @@ MOVED = [
 ]
 MOVED_LABEL = "for the Oct 26 Costco run"
 
+# What a paycheck's leftover (not bills, not spending money) is for, when he names it.
+# Nov 13: kept as a cushion while he gets used to the first $699.33 loan autopay (Nov 23).
+EXTRA_LABELS = {date(2026, 11, 13): "Cushion"}
+
 # Charges the bank files as transfers that he says were really spending.
 # (date, merchant fragment, amount). The Oct 13 Venmo to his brother Cristian was
 # his share of the Florida trip (Nov 20).
@@ -645,6 +649,7 @@ def summary(conn, today: date | None = None) -> dict:
         "set_aside_label": SET_ASIDE_LABEL,
         "moved_in": round(moved_in, 2),
         "moved_in_label": MOVED_LABEL,
+        "extra_label": EXTRA_LABELS.get(start, "Extra savings"),
         "rolled_over": round(roll, 2),
         "allowance": round(cap, 2),
         "spent": round(spent, 2),

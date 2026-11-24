@@ -481,7 +481,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(pc){
       add({key:"bills",grp:"Bills",c:"var(--tent)",v:paid,label:"Bills"});
       add({key:"bills",grp:"Bills",c:"var(--tent)",v:due,label:"Bills",stripes:true,sub:true});
-      add({key:"extra",grp:"Extra savings",c:"var(--teal)",v:pc.amount-paid-due-w.per_period,label:"Extra savings"});
+      add({key:"extra",grp:"Extra savings",c:"var(--teal)",v:pc.amount-paid-due-w.per_period,label:w.extra_label||"Extra savings"});
     }
     add({key:"fund",grp:"Set aside",c:"var(--purple)",v:w.set_aside,label:name(w.set_aside_label)||"Set aside"});
     add({key:"moved",grp:"Set aside",c:"var(--slate)",v:w.moved_in,label:name(w.moved_in_label)||"Taken out"});
