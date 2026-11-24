@@ -78,6 +78,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .stripes{background:repeating-linear-gradient(135deg,var(--sc,var(--accent)) 0 3px,transparent 3px 7px)}
 .big.tent{color:var(--accent);opacity:.7} .pill.tent{background:var(--accent-soft);color:var(--accent)}
 .track .cap{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--fg);border-radius:2px}
+.fbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:color-mix(in srgb,var(--fg) 10%,transparent);margin:10px 0 8px;gap:2px}
+.fbar i{display:block;height:100%}
+#fund-keys{margin-bottom:10px}
 .keys{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
 .keys span{display:flex;align-items:center;gap:7px;white-space:nowrap}
 .keys span b{margin-left:auto}
@@ -316,7 +319,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <header class="top"><button class="back" data-go="">‹ Money</button><h1>Black Friday Fund</h1></header>
     <section class="card" id="fund-card" hidden>
       <div class="fundrow"><b id="fund-left">—</b><span id="fund-sub"></span></div>
-      <div class="bar"><i id="fund-bar" style="width:0;background:var(--warn)"></i></div>
+      <div class="fbar" id="fund-bar" role="img"></div>
+      <div class="keys" id="fund-keys"></div>
       <div class="setaside" id="fund-items"></div>
     </section>
   </div>
@@ -876,12 +880,19 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     // What's left already keeps back anything ordered but not charged yet (his rule, Nov 20).
     $("fund-left").textContent=cents(f.left);
     $("fund-sub").textContent=`left of ${money(f.saved)}`+(f.credit?` · ${cents(f.left+f.credit)} once the ${money(f.credit)} card credit is confirmed`:"");
-    $("fund-bar").style.width=(f.saved>0?Math.min(100,((f.spent||0)+(f.held||0))/f.saved*100):0)+"%";
+    // One bar for the whole fund: spent (red), held for orders not charged yet (red stripes), left (green).
+    const net=Math.max((f.spent||0)-(f.items||[]).filter(i=>i.kind==="back").reduce((a,i)=>a+i.amount,0),0);
+    const parts=[{label:"Spent",v:net,c:"var(--bad)"},{label:"Held (not charged yet)",v:f.held||0,c:"var(--bad)",stripes:true},{label:"Left",v:Math.max(f.left,0),c:"var(--accent)"}];
+    const B=$("fund-bar"),K=$("fund-keys"),tot=Math.max(parts.reduce((a,p)=>a+p.v,0),1);B.innerHTML="";K.innerHTML="";
+    parts.forEach(p=>{if(p.v<0.005)return;const i=el("i",p.stripes?"stripes":null);i.style.width=p.v/tot*100+"%";
+      if(p.stripes)i.style.setProperty("--sc",p.c);else i.style.background=p.c;B.append(i);
+      const k=el("span");k.append(swatch(p),p.label,el("b",null,cents(p.v)));K.append(k)});
+    B.setAttribute("aria-label",parts.map(p=>p.label+" "+cents(p.v)).join(", "));
     const L=$("fund-items");L.className="list";L.innerHTML="";
     (f.items||[]).forEach(i=>{const r=el("div","row"), k=i.kind||"spent";
       const plus=k==="credit"||k==="back";
       r.append(el("div","m",i.what),el("div","a "+(plus?"in":"out"),(plus?"+":"")+cents(i.amount)),
-        el("div","d",k==="held"?"Held until it ships, Dec 29 to Jan 15":k==="credit"?"To confirm, not counted yet":k==="back"?"Back into the fund":"Paid from the fund"));
+        el("div","d",k==="held"?"Held until it ships, Dec 28 to Jan 14":k==="credit"?"To confirm, not counted yet":k==="back"?"Back into the fund":"Paid from the fund"));
       if(k!=="spent")r.style.opacity=.8;L.append(r)});
   }
 
