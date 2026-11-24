@@ -45,6 +45,8 @@ FUND_SPENT = [
     ("Prime, one month (ends Dec 20)", 14.99),
     # Order sp-5798420, $37.64: $34.68 on a MicroPerfumes gift card, the rest on Sapphire.
     ("MicroPerfumes, after the gift card", 2.96),
+    # Order 114-3562857-5901814 (Nov 24), Prime Visa: $43.20 + $3.93 tax, charged when it ships.
+    ("Feetures crew socks, 3 pairs, Amazon", 47.13),
 ]
 # Ordered but charged only when it ships: kept out of what's left so the fund doesn't look bigger.
 FUND_HELD = [("Philips i9000 shaver", 218.18)]
@@ -64,7 +66,7 @@ FUND_WATCH = [
     ("SoliSnug desk leg heater", 62.99, "Buy under $62.99."),
     ("Rolling under-bed bins, 2-pack", 33.14, "Only if you need more room."),
     ("Babbel Lifetime", 199.20, "Buy at $159 or less. Probably won't fit the fund."),
-    ("Feetures Max Cushion Crew socks, black L, 6 single pairs", 86.40, "$14.40 a pair, a 90-day low; about $94 with tax (two 3-packs would be $102.60). Compare feetures.com on Black Friday."),
+    ("Feetures Crew socks, 3 more pairs", 43.20, "Wait for the January sale; buy if it beats $14.40 a pair."),
 ]
 # The fund is temporary: its home tile goes away after this day.
 FUND_SHOW_UNTIL = date(2027, 1, 31)
