@@ -149,7 +149,8 @@ BILLS = [
     # Two Ring plans, $10.90 each, both his (not split). Paid once both have landed.
     {"what": "Ring (two plans)", "amount": 21.80, "day": 1, "match": r"^ring\b", "lo": 20, "hi": 25,
      "sum": True, "each_lo": 5, "each_hi": 15, "card": True},
-    {"what": "Student loan autopay", "amount": 699.33, "day": 28, "start": date(2026, 11, 28), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 650, "hi": 760},
+    # From Ally Spending after Nov 28 (paid with the $350 a paycheck sent to Ally), so checking only owes this one.
+    {"what": "Student loan autopay", "amount": 699.33, "day": 28, "start": date(2026, 11, 28), "end": date(2026, 11, 30), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 650, "hi": 760},
     # Last payment Dec 6: GEICO starts Dec 26, paid from Ally Savings and paid back monthly.
     {"what": "State Farm", "amount": 253.80, "day": 6, "match": r"state farm", "lo": 200, "hi": 270, "end": date(2026, 12, 31)},
     {"what": "Parking", "amount": 30.00, "day": 9, "match": r"cash app\*gee", "lo": 25, "hi": 35},
@@ -937,6 +938,15 @@ def monthly_budget(conn, today: date, months: int = 12) -> dict:
 MOVES_FROM = date(2026, 11, 27)   # first payday under this plan
 TO_CHASE_SAVINGS = 550.00          # rent is $542; first paycheck of the month only
 TO_ALLY = 250.00                   # the quarterly and yearly bills are about $244 a paycheck, rounded up
+# The student loan moves to Ally (his plan, Nov 24): $350 a paycheck rides along to Ally Savings,
+# a recurring Ally transfer moves $699.33 to Ally Spending before the 28th, and Aidvantage
+# autopays from Ally Spending. The Nov 28 payment still comes out of Chase checking.
+LOAN_TO_ALLY = 350.00
+LOAN_ALLY_FROM = date(2026, 12, 11)  # first paycheck that sends the loan money to Ally
+
+
+def to_ally(payday: date) -> float:
+    return TO_ALLY + (LOAN_TO_ALLY if payday >= LOAN_ALLY_FROM else 0.0)
 CHASE_SAVINGS, ALLY_SPENDING, ALLY_SAVINGS = "6725", "2628", "2617"
 SAVED_BILLS = {"Rent": 542.00}  # bill -> amount to move back; the loan autopays from checking
 SAVED_FROM = date(2026, 12, 1)     # bills due before this were paid from checking as before
@@ -988,13 +998,14 @@ def money_moves(conn, today: date) -> list[dict]:
                           "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
                           "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", TO_CHASE_SAVINGS - 1, a, b, -1)})
+        ally = to_ally(start)
         moves.append({"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
-                      "what": "Quarterly and yearly bills", "amount": TO_ALLY,
+                      "what": "Quarterly and yearly bills" + (" + student loan" if ally > TO_ALLY else ""), "amount": ally,
                       "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
                       "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days.",
-                      "done": _moved(conn, BILLS_ACCOUNT, r"ally", TO_ALLY - 1, a, b, -1)
-                              or _moved(conn, ALLY_SAVINGS, r"jpmorgan|chase", TO_ALLY - 1, a, b, 1)
-                              or _moved(conn, ALLY_SPENDING, r"jpmorgan|chase", TO_ALLY - 1, a, b, 1)})
+                      "done": _moved(conn, BILLS_ACCOUNT, r"ally", ally - 1, a, b, -1)
+                              or _moved(conn, ALLY_SAVINGS, r"jpmorgan|chase", ally - 1, a, b, 1)
+                              or _moved(conn, ALLY_SPENDING, r"jpmorgan|chase", ally - 1, a, b, 1)})
     # Before rent and the loan come out of checking, their money comes back from Chase Savings.
     for bill in BILLS:
         back = SAVED_BILLS.get(bill["what"])
@@ -1078,7 +1089,8 @@ FROM_CHASE_SAVINGS = r"from sav|6725"
 def _move_kind(amount: float) -> str:
     """What a transfer out of checking was for, by his amounts."""
     for target, kind in ((450, "fund"), (425, "fund"), (350, "Saved for the student loan"),
-                         (TO_CHASE_SAVINGS, "To Chase Savings for rent"), (TO_ALLY, "To Ally Savings")):
+                         (TO_CHASE_SAVINGS, "To Chase Savings for rent"), (TO_ALLY, "To Ally Savings"),
+                         (TO_ALLY + LOAN_TO_ALLY, "To Ally Savings (bills + loan)")):
         if abs(amount - target) < 1:
             return kind
     return "Moved to savings"
