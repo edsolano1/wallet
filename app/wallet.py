@@ -465,8 +465,10 @@ COVERED = [
     # Black Friday orders on Amazon, paid from the fund (Nov 20): the trimmer and socks
     # (charged as they ship) and a month of Prime. Any Amazon charge this size in this
     # window is taken as one of them.
-    {"merchant": "amazon", "low": 1.00, "high": 160.00, "after": date(2026, 11, 19), "before": date(2026, 11, 27)},
-    {"merchant": "amzn", "low": 1.00, "high": 160.00, "after": date(2026, 11, 19), "before": date(2026, 11, 27)},
+    # Widened Nov 24 for the Black Friday clothes, board, heater and bins (~$223, maybe one
+    # order, charged as items ship, possibly after Black Friday).
+    {"merchant": "amazon", "low": 1.00, "high": 300.00, "after": date(2026, 11, 19), "before": date(2026, 12, 8)},
+    {"merchant": "amzn", "low": 1.00, "high": 300.00, "after": date(2026, 11, 19), "before": date(2026, 12, 8)},
     # MicroPerfumes order (Nov 20): the $2.96 left after the gift card.
     {"merchant": "microperfumes", "low": 2.50, "high": 3.50, "after": date(2026, 11, 19), "before": date(2026, 11, 30)},
     # The shaver, charged when it ships.
