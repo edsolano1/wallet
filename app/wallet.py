@@ -823,6 +823,35 @@ def _paid_back(rows: list[dict]) -> float:
     )
 
 
+CHAIN_FROM = date(2026, 11, 13)
+
+
+def overspend_detail(rows: list[dict], allowance: float, env: dict | None, start: date) -> dict:
+    """Which charges took a paycheck below zero, in the order they happened: walking its spending
+    from what it had, the ones after the money ran out (and the part of the one that crossed)."""
+    running, items, back_after = allowance, [], 0.0
+    for r in sorted(rows, key=lambda r: (r["date"], str(r.get("seen") or ""))):
+        if not _is_spending(r):
+            continue
+        if env and any(is_need(r, n) for n in NEEDS_MONTHLY):
+            continue  # paid from the groceries & gas envelope; only its overage counts, added below
+        if _counts_as_payback(r):
+            before, running = running, running + float(r["amount"])
+            if before < 0:
+                back_after += min(float(r["amount"]), -before)
+            continue
+        cost = -float(r["amount"]) + _tip(r)
+        before, running = running, running - cost
+        if cost < 0 and before < 0:  # a refund once it was already over
+            back_after += min(-cost, -before)
+        if running < 0 and cost > 0:
+            items.append({"date": r["date"], "what": r["what"], "amount": round(cost, 2),
+                          "over": round(min(cost, -running) if before > 0 else cost, 2)})
+    if env and env["over"] > 0.005:
+        items.append({"date": None, "what": "Groceries & gas over budget", "amount": env["over"], "over": env["over"]})
+    return {"payday": start.isoformat(), "items": items, "paid_back_after": round(back_after, 2)}
+
+
 def summary(conn, today: date | None = None) -> dict:
     today = today or date.today()
     start, nxt = period_for(today)
@@ -835,13 +864,21 @@ def summary(conn, today: date | None = None) -> dict:
     route_now = routed(conn, start)
     route_prev = routed(conn, prev_start)
 
-    # One paycheck of carry over, exactly as his page does it.
+    # Carry over: from CHAIN_FROM on, the last paycheck's whole result carries in, so an overspend
+    # comes out of the next paycheck in full and never drops off (his rule, Nov 24). Before that,
+    # one paycheck of carry, as his old page did it.
     prev_rows = _rows(conn, prev_start, start)
-    prev_cap = PER_PERIOD - prev_set - prev_moved_in - sum(r["amount"] for r in route_prev)
-    roll = prev_cap - _cost(prev_rows) + _paid_back(prev_rows)
     prev_env = needs_effect(conn, prev_start, start, today)
-    if prev_env:
-        roll += -prev_env["set_aside"] + prev_env["spent"] - prev_env["over"] + prev_env["cashin"]
+    if prev_start >= CHAIN_FROM:
+        prev = summary(conn, prev_start)
+        roll, prev_allow = prev["left"], prev["allowance"]
+    else:
+        prev_cap = PER_PERIOD - prev_set - prev_moved_in - sum(r["amount"] for r in route_prev)
+        roll = prev_cap - _cost(prev_rows) + _paid_back(prev_rows)
+        prev_allow = prev_cap
+        if prev_env:
+            roll += -prev_env["set_aside"] + prev_env["spent"] - prev_env["over"] + prev_env["cashin"]
+            prev_allow -= prev_env["set_aside"]
 
     cap = PER_PERIOD - set_aside - moved_in + roll - sum(r["amount"] for r in route_now)
     rows = _rows(conn, start, nxt)
@@ -867,6 +904,7 @@ def summary(conn, today: date | None = None) -> dict:
         "moved_in_label": MOVED_LABEL,
         "extra_label": EXTRA_LABELS.get(start, "Extra savings"),
         "rolled_over": round(roll, 2),
+        "overspend": overspend_detail(prev_rows, prev_allow, prev_env, prev_start) if roll < -0.5 else None,
         "allowance": round(cap, 2),
         "spent": round(spent, 2),
         "paid_back": round(paid_back, 2),

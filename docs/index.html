@@ -407,6 +407,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <textarea id="rt-note" rows="2" placeholder="Message to Claude (optional)"></textarea>
   <div class="btns"><button class="main" id="rt-save">Save</button><button class="later" id="rt-later">Decide later</button></div>
 </section></div>
+<div class="sheet" id="os-sheet" hidden><section class="card">
+  <div class="eyebrow">Payday · overspend to cover</div>
+  <div class="q" id="os-q"></div>
+  <div class="note" id="os-why"></div>
+  <div class="list" id="os-list"></div>
+  <div class="btns"><button class="main minus" id="os-ok">Got it</button></div>
+</section></div>
 <div class="coins" id="coins" hidden aria-live="polite"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <span id="ask" hidden></span>
@@ -453,12 +460,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const d=w.days_to_payday, next=day(w.next_payday).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
     $("sub").textContent=`${money(w.spent-w.paid_back)} of ${money(cap)} spent since payday. Next check ${next}, ${d} day${d===1?"":"s"} away.`;
     const parts=[];
-    if(Math.round(w.rolled_over))parts.push(w.rolled_over>0?`${money(w.rolled_over)} left over from your last paycheck added in.`:`${money(-w.rolled_over)} overspent last paycheck taken out.`);
+    if(Math.round(w.rolled_over))parts.push(w.rolled_over>0?`${money(w.rolled_over)} left over from your last paycheck added in.`:`${money(-w.rolled_over)} overspent last paycheck taken out (tap to see what).`);
     if(w.set_aside)parts.push(`${money(w.set_aside)} already set aside ${w.set_aside_label}.`);
     if(w.moved_in)parts.push(`${money(w.moved_in)} taken out ${w.moved_in_label}.`);
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
 
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
+    $("setaside").onclick=w.overspend&&w.rolled_over<0?e=>{e.stopPropagation();overspendPop(w,true)}:null;$("setaside").style.cursor=w.overspend&&w.rolled_over<0?"pointer":"";
     const E0=(w.ended||[])[0];$("freed").hidden=!(w.freed&&E0);
     if(w.freed&&E0){$("freed").textContent=`${money(w.freed)} freed up (was ${E0.name}) is unassigned. Tap to choose where it goes ›`;$("freed").onclick=()=>routeSheet(w,E0)}
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
@@ -468,7 +476,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     $("go-fund").hidden=!(w.fund&&w.fund.show!==false);if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);needsPop(w);routePop(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
+    if(w.overspend&&w.rolled_over<0&&store("wallet.overspendSeen")!==w.period_start&&!$("ask").textContent)$("ask").textContent=`Last paycheck went ${money(-w.rolled_over)} over. It comes out of this one`;
+    needsPop(w);overspendPop(w);routePop(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
@@ -798,6 +808,23 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       if(n){const q=store("wallet.queue")||[];q.push({id:E.id,answer:"route",future:"later",note:n});store("wallet.queue",q);pull(true)}
       store("wallet.route."+E.id,w.period_start);$("rt-sheet").hidden=true};
     $("rt-sheet").hidden=false;
+  }
+  // Overspend: the last paycheck went over, so this one starts lower by that much. On payday it
+  // says so and lists what did it, charge by charge (his rule, Nov 24).
+  function overspendPop(w,force){
+    const o=w.overspend;if(!o||w.rolled_over>=0)return false;
+    const key="wallet.overspendSeen", seen=store(key);
+    if(!force&&(seen===w.period_start||!$("sheet").hidden||!$("mv-sheet").hidden||!$("nd-sheet").hidden||!$("rt-sheet").hidden||location.hash))return !force&&seen!==w.period_start;
+    const amt=-w.rolled_over;
+    $("os-q").textContent=`Last paycheck went ${money(amt)} over`;
+    $("os-why").textContent=`It comes out of this paycheck's spending money, so you start ${money(amt)} lower. Here's what went past what you had, in order:`;
+    const L=$("os-list");L.innerHTML="";
+    o.items.forEach(i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a out",cents(i.over)),
+      el("div","d",(i.date?fmt(i.date):"This paycheck")+(i.over<i.amount-0.005?` · ${cents(i.amount)} charge, ${cents(i.over)} of it over`:"")));L.append(r)});
+    if(o.paid_back_after>=0.01){const r=el("div","row");r.append(el("div","m","Paid back after it went over"),el("div","a in","+"+cents(o.paid_back_after)),el("div","d","takes some of it back"));L.append(r)}
+    const t=el("div","row");t.append(el("div","m",el("b",null,"Over, after paybacks")),el("div","a out",cents(amt)));L.append(t);
+    $("os-ok").onclick=()=>{store(key,w.period_start);$("os-sheet").hidden=true;coins(amt,false)};
+    $("os-sheet").hidden=false;return true;
   }
   function routePop(w){
     const E=(w.ended||[])[0];if(!E||!w.freed)return;
