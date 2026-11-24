@@ -281,9 +281,15 @@ TRIPS = [
 ]
 
 
-def trip_gas(start: date, end: date) -> list[tuple[str, float]]:
-    """Trips whose first day falls in [start, end), with their gas."""
-    return [(w, g) for a, b, w, g in TRIPS if start <= a < end]
+def trip_gas(start: date, end: date, today: date, spent_on=lambda a, b: 0.0) -> list[tuple[str, float]]:
+    """Trips whose first day falls in [start, end), with the gas to budget for each.
+    A trip still ahead (or under way) gets its full estimate. Once it's over, it only
+    covers the gas it really used, so nothing is left "still needed" for it (his call, Nov 23)."""
+    out = []
+    for a, b, w, g in TRIPS:
+        if start <= a < end:
+            out.append((w, round(min(g, spent_on(a, b)), 2) if b < today else g))
+    return out
 
 # Charges he decided belong to a LATER paycheck than the one they posted in: the
 # Oct 26 Costco run came out of the Oct 30 check, not the Oct 16 one. Hidden in
