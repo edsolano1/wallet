@@ -401,8 +401,11 @@ def snapshot(conn, today: date) -> dict:
         else:
             hits = [r for r in period if wallet.is_grocery(r)]
         used = wallet._cost(hits)
+        trips = wallet.trip_gas(start, start + timedelta(days=14)) if name == "Gas" else []
+        budget += sum(g for _, g in trips)
         needs.append({"name": name, "budget": budget, "spent": round(used, 2),
-                      "left": round(max(budget - used, 0), 2)})
+                      "left": round(max(budget - used, 0), 2),
+                      "trips": [{"what": w, "gas": g} for w, g in trips]})
     still_needed = sum(n["left"] for n in needs)
 
     used_fund = sum(a for _, a in wallet.FUND_SPENT)

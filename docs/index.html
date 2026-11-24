@@ -204,9 +204,14 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 @keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--warn) 0%,transparent)}50%{box-shadow:0 0 18px 2px color-mix(in srgb,var(--warn) 45%,transparent)}}
 @media (prefers-reduced-motion:reduce){.menu #t-move-tile{animation:none}}
 .menu .needs2{display:flex;flex-direction:column;gap:3px;margin-left:auto;min-width:0}
-.menu .needs2 span{display:flex;justify-content:flex-end;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.menu .needs2 span{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .menu .needs2 span.over b{color:var(--bad)}
 .menu .needs2 b{font-weight:600;color:var(--fg);white-space:nowrap}
+.menu .needs2{flex:1;max-width:240px}
+.menu .needs2 .nbar{display:block;height:6px;border-radius:3px;background:color-mix(in srgb,var(--fg) 10%,transparent);overflow:hidden;margin:2px 0 6px}
+.menu .needs2 .nbar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.menu .needs2 span.over+.nbar i{background:var(--bad)}
+.menu .lb .mvfor{display:block;font:500 12px/1.3 var(--body);color:var(--muted);margin-top:2px}
 .hub{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .hub button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);color:var(--fg);font:600 14px var(--body);text-align:left;cursor:pointer}
 .hub button b{font-weight:600;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -241,7 +246,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   </section>
   <div class="msg" id="msg" hidden></div>
   <nav class="menu" aria-label="Sections">
-    <button id="t-move-tile" class="span3" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span><span class="lb">Pending</span><b id="t-move">—</b></button>
+    <button id="t-move-tile" class="span3" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span><span class="lb">Set aside<small class="mvfor" id="t-move-for"></small></span><b id="t-move">—</b></button>
     <button data-go="accounts" id="go-acct"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg></span><span class="lb">Accounts</span><b id="t-acct">—</b></button>
     <button data-go="bills" id="t-bills-tile"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></span><span class="lb">Upcoming bills</span><b id="t-bills">—</b></button>
     <button data-go="needs" id="go-needs" class="span3"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg></span><span class="lb">Groceries &amp; gas</span><div class="needs2" id="t-needs"></div></button>
@@ -352,7 +357,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <div class="btns"><button class="main" id="ask-split">Split in half</button><button id="ask-solo">Just me</button><button id="ask-save" hidden>Just save the note</button><button class="later" id="ask-later">Ask me later</button></div>
 </section></div>
 <div class="sheet" id="mv-sheet" hidden><section class="card">
-  <div class="eyebrow" id="mv-count">Money to move</div>
+  <div class="eyebrow" id="mv-count">Set aside for bills</div>
   <div class="q" id="mv-q"></div>
   <div class="note" id="mv-why"></div>
   <div class="list" id="mv-list"></div>
@@ -411,7 +416,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
     drawBar($("bar-fill"),$("bar-cap"),$("bar-keys"),w);
     $("t-today").textContent="How it's counted";
-    $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));t.append(r)})}
+    $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+((n.trips||[]).length?" + trip":"")+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));const g=el("i","nbar"),f=el("i");f.style.width=Math.min(n.spent/Math.max(n.budget,1),1)*100+"%";g.append(f);t.append(r,g)})}
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
@@ -472,7 +477,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(pc){
       add({key:"bills",grp:"Bills",c:"var(--tent)",v:paid,label:"Bills"});
       add({key:"bills",grp:"Bills",c:"var(--tent)",v:due,label:"Bills",stripes:true,sub:true});
-      add({key:"extra",grp:"Unassigned",c:"var(--teal)",v:pc.amount-paid-due-w.per_period,label:"Unassigned"});
+      add({key:"extra",grp:"Extra savings",c:"var(--teal)",v:pc.amount-paid-due-w.per_period,label:"Extra savings"});
     }
     add({key:"fund",grp:"Set aside",c:"var(--purple)",v:w.set_aside,label:name(w.set_aside_label)||"Set aside"});
     add({key:"moved",grp:"Set aside",c:"var(--slate)",v:w.moved_in,label:name(w.moved_in_label)||"Taken out"});
@@ -711,7 +716,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // done; an "I did this" tick is remembered on this phone for 4 days in case the bank is slow.
   let mvSnoozed=false;
   const openMoves=w=>{const t=store("wallet.moved")||{};return (w.to_move||[]).filter(m=>!m.done&&!t[m.id])};
-  function moveTile(w){const o=openMoves(w);$("t-move-tile").hidden=!o.length;$("t-move").textContent=o.length?money(o.reduce((a,m)=>a+m.amount,0)):""}
+  function moveTile(w){const o=openMoves(w);$("t-move-tile").hidden=!o.length;$("t-move").textContent=o.length?money(o.reduce((a,m)=>a+m.amount,0)):"";
+    $("t-move-for").textContent=o.length?"for "+o.map(m=>m.what.split(",")[0].toLowerCase().replace(" and yearly"," & yearly")).join(", "):""}
   function moves(w){
     const ticks=store("wallet.moved")||{}, now=Date.now();
     for(const k in ticks)if(now-ticks[k]>4*864e5)delete ticks[k];
@@ -726,7 +732,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const list=(w.to_move||[]).filter(m=>!m.done||m.kind==="payday"), open=openMoves(w);
     if(!open.length&&!manual){$("mv-sheet").hidden=true;return}
     const pay=open.some(m=>m.kind==="payday"), sum=open.reduce((a,m)=>a+m.amount,0);
-    $("mv-count").textContent=open.length>1?`Money to move · ${open.length}`:"Money to move";
+    $("mv-count").textContent=open.length>1?`Set aside for bills · ${open.length}`:"Set aside for bills";
     $("mv-q").textContent=pay?"Payday: move your bill money":open.length?`Move ${money(sum)}`:"All moved";
     $("mv-why").textContent=pay?"Rent waits in Chase Savings until it goes out. Quarterly and yearly money goes to Ally Savings. The loan and your spending money stay in checking."
       :open.length?"So each bill is covered before it comes out.":"The banks show everything moved.";

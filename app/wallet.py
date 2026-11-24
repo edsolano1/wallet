@@ -254,9 +254,22 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
 
 
 NEEDS = {
-    "Groceries": (175.00, {"FOOD_AND_DRINK_GROCERIES", "GENERAL_MERCHANDISE_SUPERSTORES"}),
+    # $225 since Nov 23: $175 ran short (Aug-Nov paychecks ran $38 to $268, most over $200).
+    "Groceries": (225.00, {"FOOD_AND_DRINK_GROCERIES", "GENERAL_MERCHANDISE_SUPERSTORES"}),
     "Gas": (75.00, {"TRANSPORTATION_GAS"}),
 }
+
+# Driving trips: their gas is added to the Gas budget of the paycheck they fall in.
+# Check his calendar and email for trips he'll drive to and add them here.
+# (first day, last day, what, gas for the trip)
+TRIPS = [
+    (date(2026, 11, 15), date(2026, 11, 16), "California drive", 100.00),  # fill-ups $95.65
+]
+
+
+def trip_gas(start: date, end: date) -> list[tuple[str, float]]:
+    """Trips whose first day falls in [start, end), with their gas."""
+    return [(w, g) for a, b, w, g in TRIPS if start <= a < end]
 
 # Charges he decided belong to a LATER paycheck than the one they posted in: the
 # Oct 26 Costco run came out of the Oct 30 check, not the Oct 16 one. Hidden in
@@ -755,7 +768,6 @@ MOVES_FROM = date(2026, 11, 27)   # first payday under this plan
 TO_CHASE_SAVINGS = 550.00          # rent is $542; first paycheck of the month only
 TO_ALLY = 250.00                   # the quarterly and yearly bills are about $244 a paycheck, rounded up
 CHASE_SAVINGS, ALLY_SPENDING, ALLY_SAVINGS = "6725", "2628", "2617"
-ALLY_KEEP = 100.00                 # leave this in Ally Spending; anything past it earns more in savings
 SAVED_BILLS = {"Rent": 542.00}  # bill -> amount to move back; the loan autopays from checking
 SAVED_FROM = date(2026, 12, 1)     # bills due before this were paid from checking as before
 MOVE_BACK_DAYS = 6                 # start asking this many days before the bill is due
@@ -867,14 +879,7 @@ def money_moves(conn, today: date) -> list[dict]:
                       "how": "Ally → Transfers → Savings to your Chase checking. Takes 1–3 days, so do it before the card is due.",
                       "done": False})
         pulled = 0.0
-    # Ally Spending holding more than it needs: sweep the round part into savings.
-    bal = conn.execute("SELECT COALESCE(available_balance, current_balance) FROM accounts WHERE mask = ?", (ALLY_SPENDING,)).fetchone()
-    sweep = int(((float(bal[0] or 0) - ALLY_KEEP) if bal else 0) // 50) * 50
-    if sweep >= 50:
-        moves.append({"id": f"sweep-{today}", "kind": "sweep", "bank": "ally", "date": today.isoformat(),
-                      "what": "Earn interest on what's sitting in Ally Spending", "amount": float(sweep),
-                      "from": "Ally Spending ··2628", "to": "Ally Savings ··2617",
-                      "how": f"Ally → Transfers. Instant. Leaves ${ALLY_KEEP:.0f} in Spending.", "done": False})
+    # No interest sweeps: he only moves money to put it aside for a bill, like rent (Nov 23).
     return moves
 
 
