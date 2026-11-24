@@ -55,9 +55,16 @@ FUND_CREDITS = [("Amazon card credit, used on the order", 16.00)]
 FUND_CREDIT_TO_CONFIRM = []
 # Bought with the first $450 (closed), shown for the record only; not in the $525.
 # Receipt Nov 8: $709.14 = $409.14 on the Samsung card + $300 cash from the Costco returns.
-FUND_EARLIER = [("Acer monitor, Micro Center", 709.14, "Price-matched to $649.99 plus tax · $409.14 card + $300 cash")]
-# Bought, but still hunting for a better price.
-FUND_WATCH = [("Acer monitor", "Paid $649.99. If Amazon drops below that on Black Friday, ask for a match or reorder.")]
+FUND_EARLIER = [("Acer X32 X monitor, Micro Center", 709.14, "$409.14 on the Samsung card + $300 cash")]
+# Watching for a price (from the Shopping chat, Nov 23): (what, price now, note). From the fund unless noted.
+FUND_WATCH = [
+    ("Acer X32 X monitor", 649.99, "Paid $709.14 at Micro Center. Amazon is $649.99 now; if it drops below that, reorder on Amazon and return by Dec 8."),
+    ("Philips i9000 shaver", 199.99, "Ordered on Amazon for $218.19; switch if it's under $199.99 elsewhere."),
+    ("RAINHOL ironing board, black", 48.44, "Lowest price ever."),
+    ("SoliSnug desk leg heater", 62.99, "Buy under $62.99."),
+    ("Rolling under-bed bins, 2-pack", 33.14, "Only if you need more room."),
+    ("Babbel Lifetime", 199.20, "Buy at $159 or less. Probably won't fit the fund."),
+]
 # The fund is temporary: its home tile goes away after this day.
 FUND_SHOW_UNTIL = date(2027, 1, 31)
 
