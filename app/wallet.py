@@ -64,6 +64,7 @@ FUND_WATCH = [
     ("SoliSnug desk leg heater", 62.99, "Buy under $62.99."),
     ("Rolling under-bed bins, 2-pack", 33.14, "Only if you need more room."),
     ("Babbel Lifetime", 199.20, "Buy at $159 or less. Probably won't fit the fund."),
+    ("Feetures Max Cushion Crew socks, black L, 2 x 3-pack", 102.60, "About $111 with tax. Compare feetures.com on Black Friday; doesn't fit what's left after the heater and board (about $41)."),
 ]
 # The fund is temporary: its home tile goes away after this day.
 FUND_SHOW_UNTIL = date(2027, 1, 31)
