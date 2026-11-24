@@ -496,6 +496,7 @@ def snapshot(conn, today: date) -> dict:
         "fund": fund,
         "needs_leftover": wallet.needs_leftover(conn, today),
         "ended": wallet.ended_open(conn),
+        "calendar": wallet.money_calendar(conn, today),
         "needs_from": wallet.NEEDS_FROM.isoformat(),
         "owed": owing,
         "bills": wallet.upcoming_bills(conn, today, s, (owing or {}).get("total", 0.0)),

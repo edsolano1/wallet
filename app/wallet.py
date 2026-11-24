@@ -1171,6 +1171,65 @@ def money_moves(conn, today: date) -> list[dict]:
     return moves
 
 
+# ---- Money calendar (his ask, Nov 24) ----------------------------------------------------
+# Paydays, bills, money moves and drives by date, for the page's calendar.
+def _paid_near(conn, bill: dict, due: date) -> bool:
+    for r in conn.execute("SELECT -t.amount AS amt, COALESCE(t.merchant_name, '') || ' | ' || t.name AS what FROM transactions t"
+                          " WHERE t.amount < 0 AND COALESCE(t.authorized_date, t.date) BETWEEN ? AND ?",
+                          ((due - timedelta(days=12)).isoformat(), (due + timedelta(days=5)).isoformat())):
+        if bill.get("each_lo", bill["lo"]) <= r["amt"] <= bill.get("each_hi", bill["hi"]) and                 any(re.search(bill["match"], part.strip().lower()) for part in r["what"].split("|")):
+            return True
+    return False
+
+
+def money_calendar(conn, today: date, back: int = 21, ahead: int = 90) -> list[dict]:
+    a, b = today - timedelta(days=back), today + timedelta(days=ahead)
+    out = []
+    d, _ = period_for(a)
+    while d < b:  # paydays
+        if d >= a:
+            out.append({"date": d.isoformat(), "what": "Payday" + (" (bonus check)" if _bonus_check(d) else ""),
+                        "amount": PAYCHECK, "kind": "payday", "done": d <= today})
+            if d >= MOVES_FROM:
+                for m in money_moves(conn, d):
+                    if m["kind"] in ("payday", "fund"):
+                        out.append({"date": d.isoformat(), "what": f'Move: {m["what"]}', "amount": m["amount"],
+                                    "kind": "move", "note": f'{m["from"]} → {m["to"]}', "done": bool(m["done"]) and d <= today})
+        d += timedelta(days=14)
+    for bill in BILLS:
+        for due in _due_dates(bill, a, b):
+            back = SAVED_BILLS.get(bill["what"])
+            if back and due >= SAVED_FROM:  # its money comes back from Chase Savings a few days before
+                out.append({"date": (due - timedelta(days=3)).isoformat(), "what": f'Move: {bill["what"]} back to checking',
+                            "amount": back, "kind": "move", "note": "Chase Savings ··6725 → Chase checking ··7372",
+                            "done": due < today})
+            out.append({"date": due.isoformat(), "what": bill["what"].replace(" autopay", ""), "amount": bill["amount"],
+                        "kind": "bill", "note": "on a card" if bill.get("card") else "",
+                        "done": due <= today + timedelta(days=1) and _paid_near(conn, bill, due)})
+    y, m = a.year, a.month
+    while date(y, m, 1) < b:
+        loan = date(y, m, 28)
+        if loan > date(2026, 11, 30) and a <= loan < b:  # from Ally Spending after Nov
+            out.append({"date": loan.isoformat(), "what": "Student loan", "amount": 699.33, "kind": "bill",
+                        "note": "autopay from Ally Spending", "done": loan < today})
+        mid = date(y, m, 20)
+        if a <= mid < b:
+            for w, x in OTHER_MONTHLY:
+                out.append({"date": mid.isoformat(), "what": w, "amount": x, "kind": "bill", "note": "around the 20th",
+                            "done": mid < today})
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    for when, what, amt, _ in FROM_ALLY_KNOWN:
+        if a <= when < b:
+            out.append({"date": when.isoformat(), "what": what, "amount": amt, "kind": "bill", "note": "on a card; Ally pays it back",
+                        "done": when < today})
+    for t0, t1, what, gas in TRIPS:
+        if a <= t0 < b:
+            out.append({"date": t0.isoformat(), "what": f"Drive: {what}", "amount": gas, "kind": "trip", "note": "gas budgeted",
+                        "done": t1 < today})
+    out.sort(key=lambda e: (e["date"], {"payday": 0, "move": 1, "bill": 2, "trip": 3}[e["kind"]]))
+    return out
+
+
 # ---- Paycheck by paycheck ---------------------------------------------------------------
 # His wallet rules (Nov 22-23):
 #  - Whatever a paycheck leaves stays in the wallet and carries into the next one. Negative is
