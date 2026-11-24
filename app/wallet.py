@@ -41,7 +41,9 @@ SET_ASIDE_LABEL = "for the Black Friday Fund"
 # Plus $75 he added on Nov 22 from unassigned checking (to Chase Savings) for two more items.
 FUND_SAVED = 525.00
 FUND_SPENT = [
-    ("Trimmer + socks, Amazon", 143.30),
+    # Two Amazon orders on Nov 20 (order emails): 114-5226929-2324258 and 114-8570827-7062625.
+    ("Trimmer, Amazon", 104.73),
+    ("Feetures quarter socks, 3-pack, Amazon", 38.56),
     ("Prime, one month (ends Dec 20)", 14.99),
     # Order sp-5798420, $37.64: $34.68 on a MicroPerfumes gift card, the rest on Sapphire.
     ("MicroPerfumes, after the gift card", 2.96),
