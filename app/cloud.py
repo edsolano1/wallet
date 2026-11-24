@@ -310,9 +310,9 @@ def answer(raw: str) -> None:
     with db.connect() as conn:
         for a in given if isinstance(given, list) else []:
             if isinstance(a, dict) and a.get("answer") in ("needs_add", "needs_keep"):
-                key = str(a.get("id", ""))[:7]
+                key = str(a.get("id", ""))[:10]
                 today = datetime.now(HOME).date()
-                amount = wallet.leftover_for(conn, key, today) if re.fullmatch(r"\d{4}-\d{2}", key) else None
+                amount = wallet.leftover_for(conn, key, today) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", key) else None
                 if amount is not None:
                     conn.execute("INSERT OR IGNORE INTO needs_cashins (month, answer, amount, answered_on) VALUES (?, ?, ?, ?)",
                                  (key, a["answer"][6:], amount, today.isoformat()))
@@ -408,7 +408,8 @@ def snapshot(conn, today: date) -> dict:
         m0, m1 = wallet.needs_month(today)
         for l in wallet.needs_month_lines(conn, m0, m1, today):
             l["trips"] = [{"what": w, "gas": g} for w, g in wallet.trip_gas(m0, m1, today, lambda a, b: wallet.needs_spent(conn, "Gas", a, b + timedelta(days=1)))] if l["name"] == "Gas" else []
-            l["month"] = (m1 - timedelta(days=1)).strftime("%B")
+            l["month"] = "this paycheck"
+            l["period"] = m0.isoformat()
             needs.append(l)
     for name, (budget, cats) in ([] if env else wallet.NEEDS.items()):
         if name == "Gas":  # small gas-station charges are snacks, not fill-ups

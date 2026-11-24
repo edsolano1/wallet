@@ -296,13 +296,14 @@ def trip_gas(start: date, end: date, today: date, spent_on=lambda a, b: 0.0) -> 
 
 # ---- Groceries & gas envelope (his rules, Nov 23) --------------------------------------
 # From the Nov 27 paycheck on, groceries and gas come off the top of every paycheck like an
-# envelope, budgeted by the month. Their charges come out of the envelope, not the wallet.
-# Going over takes the overage from the wallet as it happens (the page asks him to okay it);
-# a month that comes in under asks at month end whether to add what's left to the wallet.
-# "Keep it saved" leaves it in his accounts. Nov 27-30 count toward December.
+# envelope, $225 and $75 a paycheck (NEEDS) plus gas for any drive. Their charges come out of
+# the envelope, not the wallet. Going over takes the overage from the wallet as it happens (the
+# page asks him to okay it); a paycheck that comes in under asks, once it's over, whether to add
+# what's left to the wallet. "Keep it saved" leaves it in his accounts. Per paycheck, not per
+# month (his call, Nov 23).
 NEEDS_FROM = date(2026, 11, 27)
-NEEDS_MONTHLY = {"Groceries": 450.00, "Gas": 150.00}
-NEEDS_PER_CHECK = round(sum(NEEDS_MONTHLY.values()) * 12 / 26, 2)  # 276.92
+NEEDS_MONTHLY = {n: b for n, (b, _) in NEEDS.items()}  # per paycheck, despite the name
+NEEDS_PER_CHECK = round(sum(NEEDS_MONTHLY.values()), 2)  # 300.00
 
 
 def is_need(row, name: str) -> bool:
@@ -312,10 +313,8 @@ def is_need(row, name: str) -> bool:
 
 
 def needs_month(d: date) -> tuple[date, date]:
-    """The envelope month holding day d, as [first day, next month's first day)."""
-    if d < date(2027, 1, 1):
-        return NEEDS_FROM, date(2027, 1, 1)
-    return date(d.year, d.month, 1), date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+    """The envelope period holding day d: its paycheck, [payday, next payday)."""
+    return period_for(d)
 
 
 def needs_spent(conn, name: str, a: date, b: date) -> float:
@@ -354,7 +353,9 @@ def needs_effect(conn, a: date, b: date, today: date) -> dict | None:
     for m0, m1 in {needs_month(a), needs_month(b - timedelta(days=1))}:
         for n in NEEDS_MONTHLY:
             over += _over(conn, n, m0, m1, b, today) - _over(conn, n, m0, m1, max(a, m0), today)
-    return {"set_aside": NEEDS_PER_CHECK, "spent": round(spent, 2), "over": round(over, 2),
+    # What comes off the top is this paycheck's budget: $300 plus gas for any drive in it.
+    cut = sum(needs_budget(conn, n, a, a + timedelta(days=14), today) for n in NEEDS_MONTHLY)
+    return {"set_aside": round(cut, 2), "spent": round(spent, 2), "over": round(over, 2),
             "cashin": round(_cashins(conn, a, b), 2)}
 
 
@@ -379,21 +380,20 @@ def needs_month_lines(conn, m0: date, m1: date, today: date) -> list[dict]:
 
 
 def leftover_for(conn, key: str, today: date) -> float | None:
-    """What a finished envelope month ("YYYY-MM") left unspent; None if it isn't over yet."""
-    y, m = int(key[:4]), int(key[5:7])
-    m0, m1 = needs_month(date(y, m, 1))
-    if m1 > today or m1 <= NEEDS_FROM:
+    """What a finished paycheck's envelope (its payday, "YYYY-MM-DD") left unspent; None if it isn't over yet."""
+    m0, m1 = needs_month(date.fromisoformat(key))
+    if m1 > today or m0 < NEEDS_FROM:
         return None
     return round(sum(l["left"] for l in needs_month_lines(conn, m0, m1, today)), 2)
 
 
 def needs_leftover(conn, today: date) -> dict | None:
-    """The month that just ended, with what it left, until he answers the pop-up."""
+    """The paycheck that just ended, with what its envelope left, until he answers the pop-up."""
     m0, _ = needs_month(today)
-    if m0 <= NEEDS_FROM:
-        return None
     p0, p1 = needs_month(m0 - timedelta(days=1))
-    key = f"{p1 - timedelta(days=1):%Y-%m}"
+    if p0 < NEEDS_FROM:
+        return None
+    key = p0.isoformat()
     try:
         if conn.execute("SELECT 1 FROM needs_cashins WHERE month = ?", (key,)).fetchone():
             return None
@@ -403,7 +403,7 @@ def needs_leftover(conn, today: date) -> dict | None:
     total = round(sum(l["left"] for l in lines), 2)
     if total < 1:
         return None
-    return {"month": key, "label": f"{p1 - timedelta(days=1):%B}", "amount": total, "lines": lines}
+    return {"month": key, "label": f"{p0:%b} {p0.day} paycheck", "amount": total, "lines": lines}
 
 
 # Charges he decided belong to a LATER paycheck than the one they posted in: the
@@ -1183,7 +1183,7 @@ def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
         if other >= 0.01:
             lines_out.append(["Other charges (Kitty, vet, one-offs)", round(other, 2), False])
         still = max(s["left"], 0.0) if a <= today < b else 0.0
-        e = s.get("needs_env")
+        e = needs_effect(conn, a, b, today)  # with today's view of trips, as the bank check uses
         if e:
             lines_out.append(["Groceries & gas (set aside)", e["set_aside"], False])
             lines_out.append(["Spending money", round(_cost(rows) - e["spent"] + e["over"] - e["cashin"] + still, 2), bool(still)])
@@ -1201,7 +1201,7 @@ def _flow(conn, a: date, b: date, today: date, carried: float) -> dict:
                 lines_out.append([i["what"], i["amount"], True])
         if a <= date(a.year, a.month, 20) < b:
             lines_out += [[w, amt, True] for w, amt in OTHER_MONTHLY]
-        env_cut = NEEDS_PER_CHECK if a >= NEEDS_FROM else 0.0
+        env_cut = sum(needs_budget(conn, n, a, b, today) for n in NEEDS_MONTHLY) if a >= NEEDS_FROM else 0.0
         if env_cut:
             lines_out.append(["Groceries & gas (set aside)", env_cut, True])
         lines_out.append(["Spending money", round(PER_PERIOD - SET_ASIDE.get(a, 0.0) - env_cut, 2), True])

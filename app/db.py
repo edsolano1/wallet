@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS answers (
     share                REAL
 );
 
--- Month-end pop-up: what a groceries & gas month left, and whether he added it to the
+-- End-of-paycheck pop-up (keyed by payday): what a groceries & gas envelope left, and whether he added it to the
 -- wallet ('add') or kept it saved ('keep'). The amount is worked out here, never sent.
 CREATE TABLE IF NOT EXISTS needs_cashins (
     month       TEXT PRIMARY KEY,

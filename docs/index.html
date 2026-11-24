@@ -202,6 +202,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .row.paid .m,.row.paid .a{color:var(--muted);font-weight:500}
 .row.paid .a{text-decoration:line-through}
 .row.sum{border-top:1px solid var(--fg)}
+.need.tap{cursor:pointer}
 .row.tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .row.sum .m,.row.sum .a{font-weight:700}
 .menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -442,7 +443,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
     drawBar($("bar-fill"),$("bar-cap"),$("bar-keys"),w);
     $("t-today").textContent="How it's counted";
-    $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";if(w.needs_env&&w.needs[0]&&w.needs[0].month)t.append(el("span","mo",w.needs[0].month));w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+((n.trips||[]).length?" + trip":"")+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));const g=el("i","nbar"),f=el("i");f.style.width=Math.min(n.spent/Math.max(n.budget,1),1)*100+"%";g.append(f);t.append(r,g)})}
+    $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+((n.trips||[]).length?" + trip":"")+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));const g=el("i","nbar"),f=el("i");f.style.width=Math.min(n.spent/Math.max(n.budget,1),1)*100+"%";g.append(f);t.append(r,g)})}
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     $("go-fund").hidden=!(w.fund&&w.fund.show!==false);if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
@@ -684,7 +685,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     w.needs.forEach(n=>{const d=el("div","need");const top=el("div","top");
       top.append(el("span",null,n.name),el("b",null,`${money(n.left)} of ${money(n.budget)} left`));
       const bar=el("div","bar");const fill=el("i");fill.style.width=Math.min(100,n.spent/n.budget*100)+"%";fill.style.background=n.spent>n.budget?"var(--bad)":(colors[n.name]||"var(--accent)");bar.appendChild(fill);
-      d.append(top,bar);box.appendChild(d)});
+      const ts=(w.charges||[]).filter(t=>t.date>=w.period_start&&t.amount<0&&catOf(t)===n.name);
+      const hint=el("div","d",ts.length?`${ts.length} charge${ts.length===1?"":"s"} · tap to see them`:"No charges yet this paycheck");
+      const list=el("div","list");list.hidden=true;ts.forEach(t=>list.append(chargeRow(t,false)));
+      if(ts.length){d.classList.add("tap");d.onclick=e=>{if(e.target.closest(".row"))return;list.hidden=!list.hidden;hint.textContent=list.hidden?`${ts.length} charge${ts.length===1?"":"s"} · tap to see them`:"Tap to hide"}}
+      d.append(top,bar,hint,list);box.appendChild(d)});
   }
 
   // Money people owe him: possible money back, in neutral colors, until the Zelle lands.
@@ -760,7 +765,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Groceries & gas envelope: going over asks him to okay the wallet paying it; a month that
   // ended under asks whether to add what's left to the wallet (his rules, Nov 23).
   const overOpen=w=>{if(!w.needs_env)return [];const acked=store("wallet.overack")||{};
-    return (w.needs||[]).filter(n=>n.over>=1&&n.over-(acked[n.month+"|"+n.name]||0)>=1)};
+    return (w.needs||[]).filter(n=>n.over>=1&&n.over-(acked[n.period+"|"+n.name]||0)>=1)};
   function needsPop(w){
     const sheet=$("nd-sheet"), over=overOpen(w), lo=w.needs_leftover;
     if(!$("ask").textContent){
@@ -768,12 +773,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       else if(lo)$("ask").textContent=`${lo.label}'s groceries & gas left ${money(lo.amount)}. Add it to your wallet?`;
     }
     if(!$("sheet").hidden||!$("mv-sheet").hidden||location.hash){if(!over.length&&!lo)sheet.hidden=true;return}
-    if(over.length){const n=over[0], acked=store("wallet.overack")||{}, prev=acked[n.month+"|"+n.name]||0, more=n.over-prev;
-      $("nd-eyebrow").textContent=`${n.name} · ${n.month}`;
+    if(over.length){const n=over[0], acked=store("wallet.overack")||{}, prev=acked[n.period+"|"+n.name]||0, more=n.over-prev;
+      $("nd-eyebrow").textContent=`${n.name} · this paycheck`;
       $("nd-q").textContent=`${n.name} went ${money(more)} over`;
-      $("nd-why").textContent=`You've spent ${money(n.spent)} of ${n.month}'s ${money(n.budget)}. The ${money(more)} over comes out of your wallet.`;
+      $("nd-why").textContent=`You've spent ${money(n.spent)} of this paycheck's ${money(n.budget)}. The ${money(more)} over comes out of your wallet.`;
       $("nd-yes").textContent=`Take ${money(more)} from my wallet`;$("nd-yes").className="main minus";$("nd-no").textContent="Not now";
-      $("nd-yes").onclick=()=>{const a=store("wallet.overack")||{};a[n.month+"|"+n.name]=n.over;store("wallet.overack",a);sheet.hidden=true;coins(more,false);setTimeout(()=>needsPop(w),2400)};
+      $("nd-yes").onclick=()=>{const a=store("wallet.overack")||{};a[n.period+"|"+n.name]=n.over;store("wallet.overack",a);sheet.hidden=true;coins(more,false);setTimeout(()=>needsPop(w),2400)};
       $("nd-no").onclick=()=>{sheet.hidden=true};
       sheet.hidden=false;return}
     if(lo&&!store("wallet.cashin."+lo.month)){
