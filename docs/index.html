@@ -158,6 +158,19 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .sheet .btns{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .sheet .btns button{font:600 15px var(--body);padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
 .sheet .btns button.main{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.sheet .btns button.main.minus{background:var(--bad);border-color:var(--bad)}
+.menu .needs2 .mo{font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+/* Coins: + money rains up and in, − money spills out (his ask, Nov 23). */
+.coins{position:fixed;inset:0;z-index:40;pointer-events:none;display:grid;place-items:center}
+.coins .amt{font:800 56px/1 var(--display);background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:14px 22px;animation:amt 1.9s cubic-bezier(.2,1.4,.4,1) forwards;text-shadow:0 2px 12px rgba(0,0,0,.25)}
+.coins .amt.plus{color:var(--accent)}.coins .amt.minus{color:var(--bad)}
+.coins .coin{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#FFF3B0,#F2C230 45%,#B8860B);box-shadow:inset 0 -3px 0 rgba(0,0,0,.18);
+  display:grid;place-items:center;font:800 15px/1 var(--body);color:#7A5A00;animation:var(--anim) 1.6s cubic-bezier(.3,.7,.4,1) var(--d) forwards;opacity:0}
+@keyframes amt{0%{transform:scale(.3);opacity:0}25%{transform:scale(1.15);opacity:1}70%{transform:scale(1);opacity:1}100%{transform:translateY(-30px);opacity:0}}
+@keyframes coinin{0%{transform:translate(var(--x),60vh) rotate(0);opacity:1}70%{opacity:1}100%{transform:translate(0,0) rotate(540deg) scale(.4);opacity:0}}
+@keyframes coinout{0%{transform:translate(0,0) scale(.5);opacity:1}30%{transform:translate(calc(var(--x)*.5),-18vh) rotate(200deg) scale(1);opacity:1}100%{transform:translate(var(--x),70vh) rotate(720deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){.coins .coin{display:none}.coins .amt{animation:none}}
 .sheet .btns button.later{border:0;background:none;color:var(--muted);padding:6px}
 .sheet .btns a{display:block;text-align:center;text-decoration:none;font:600 15px var(--body);padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
 .sheet .btns a.main{background:var(--accent);border-color:var(--accent);color:var(--bg)}
@@ -370,6 +383,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <div class="note" id="mv-tip">Easiest on your computer: open chase.com and go to Pay &amp; transfer. Moves between your Chase accounts are instant; transfers to and from Ally take 1–3 days.</div>
   <div class="btns"><a class="main" id="mv-chase" href="https://secure.chase.com/" target="_blank" rel="noopener">Open Chase</a><a id="mv-ally" href="https://secure.ally.com/" target="_blank" rel="noopener" hidden>Open Ally</a><button id="mv-close">Done for now</button><button class="later" id="mv-later">Remind me later</button></div>
 </section></div>
+<div class="sheet" id="nd-sheet" hidden><section class="card">
+  <div class="eyebrow" id="nd-eyebrow">Groceries &amp; gas</div>
+  <div class="q" id="nd-q"></div>
+  <div class="note" id="nd-why"></div>
+  <div class="btns"><button class="main" id="nd-yes"></button><button id="nd-no"></button></div>
+</section></div>
+<div class="coins" id="coins" hidden aria-live="polite"></div>
 <span id="ask" hidden></span>
 <script>
 (function(){
@@ -422,11 +442,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
     drawBar($("bar-fill"),$("bar-cap"),$("bar-keys"),w);
     $("t-today").textContent="How it's counted";
-    $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+((n.trips||[]).length?" + trip":"")+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));const g=el("i","nbar"),f=el("i");f.style.width=Math.min(n.spent/Math.max(n.budget,1),1)*100+"%";g.append(f);t.append(r,g)})}
+    $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";if(w.needs_env&&w.needs[0]&&w.needs[0].month)t.append(el("span","mo",w.needs[0].month));w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+((n.trips||[]).length?" + trip":"")+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));const g=el("i","nbar"),f=el("i");f.style.width=Math.min(n.spent/Math.max(n.budget,1),1)*100+"%";g.append(f);t.append(r,g)})}
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
     $("go-fund").hidden=!(w.fund&&w.fund.show!==false);if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
-    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
+    drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);needsPop(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
@@ -473,8 +493,11 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // which is why spending is "your share" here.
   function plan(w){
     const owed=(w.owed&&w.owed.total)||0, name=s=>(s||"").replace(/^(taken out )?for (the )?/i,"");
-    const mine=w.charges.filter(t=>t.date>=w.period_start&&!(t.amount>0&&t.linked>=t.amount-0.005));
+    const E=w.needs_env, isNeed=t=>E&&t.amount<0&&(catOf(t)==="Groceries"||catOf(t)==="Gas");
+    const mine=w.charges.filter(t=>t.date>=w.period_start&&!(t.amount>0&&t.linked>=t.amount-0.005)&&!isNeed(t));
     const cats={};mine.forEach(t=>{const c=catOf(t);cats[c]=(cats[c]||0)+own(t)});
+    if(E&&E.over>0.005)cats["Over on groceries & gas"]=E.over;
+    if(E&&E.cashin>0.005)cats["Groceries & gas leftover"]=-E.cashin;
     const spend=Object.entries(cats).filter(([,v])=>v>0.005).sort((a,b)=>b[1]-a[1]);
     const back=Object.entries(cats).filter(([,v])=>v<-0.005);
     const came=-back.reduce((s,[,v])=>s+v,0), share=spend.reduce((s,[,v])=>s+v,0), budget=w.allowance+came;
@@ -487,6 +510,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       add({key:"extra",grp:"Extra savings",c:"var(--teal)",v:pc.amount-paid-due-w.per_period,label:w.extra_label||"Extra savings"});
     }
     add({key:"fund",grp:"Set aside",c:"var(--purple)",v:w.set_aside,label:name(w.set_aside_label)||"Set aside"});
+    if(E)add({key:"needs",grp:"Set aside",c:"var(--pink)",v:E.set_aside,label:"Groceries & gas"});
     add({key:"moved",grp:"Set aside",c:"var(--slate)",v:w.moved_in,label:name(w.moved_in_label)||"Taken out"});
     add({key:"over",grp:"Set aside",c:"var(--warn)",v:-w.rolled_over,label:"Last paycheck's overspend"});
     const tail=[], coming=Math.min(owed,Math.max(budget+owed-share,0));
@@ -496,7 +520,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   }
   const slices=(m,split)=>[...m.head,
     ...(split?m.spend.map(([c,v])=>({key:"cat:"+c,grp:"Spending",c:catColor(c),v,label:c}))
-      :[{key:"spent",grp:"Spending",c:"var(--bad)",v:m.share-m.came,label:"Spent"}]),
+      :[{key:"spent",grp:"Spending",c:"var(--bad)",v:Math.max(m.share-m.came,0),label:"Spent"}]),
     ...m.tail];
   const swatch=p=>{const sw=el("i",p.stripes?"stripes":null);if(p.stripes)sw.style.setProperty("--sc",p.c);else sw.style.background=p.c;return sw};
   const paint=p=>p.stripes?`color-mix(in srgb,${p.c} 55%,transparent)`:p.c;
@@ -590,6 +614,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
           el("div","d",(b.paid?"Paid ✓":`Due ${fmt(b.due)}`)+(b.card?" · on a card":"")+(b.est?" · estimate":"")));if(b.paid)r.style.opacity=.75;return r});
       }else if(k==="extra"){
         color="var(--teal)";say(`Left in checking from your ${cents(m.pc.amount)} paycheck after this cycle's ${money(m.paid+m.due)} of bills and your ${money(w.per_period)} of spending money. It isn't spending money; nothing is planned for it yet.`);
+      }else if(k==="needs"){
+        color="var(--pink)";say(`Set aside from this paycheck for groceries and gas, budgeted by the month. Their charges come out of here, not your wallet. Going over comes out of the wallet; what's left at month end can go back into it.`);
       }else if(k==="fund"){
         color="var(--purple)";say(`Set aside from this paycheck.${w.fund?` The fund has ${money(w.fund.left)} left.`:""}`);
       }else if(k==="moved"){
@@ -639,19 +665,21 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("needs-card").hidden=false;
     const cap=Math.max(w.allowance,1), spent=Math.max(w.spent-w.paid_back,0);
     const colors={Groceries:"#3B82C4",Gas:"var(--warn)"};
-    const parts=[{label:"Spent",v:Math.min(spent,cap),c:"var(--line)"}];
+    let parts=[{label:"Spent",v:Math.min(spent,cap),c:"var(--line)"}];
     w.needs.forEach(n=>parts.push({label:n.name+" left",v:n.left,c:colors[n.name]||"var(--muted)"}));
     parts.push({label:"Free",v:Math.max(w.free,0),c:"var(--accent)"});
+    if(w.needs_env)parts=[{label:"Spent",v:w.needs.reduce((s,n)=>s+Math.min(n.spent,n.budget),0),c:"var(--line)"},
+      ...w.needs.map(n=>({label:n.name+" left",v:n.left,c:colors[n.name]||"var(--muted)"}))];
     const total=Math.max(parts.reduce((s,p)=>s+p.v,0),cap), R=48, C=2*Math.PI*R;
     let svg=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>`;
-    if(w.left<0) svg=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--bad)" stroke-width="14"/>`;
+    if(w.left<0&&!w.needs_env) svg=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--bad)" stroke-width="14"/>`;
     else{let off=0;parts.forEach(p=>{const len=p.v/total*C;if(len>0.5)svg+=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="${p.c}" stroke-width="14" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;off+=len})}
-    const pct=Math.round(Math.max(w.left,0)/cap*100);
+    const envTotal=w.needs.reduce((s,n)=>s+n.budget,0), pct=w.needs_env?Math.round(w.needs.reduce((s,n)=>s+n.left,0)/Math.max(envTotal,1)*100):Math.round(Math.max(w.left,0)/cap*100);
     svg+=`<text x="60" y="58" text-anchor="middle" font-size="24">${pct}%</text><text x="60" y="76" text-anchor="middle" font-size="10" style="font-weight:500;fill:var(--muted)">left</text>`;
     $("ring").innerHTML=svg;
     const lg=$("legend");lg.innerHTML="";
     parts.slice(1).forEach(p=>{const d=el("div");const i=el("i");i.style.background=p.c;d.append(i,el("span",null,p.label),el("b",null,money(p.v)));lg.appendChild(d)});
-    if(w.free<0){const d=el("div","note",`Groceries and gas still need ${money(-w.free)} more than you have left.`);lg.appendChild(d)}
+    if(w.free<0&&!w.needs_env){const d=el("div","note",`Groceries and gas still need ${money(-w.free)} more than you have left.`);lg.appendChild(d)}
     const box=$("needs");box.innerHTML="";
     w.needs.forEach(n=>{const d=el("div","need");const top=el("div","top");
       top.append(el("span",null,n.name),el("b",null,`${money(n.left)} of ${money(n.budget)} left`));
@@ -717,6 +745,48 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   $("ask-save").onclick=()=>answer("note");
   $("ask-split").onclick=()=>answer("split");$("ask-solo").onclick=()=>answer("solo");
   $("ask-later").onclick=()=>{if(manual){modeSheet(false);cur=null;$("ask-note").value="";$("sheet").hidden=true;if(last)ask(last);return}snoozed=true;$("sheet").hidden=true};
+
+  // Coins for money in (+) and money out (−), like a party game but with dollars.
+  function coins(amount,plus){
+    const C=$("coins");C.innerHTML="";C.hidden=false;
+    C.append(el("div","amt "+(plus?"plus":"minus"),(plus?"+":"−")+money(amount)));
+    for(let i=0;i<14;i++){const c=el("i","coin","$");
+      c.style.setProperty("--x",(Math.random()*80-40)+"vw");c.style.setProperty("--d",(i*0.06)+"s");
+      c.style.setProperty("--anim",plus?"coinin":"coinout");C.append(c)}
+    try{navigator.vibrate&&navigator.vibrate(plus?[30,40,30]:[60])}catch(e){}
+    clearTimeout(coins.t);coins.t=setTimeout(()=>{C.hidden=true;C.innerHTML=""},2300);
+  }
+
+  // Groceries & gas envelope: going over asks him to okay the wallet paying it; a month that
+  // ended under asks whether to add what's left to the wallet (his rules, Nov 23).
+  const overOpen=w=>{if(!w.needs_env)return [];const acked=store("wallet.overack")||{};
+    return (w.needs||[]).filter(n=>n.over>=1&&n.over-(acked[n.month+"|"+n.name]||0)>=1)};
+  function needsPop(w){
+    const sheet=$("nd-sheet"), over=overOpen(w), lo=w.needs_leftover;
+    if(!$("ask").textContent){
+      if(over.length)$("ask").textContent=`${over[0].name} is ${money(over[0].over)} over. It comes out of your wallet`;
+      else if(lo)$("ask").textContent=`${lo.label}'s groceries & gas left ${money(lo.amount)}. Add it to your wallet?`;
+    }
+    if(!$("sheet").hidden||!$("mv-sheet").hidden||location.hash){if(!over.length&&!lo)sheet.hidden=true;return}
+    if(over.length){const n=over[0], acked=store("wallet.overack")||{}, prev=acked[n.month+"|"+n.name]||0, more=n.over-prev;
+      $("nd-eyebrow").textContent=`${n.name} · ${n.month}`;
+      $("nd-q").textContent=`${n.name} went ${money(more)} over`;
+      $("nd-why").textContent=`You've spent ${money(n.spent)} of ${n.month}'s ${money(n.budget)}. The ${money(more)} over comes out of your wallet.`;
+      $("nd-yes").textContent=`Take ${money(more)} from my wallet`;$("nd-yes").className="main minus";$("nd-no").textContent="Not now";
+      $("nd-yes").onclick=()=>{const a=store("wallet.overack")||{};a[n.month+"|"+n.name]=n.over;store("wallet.overack",a);sheet.hidden=true;coins(more,false);setTimeout(()=>needsPop(w),2400)};
+      $("nd-no").onclick=()=>{sheet.hidden=true};
+      sheet.hidden=false;return}
+    if(lo&&!store("wallet.cashin."+lo.month)){
+      $("nd-eyebrow").textContent=`Groceries & gas · ${lo.label}`;
+      $("nd-q").textContent=`${money(lo.amount)} left over`;
+      $("nd-why").textContent=lo.lines.filter(l=>l.left>=0.5).map(l=>`${l.name}: ${money(l.left)} of ${money(l.budget)} unspent`).join(" · ")+". Add it to your wallet, or keep it saved?";
+      $("nd-yes").textContent=`Add ${money(lo.amount)} to my wallet`;$("nd-yes").className="main";$("nd-no").textContent="Keep it saved";
+      const send=ans=>{const q=store("wallet.queue")||[];q.push({id:lo.month,answer:ans});store("wallet.queue",q);store("wallet.cashin."+lo.month,ans);sheet.hidden=true;
+        if(ans==="needs_add")coins(lo.amount,true);spin(true);pull(true).finally(()=>spin(false))};
+      $("nd-yes").onclick=()=>send("needs_add");$("nd-no").onclick=()=>send("needs_keep");
+      sheet.hidden=false;return}
+    sheet.hidden=true;
+  }
 
   // Money he moves by hand (payday transfers, moving rent and the loan back, paying back a
   // quarterly bill from Ally). Pops up when the app opens until the bank shows each one

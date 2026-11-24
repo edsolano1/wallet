@@ -309,6 +309,14 @@ def answer(raw: str) -> None:
     db.migrate()
     with db.connect() as conn:
         for a in given if isinstance(given, list) else []:
+            if isinstance(a, dict) and a.get("answer") in ("needs_add", "needs_keep"):
+                key = str(a.get("id", ""))[:7]
+                today = datetime.now(HOME).date()
+                amount = wallet.leftover_for(conn, key, today) if re.fullmatch(r"\d{4}-\d{2}", key) else None
+                if amount is not None:
+                    conn.execute("INSERT OR IGNORE INTO needs_cashins (month, answer, amount, answered_on) VALUES (?, ?, ?, ?)",
+                                 (key, a["answer"][6:], amount, today.isoformat()))
+                continue
             if not isinstance(a, dict) or a.get("answer") not in ("split", "solo", "settled", "note"):
                 continue
             pid = str(a.get("id", ""))[:80]
@@ -395,7 +403,14 @@ def snapshot(conn, today: date) -> dict:
                  for r in wallet._rows(conn, date.fromisoformat(ask_from), today + timedelta(days=1))
                  if (why := wallet.split_question(r))]
     needs = []
-    for name, (budget, cats) in wallet.NEEDS.items():
+    env = s.get("needs_env")
+    if env:  # the envelope era: this month so far against the monthly budget
+        m0, m1 = wallet.needs_month(today)
+        for l in wallet.needs_month_lines(conn, m0, m1, today):
+            l["trips"] = [{"what": w, "gas": g} for w, g in wallet.trip_gas(m0, m1, today, lambda a, b: wallet.needs_spent(conn, "Gas", a, b + timedelta(days=1)))] if l["name"] == "Gas" else []
+            l["month"] = (m1 - timedelta(days=1)).strftime("%B")
+            needs.append(l)
+    for name, (budget, cats) in ([] if env else wallet.NEEDS.items()):
         if name == "Gas":  # small gas-station charges are snacks, not fill-ups
             hits = [r for r in period if wallet.is_gas_station(r) and abs(float(r["amount"])) >= wallet.GAS_MIN_FILLUP]
         else:
@@ -407,7 +422,7 @@ def snapshot(conn, today: date) -> dict:
         needs.append({"name": name, "budget": budget, "spent": round(used, 2),
                       "left": round(max(budget - used, 0), 2),
                       "trips": [{"what": w, "gas": g} for w, g in trips]})
-    still_needed = sum(n["left"] for n in needs)
+    still_needed = 0.0 if env else sum(n["left"] for n in needs)  # the envelope already holds it
 
     used_fund = sum(a for _, a in wallet.FUND_SPENT)
     held = sum(a for _, a in wallet.FUND_HELD)
@@ -449,6 +464,8 @@ def snapshot(conn, today: date) -> dict:
                       " ORDER BY t.date DESC LIMIT 8", ((today - timedelta(days=21)).isoformat(),))],
         "free": round(s["left"] - still_needed, 2),
         "fund": fund,
+        "needs_leftover": wallet.needs_leftover(conn, today),
+        "needs_from": wallet.NEEDS_FROM.isoformat(),
         "owed": owing,
         "bills": wallet.upcoming_bills(conn, today, s, (owing or {}).get("total", 0.0)),
         "budget": wallet.monthly_budget(conn, today),

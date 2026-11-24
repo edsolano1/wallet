@@ -212,6 +212,15 @@ CREATE TABLE IF NOT EXISTS answers (
     share                REAL
 );
 
+-- Month-end pop-up: what a groceries & gas month left, and whether he added it to the
+-- wallet ('add') or kept it saved ('keep'). The amount is worked out here, never sent.
+CREATE TABLE IF NOT EXISTS needs_cashins (
+    month       TEXT PRIMARY KEY,
+    answer      TEXT NOT NULL CHECK (answer IN ('add','keep')),
+    amount      REAL NOT NULL,
+    answered_on TEXT NOT NULL
+);
+
 -- Anything he wants to tell Claude that is not about one transaction.
 CREATE TABLE IF NOT EXISTS messages (
     id         INTEGER PRIMARY KEY,
