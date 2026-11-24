@@ -53,6 +53,13 @@ FUND_HELD = [("Philips i9000 shaver", 218.18)]
 FUND_CREDITS = [("Amazon card credit, used on the order", 16.00)]
 # Money he expects back into the fund but hasn't seen land.
 FUND_CREDIT_TO_CONFIRM = []
+# Bought with the first $450 (closed), shown for the record only; not in the $525.
+# Receipt Nov 8: $709.14 = $409.14 on the Samsung card + $300 cash from the Costco returns.
+FUND_EARLIER = [("Acer monitor, Micro Center", 709.14, "Price-matched to $649.99 plus tax · $409.14 card + $300 cash")]
+# Bought, but still hunting for a better price.
+FUND_WATCH = [("Acer monitor", "Paid $649.99. If Amazon drops below that on Black Friday, ask for a match or reorder.")]
+# The fund is temporary: its home tile goes away after this day.
+FUND_SHOW_UNTIL = date(2027, 1, 31)
 
 # Needs, not wants (his words, 2026-11-11): groceries and gas have to happen every month,
 # so each gets a soft envelope per paycheck. They are INSIDE spending money, not on top of

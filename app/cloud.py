@@ -419,7 +419,10 @@ def snapshot(conn, today: date) -> dict:
             "items": [{"what": w, "amount": a, "kind": "spent"} for w, a in wallet.FUND_SPENT]
                      + [{"what": w, "amount": a, "kind": "held"} for w, a in wallet.FUND_HELD]
                      + [{"what": w, "amount": a, "kind": "back"} for w, a in wallet.FUND_CREDITS]
-                     + [{"what": w, "amount": a, "kind": "credit"} for w, a in wallet.FUND_CREDIT_TO_CONFIRM]}
+                     + [{"what": w, "amount": a, "kind": "credit"} for w, a in wallet.FUND_CREDIT_TO_CONFIRM]
+                     + [{"what": w, "amount": a, "kind": "earlier", "note": n} for w, a, n in wallet.FUND_EARLIER],
+            "watch": [{"what": w, "note": n} for w, n in wallet.FUND_WATCH],
+            "show": today <= wallet.FUND_SHOW_UNTIL}
 
     banks = [dict(r) for r in conn.execute(
         "SELECT institution_name AS name, status, last_sync_at, last_sync_error FROM items")]

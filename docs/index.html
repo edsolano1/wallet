@@ -80,6 +80,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .track .cap{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--fg);border-radius:2px}
 .fbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:color-mix(in srgb,var(--fg) 10%,transparent);margin:10px 0 8px;gap:2px}
 .fbar i{display:block;height:100%}
+.fgrp{font:600 12px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:16px 0 4px}
 #fund-keys{margin-bottom:10px}
 .keys{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
 .keys span{display:flex;align-items:center;gap:7px;white-space:nowrap}
@@ -253,6 +254,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     <button data-go="accounts" id="go-acct"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg></span><span class="lb">Accounts</span><b id="t-acct">—</b></button>
     <button data-go="bills" id="t-bills-tile"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></span><span class="lb">Upcoming bills</span><b id="t-bills">—</b></button>
     <button data-go="needs" id="go-needs" class="span3"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg></span><span class="lb">Groceries &amp; gas</span><div class="needs2" id="t-needs"></div></button>
+    <button data-go="fund" id="go-fund" class="span3" hidden><span class="ic" style="--c:var(--purple)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8M2 7h20v5H2zM12 21V7M12 7H8a2.5 2.5 0 1 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 1 0 0-5c-3 0-4 5-4 5z"/></svg></span><span class="lb">Black Friday Fund</span><b id="t-fund">—</b></button>
     <button data-go="details" class="span3"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg></span><span class="lb">Details</span><b id="t-today">—</b></button>
   </nav>
   <div class="meta"><span id="updated"></span></div>
@@ -423,6 +425,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("go-needs").hidden=!w.needs;if(w.needs){const t=$("t-needs");t.innerHTML="";w.needs.forEach(n=>{const r=el("span",n.spent>n.budget?"over":null);r.append(n.name+((n.trips||[]).length?" + trip":"")+" ",el("b",null,money(n.spent)+" of "+money(n.budget)));const g=el("i","nbar"),f=el("i");f.style.width=Math.min(n.spent/Math.max(n.budget,1),1)*100+"%";g.append(f);t.append(r,g)})}
     const cash=(w.accounts||[]).filter(a=>a.type==="depository").reduce((s,a)=>s+(a.balance||0),0);$("t-acct").textContent=money(cash)+" cash";
     $("s-today").textContent=money(w.spent_today);$("s-3d").textContent=money(w.spent_3d);$("s-tip").textContent=money(w.tip_estimate);
+    $("go-fund").hidden=!(w.fund&&w.fund.show!==false);if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
@@ -889,11 +892,13 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
       const k=el("span");k.append(swatch(p),p.label,el("b",null,cents(p.v)));K.append(k)});
     B.setAttribute("aria-label",parts.map(p=>p.label+" "+cents(p.v)).join(", "));
     const L=$("fund-items");L.className="list";L.innerHTML="";
-    (f.items||[]).forEach(i=>{const r=el("div","row"), k=i.kind||"spent";
-      const plus=k==="credit"||k==="back";
-      r.append(el("div","m",i.what),el("div","a "+(plus?"in":"out"),(plus?"+":"")+cents(i.amount)),
-        el("div","d",k==="held"?"Held until it ships, Dec 28 to Jan 14":k==="credit"?"To confirm, not counted yet":k==="back"?"Back into the fund":"Paid from the fund"));
-      if(k!=="spent")r.style.opacity=.8;L.append(r)});
+    const items=f.items||[], group=(title,list,make)=>{if(!list.length)return;L.append(el("div","fgrp",title));list.forEach(i=>L.append(make(i)))};
+    const line=(i,sign,cls,d)=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a "+cls,sign+cents(i.amount)),el("div","d",d));return r};
+    group("Purchased",items.filter(i=>(i.kind||"spent")==="spent"||i.kind==="back"),i=>i.kind==="back"?line(i,"+","in","Back into the fund"):line(i,"","out","Paid from the fund"));
+    group("Waiting to ship",items.filter(i=>i.kind==="held"),i=>line(i,"","out","Ordered, charged when it ships, Dec 28 to Jan 14"));
+    group("Watching for a better price",f.watch||[],i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a","watching"),el("div","d",i.note));return r});
+    group("Money to confirm",items.filter(i=>i.kind==="credit"),i=>line(i,"+","in","Not counted until it lands"));
+    group("Bought earlier, with the first $450",items.filter(i=>i.kind==="earlier"),i=>{const r=line(i,"","",i.note);r.style.opacity=.75;return r});
   }
 
   function drawAccounts(w){
