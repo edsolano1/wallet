@@ -33,8 +33,8 @@ TIP_MIN = 30.00
 # Set aside off the top, by the payday that period starts on.
 # Refill from the Nov 27 paycheck's spending money (Nov 24): he's buying the Black Friday clothes,
 # board, heater and bins now and letting the fund go negative; the cushion stays untouched.
-# Estimate until the orders are placed (~$223.18 with tax against $114.45 left).
-FUND_REFILLS = [(date(2026, 11, 27), 108.73)]
+# Exact: the orders came to $224.44 against $114.45 left.
+FUND_REFILLS = [(date(2026, 11, 27), 109.99)]
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 # The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
@@ -91,6 +91,13 @@ FUND_SPENT = [
     ("MicroPerfumes, after the gift card", 2.96),
     # Order 114-3562857-5901814 (Nov 24), Prime Visa: $43.20 + $3.93 tax, charged when it ships.
     ("Feetures crew socks, 3 pairs, Amazon", 47.13),
+    # Nov 24, Prime Visa, $224.44 in four Amazon orders charged as they ship; tax split by price.
+    ("SoliSnug desk heater (business expense), Amazon", 68.72),  # 114-5359773-1945839
+    ("RAINHOL ironing board, Amazon", 52.85),                    # 114-5359773-1945839
+    ("Rolling under-bed bins, 2-pack, Amazon", 36.16),           # 114-0739792-1372252
+    ("UA Storm Liner gloves, Amazon", 17.58),                    # 114-0739792-1372252
+    ("UA Velocity quarter-zip, Amazon", 29.55),                  # 114-9989667-9882661
+    ("UA Tech 2.0 half-zip, Amazon", 19.58),                     # 114-3420614-6446634, arrives Dec 1
 ]
 # Ordered but charged only when it ships: kept out of what's left so the fund doesn't look bigger.
 FUND_HELD = [("Philips i9000 shaver", 218.18)]
@@ -106,14 +113,8 @@ FUND_EARLIER = [("Acer X32 X monitor, Micro Center", 709.14, "$409.14 on the Sam
 FUND_WATCH = [
     ("Acer X32 X monitor", 649.99, "Paid $709.14 at Micro Center. Amazon is $649.99 now; if it drops below that, reorder on Amazon and return by Dec 8."),
     ("Philips i9000 shaver", 199.99, "Ordered on Amazon for $218.19; switch if it's under $199.99 elsewhere."),
-    ("RAINHOL ironing board, black", 48.44, "Lowest price ever."),
-    ("SoliSnug desk leg heater", 62.99, "Buy under $62.99."),
-    ("Rolling under-bed bins, 2-pack", 33.14, "Only if you need more room."),
     ("Babbel Lifetime", 199.20, "Buy at $159 or less. Probably won't fit the fund."),
     ("Feetures Crew socks, 3 more pairs", 43.20, "Wait for the January sale; buy if it beats $14.40 a pair."),
-    ("Carhartt fleece neck gaiter", 14.99, "Deciding."),
-    ("Under Armour touchscreen gloves", 16.11, "Deciding; size not picked yet."),
-    ("Under Armour fleece quarter-zip", 45.00, "About $45, an estimate; listing not picked yet."),
 ]
 # The fund is temporary: its home tile goes away after this day.
 FUND_SHOW_UNTIL = date(2027, 1, 31)
