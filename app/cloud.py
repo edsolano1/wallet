@@ -381,6 +381,9 @@ def snapshot(conn, today: date) -> dict:
         why = paid_for.get(r["pid"])
         return f"Zelle from {m.group(1).title()}", "Paid back · " + (" + ".join(why) if why else "what for? tell Claude")
 
+    notes_by_pid = {r[0]: r[1] for r in conn.execute(
+        "SELECT t.plaid_transaction_id, n.note FROM transaction_notes n JOIN transactions t ON t.id = n.transaction_id"
+        " WHERE n.note IS NOT NULL AND TRIM(n.note) <> ''")}
     charges = [{
         "id": r["pid"],
         "merchant": label(r)[0],
@@ -394,6 +397,7 @@ def snapshot(conn, today: date) -> dict:
         "back": round(back.get(r["pid"], {}).get("paid", 0.0), 2),
         "back_due": round(back.get(r["pid"], {}).get("due", 0.0), 2),
         "linked": round(linked.get(r["pid"], 0.0), 2),  # on a Zelle back: the part shown on its charge
+        "note": notes_by_pid.get(r["pid"]),  # what he told Claude about it, so he can see it was saved
     } for r in counted]  # the whole paycheck (and at least 3 days), for the where-it-went screen
 
     period = [r for r in counted if r["date"] >= start.isoformat() and not wallet._counts_as_payback(r)]

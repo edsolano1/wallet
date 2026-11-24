@@ -161,6 +161,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .sheet .btns button.main.minus{background:var(--bad);border-color:var(--bad)}
 .menu .needs2 .mo{font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 /* Coins: + money rains up and in, − money spills out (his ask, Nov 23). */
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:45;background:var(--fg);color:var(--bg);font:600 15px var(--body);padding:12px 18px;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.25);animation:up .3s ease-out;white-space:nowrap}
+.pb.note-sent{color:var(--muted);background:none;padding-left:0;white-space:normal}
 .coins{position:fixed;inset:0;z-index:40;pointer-events:none;display:grid;place-items:center}
 .coins .amt{font:800 56px/1 var(--display);background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:14px 22px;animation:amt 1.9s cubic-bezier(.2,1.4,.4,1) forwards;text-shadow:0 2px 12px rgba(0,0,0,.25)}
 .coins .amt.plus{color:var(--accent)}.coins .amt.minus{color:var(--bad)}
@@ -391,6 +393,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   <div class="btns"><button class="main" id="nd-yes"></button><button id="nd-no"></button></div>
 </section></div>
 <div class="coins" id="coins" hidden aria-live="polite"></div>
+<div class="toast" id="toast" role="status" hidden></div>
 <span id="ask" hidden></span>
 <script>
 (function(){
@@ -480,6 +483,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const a=el("div","a "+(t.amount>0?"in":"out"),t.amount>0?"+"+cents(t.amount):cents(-t.amount-(t.back||0)));
     const x=el("div","d",`${dot?"":fmt(t.date)+" · "}${t.category}${t.pending?" · pending":""}${t.tip?` · +${money(t.tip)} tip est.`:""}`);
     r.append(m,a,x);if(t.id&&t.amount<0){r.classList.add("tap");r.onclick=()=>tell(t)}
+    if(t.note){const n=el("div","pb note-sent");n.append(el("span","ic","✎"),"Sent to Claude: "+t.note);r.append(n)}
     // Paid back on this charge (all the Zelles for it added together), and anything still coming.
     if(t.back||t.back_due){const b=el("div","pb"+(t.back?"":" due"));
       const parts=[];if(t.back)parts.push(`Charged ${cents(t.amount)}`,`${cents(t.back)} paid back`);if(t.back_due)parts.push(`${cents(t.back_due)} still coming`);
@@ -751,6 +755,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   $("ask-split").onclick=()=>answer("split");$("ask-solo").onclick=()=>answer("solo");
   $("ask-later").onclick=()=>{if(manual){modeSheet(false);cur=null;$("ask-note").value="";$("sheet").hidden=true;if(last)ask(last);return}snoozed=true;$("sheet").hidden=true};
 
+  function toast(t){const T=$("toast");T.textContent=t;T.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{T.hidden=true},3200)}
+
   // Coins for money in (+) and money out (−), like a party game but with dollars.
   function coins(amount,plus){
     const C=$("coins");C.innerHTML="";C.hidden=false;
@@ -1018,7 +1024,8 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     msg(withAnswers?"Saving your answers...":"Asking your banks to check for new charges...");
     const r=await fetch("https://api.github.com/repos/edsolano1/wallet/actions/workflows/wallet.yml/dispatches",
       {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify({ref:"main",inputs:{answers:JSON.stringify(queue),live:withAnswers?"":"1"}})}).catch(()=>null);
-    if(r&&r.ok)store("wallet.queue",[]);
+    if(r&&r.ok){store("wallet.queue",[]);if(withAnswers)toast("Sent to Claude ✓")}
+    else if(withAnswers)toast("Couldn't send yet. It'll try again.");
     if(!r||!r.ok){if(r&&r.status===401){try{localStorage.removeItem("wallet.gh")}catch(e){}}msg("Couldn't start it"+(r?" ("+r.status+")":"")+". Tap again to retry.");return}
     const before=await fetch("wallet.enc?t="+Date.now(),{cache:"no-store"}).then(x=>x.text()).catch(()=>"");
     msg(withAnswers?"Pulling... about 1-2 minutes.":"Checking the banks... about 2 minutes.");

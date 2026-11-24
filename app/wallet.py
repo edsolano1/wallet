@@ -583,6 +583,21 @@ def _moved_to(row) -> date | None:
     return None
 
 
+# Charges (and the paybacks tied to them) he said are a bill, not spending money (his note
+# on the charge, Nov 23), with the payback that went with it.
+NOT_SPENDING = [
+    (date(2026, 11, 19), "safeway", 48.22),
+    (date(2026, 11, 20), "zelle payment from denisse", 18.26),
+]
+
+
+def _is_not_spending(row) -> bool:
+    return any(when.isoformat() in (row["date"], row.get("posted"))
+               and merchant in ((row["what"] or "") + " " + (row.get("raw_name") or "")).lower()
+               and abs(abs(float(row["amount"])) - amount) < 0.01
+               for when, merchant, amount in NOT_SPENDING)
+
+
 def _is_counted(row) -> bool:
     """A transfer he said was really spending (COUNTED)."""
     return any(when.isoformat() in (row["date"], row.get("posted"))
@@ -643,6 +658,8 @@ def _is_spending(row) -> bool:
     if tag in TAG_COUNTS:
         return True
     if tag in TAG_IGNORES:
+        return False
+    if _is_not_spending(row):
         return False
     # Before the is_transfer and name rules below, either of which would drop it.
     if _is_payback(row):
