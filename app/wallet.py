@@ -108,7 +108,10 @@ def is_grocery(row) -> bool:
     if (row.get("pfc_detailed") or "") in NEEDS["Groceries"][1]:
         return True
     raw = ((row.get("raw_name") or "") + " " + (row.get("what") or "")).lower()
-    return any(x in raw for x in GROCERY_LIKE)
+    if any(x in raw for x in GROCERY_LIKE):
+        return True
+    # Small gas-station charges are snacks and drinks: food, so they count as groceries (Nov 23).
+    return is_gas_station(row) and abs(float(row.get("amount") or 0)) < GAS_MIN_FILLUP
 
 
 # Charges he made that the bank hasn't sent yet (found in an order email), counted
