@@ -37,6 +37,9 @@ TIP_MIN = 30.00
 FUND_REFILLS = [(date(2026, 11, 27), 108.73)]
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
+# The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
+# until he picks a home for it (his words, Nov 24). Set "home" when he decides; the flag then goes.
+FREED = {"amount": 425.00, "from": date(2026, 11, 27), "home": None}
 
 # The Black Friday Fund as he runs it (his update, 2026-11-20). The real money is the $450 he
 # moved Chase -> Ally Spending on Nov 16 and back to Chase checking on Nov 20 (lands Nov 23);
@@ -833,6 +836,7 @@ def summary(conn, today: date | None = None) -> dict:
         "left": round(left, 2),
         "tip_estimate": round(tips, 2),
         "needs_env": env,
+        "freed": FREED["amount"] if start >= FREED["from"] and not FREED["home"] else 0.0,
     }
 
 

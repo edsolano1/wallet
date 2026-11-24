@@ -442,6 +442,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.set_aside)parts.push(`${money(w.set_aside)} already set aside ${w.set_aside_label}.`);
     if(w.moved_in)parts.push(`${money(w.moved_in)} taken out ${w.moved_in_label}.`);
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
+    if(w.freed)parts.push(`${money(w.freed)} freed up (was Black Friday) is unassigned. It's in your wallet until you pick a home for it.`);
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
     $("pill").hidden=!pill;$("pill").textContent=pill;$("pill").className="pill "+tone;
     drawBar($("bar-fill"),$("bar-cap"),$("bar-keys"),w);
