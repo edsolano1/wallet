@@ -215,7 +215,8 @@ BILLS = [
     {"what": "Ring (two plans)", "amount": 21.80, "day": 1, "match": r"^ring\b", "lo": 20, "hi": 25,
      "sum": True, "each_lo": 5, "each_hi": 15, "card": True},
     # From Ally Spending after Nov 28 (paid with the $350 a paycheck sent to Ally), so checking only owes this one.
-    {"what": "Student loan autopay", "amount": 699.33, "day": 28, "start": date(2026, 11, 28), "end": date(2026, 11, 30), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 650, "hi": 760},
+    # Nov 28 at the $327.26 minimum (his call, Nov 25: get his bearings this month, ramp up after).
+    {"what": "Student loan autopay", "amount": 327.26, "day": 28, "start": date(2026, 11, 28), "end": date(2026, 11, 30), "match": r"aidvantage|dept ?of ?ed|nelnet|mohela", "lo": 300, "hi": 760},
     # Last payment Dec 6: GEICO starts Dec 26, paid from Ally Savings and paid back monthly.
     {"what": "State Farm", "amount": 253.80, "day": 6, "match": r"state farm", "lo": 200, "hi": 270, "end": date(2026, 12, 31)},
     {"what": "Parking", "amount": 30.00, "day": 9, "match": r"cash app\*gee", "lo": 25, "hi": 35},
