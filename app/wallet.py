@@ -645,7 +645,26 @@ NOT_SPENDING = [
 ]
 
 
+# A subscription on Chase Sapphire (..9203), matched by card, amount and date so its name stays
+# out of this public code. A bill, never spending money. Upgraded Nov 24: $369.60 + tax on Nov 29,
+# then $422 + tax every 180 days (it was ~$244 every 90).
+PRIVATE_SUBS = [
+    {"what": "6-month subscription", "card": "9203", "due": date(2026, 11, 29), "amount": 403.00, "lo": 390, "hi": 415},
+    {"what": "6-month subscription", "card": "9203", "due": date(2027, 5, 28), "amount": 460.40, "lo": 440, "hi": 475},
+]
+
+
+def _is_private_sub(row) -> bool:
+    if row.get("mask") is None or float(row["amount"]) >= 0:
+        return False
+    d = date.fromisoformat(row["date"])
+    return any(row["mask"] == x["card"] and x["lo"] <= -float(row["amount"]) <= x["hi"]
+               and abs((d - x["due"]).days) <= 5 for x in PRIVATE_SUBS)
+
+
 def _is_not_spending(row) -> bool:
+    if _is_private_sub(row):
+        return True
     return any(when.isoformat() in (row["date"], row.get("posted"))
                and merchant in ((row["what"] or "") + " " + (row.get("raw_name") or "")).lower()
                and abs(abs(float(row["amount"])) - amount) < 0.01
@@ -781,7 +800,7 @@ def _rows(conn, start: date, end: date) -> list[dict]:
         for r in conn.execute(
             "SELECT t.amount, COALESCE(t.authorized_date, t.date) AS date, t.date AS posted, t.pending, t.is_transfer, t.pfc_primary,"
             " t.pfc_detailed, t.transfer_kind, COALESCE(t.merchant_name, t.name) AS what, t.name AS raw_name, COALESCE(t.authorized_at, t.created_at) AS seen,"
-            " n.tag AS tag, a.type AS account_type,"
+            " n.tag AS tag, a.type AS account_type, a.mask AS mask,"
             " t.plaid_transaction_id AS pid, ans.answer AS answer, ans.who AS answer_who, ans.answered_on AS answered_on"
             " FROM transactions t"
             " JOIN accounts a ON a.id = t.account_id"
@@ -955,7 +974,8 @@ BUDGET = [
     {"what": "Spotify", "group": "Subscriptions", "amount": 14.17, "match": r"spotify", "lo": 5, "hi": 30},
     {"what": "Ring", "group": "Subscriptions", "amount": 21.80, "match": r"^ring\b", "lo": 5, "hi": 25, "note": "two plans, both yours"},
     {"what": "Car wash", "group": "Subscriptions", "amount": round(21.00 * 13 / 12, 2), "match": r"cobblestone", "lo": 15, "hi": 30, "note": "every 4 weeks"},
-    {"what": "3-month subscription", "group": "Subscriptions", "amount": round(244.38 * 365 / 90 / 12, 2), "from": "2026-11", "note": "$244.38 with tax every 90 days, on a card the app can't see"},
+    {"what": "6-month subscription", "group": "Subscriptions", "amount": round(460.40 * 365 / 180 / 12, 2), "from": "2026-11",
+     "note": "about $403 on Nov 29, then about $460 with tax every 180 days (next late May); on Chase Sapphire"},
     {"what": "Google One", "group": "Subscriptions", "amount": 19.99, "from": "2027-02", "match": r"google", "lo": 5, "hi": 30, "note": "$19.99 a month once the free trial ends Feb 13"},
 ]
 
@@ -1222,6 +1242,10 @@ def money_calendar(conn, today: date, back: int = 21, ahead: int = 90) -> list[d
         if a <= when < b:
             out.append({"date": when.isoformat(), "what": what, "amount": amt, "kind": "bill", "note": "on a card; Ally pays it back",
                         "done": when < today})
+    for x in PRIVATE_SUBS:
+        if a <= x["due"] < b:
+            out.append({"date": x["due"].isoformat(), "what": x["what"], "amount": x["amount"], "kind": "bill",
+                        "note": "on Chase Sapphire; a bill, not spending money", "done": x["due"] < today})
     for t0, t1, what, gas in TRIPS:
         if a <= t0 < b:
             out.append({"date": t0.isoformat(), "what": f"Drive: {what}", "amount": gas, "kind": "trip", "note": "gas budgeted",
