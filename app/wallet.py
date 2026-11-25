@@ -155,7 +155,24 @@ def _real_amount(row: dict) -> dict:
     return row
 
 
+# Refunds that go back into the groceries money, not the wallet (his call): matched by store name
+# or, if the bank names it oddly, by card and exact amount. (fragment, card, amount, earliest day)
+NEEDS_REFUNDS = [
+    ("beyond", "9203", 69.93, date(2026, 11, 24)),  # order #47138, thawed in shipping; Shopify says up to 10 days
+]
+
+
+def _is_needs_refund(row) -> bool:
+    if float(row["amount"]) <= 0:
+        return False
+    name = ((row.get("what") or "") + " " + (row.get("raw_name") or "")).lower()
+    return any(abs(float(row["amount"]) - amt) < 0.01 and row["date"] >= after.isoformat()
+               and (frag in name or row.get("mask") == card) for frag, card, amt, after in NEEDS_REFUNDS)
+
+
 def is_grocery(row) -> bool:
+    if _is_needs_refund(row):
+        return True
     if (row.get("pfc_detailed") or "") in NEEDS["Groceries"][1]:
         return True
     raw = ((row.get("raw_name") or "") + " " + (row.get("what") or "")).lower()
@@ -713,7 +730,7 @@ def _is_payback(row) -> bool:
     the is_transfer check rather than swallowed by it. A real internal transfer
     has kind 'account_transfer' or 'card_payment' and is still ignored.
     """
-    if float(row["amount"]) <= 0:
+    if float(row["amount"]) <= 0 or _is_needs_refund(row):
         return False
     kind = row["transfer_kind"] if "transfer_kind" in row.keys() else None
     if kind == "reimbursement":
@@ -732,6 +749,8 @@ def _is_spending(row) -> bool:
         return True
     if tag in TAG_IGNORES:
         return False
+    if _is_needs_refund(row):
+        return True  # a refund that lowers what groceries cost
     if _is_not_spending(row):
         return False
     # Before the is_transfer and name rules below, either of which would drop it.
