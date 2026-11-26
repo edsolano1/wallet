@@ -122,6 +122,16 @@ FUND_WATCH = [
 ]
 # The fund is temporary: its home tile goes away after this day.
 FUND_SHOW_UNTIL = date(2027, 1, 31)
+# Whatever is left in the fund goes back into spending money (his rule, Nov 26). It closes on the
+# first payday after the Jan 31 return window, so late refunds land in the fund first.
+FUND_CLOSE = date(2027, 2, 5)
+
+
+def fund_left(today: date) -> float:
+    """What the fund has left: saved plus refills so far, less spent and held, plus money back."""
+    saved = FUND_SAVED + sum(x for d, x in FUND_REFILLS if d <= today)
+    return (saved - sum(a for _, a in FUND_SPENT) - sum(a for _, a in FUND_HELD)
+            + sum(a for _, a in FUND_CREDITS))
 
 # Needs, not wants (his words, 2026-11-11): groceries and gas have to happen every month,
 # so each gets a soft envelope per paycheck. They are INSIDE spending money, not on top of
@@ -926,7 +936,8 @@ def summary(conn, today: date | None = None) -> dict:
             roll += -prev_env["set_aside"] + prev_env["spent"] - prev_env["over"] + prev_env["cashin"]
             prev_allow -= prev_env["set_aside"]
 
-    cap = PER_PERIOD - set_aside - moved_in + roll - sum(r["amount"] for r in route_now)
+    fund_back = round(fund_left(FUND_CLOSE), 2) if start == FUND_CLOSE else 0.0
+    cap = PER_PERIOD - set_aside - moved_in + roll - sum(r["amount"] for r in route_now) + fund_back
     rows = _rows(conn, start, nxt)
     spent = _cost(rows)
     paid_back = _paid_back(rows)
@@ -950,6 +961,7 @@ def summary(conn, today: date | None = None) -> dict:
         "moved_in_label": MOVED_LABEL,
         "extra_label": EXTRA_LABELS.get(start, "Extra savings"),
         "rolled_over": round(roll, 2),
+        "fund_back": fund_back,
         "overspend": overspend_detail(prev_rows, prev_allow, prev_env, prev_start) if roll < -0.5 else None,
         "allowance": round(cap, 2),
         "spent": round(spent, 2),
@@ -1152,6 +1164,13 @@ def money_moves(conn, today: date) -> list[dict]:
                       "from": "Chase checking ··7372", "to": r["to"],
                       "how": "Chase → Pay & transfer. Moves to Chase Savings are instant; to Ally take 1–3 days.",
                       "done": sent})
+    back = round(fund_left(FUND_CLOSE), 2)
+    if start == FUND_CLOSE and back > 0:
+        moves.append({"id": f"fund-close-{FUND_CLOSE}", "kind": "fund", "bank": "chase", "date": FUND_CLOSE.isoformat(),
+                      "what": "Black Friday Fund leftover back to spending money", "amount": back,
+                      "from": "Chase Savings ··6725", "to": "Chase checking ··7372",
+                      "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
+                      "done": _moved(conn, BILLS_ACCOUNT, r"from sav|6725", back - 1, FUND_CLOSE - timedelta(days=1), nxt, 1)})
     for d, x in FUND_REFILLS:
         if start <= d < nxt:
             moves.append({"id": f"fund-{d}", "kind": "fund", "bank": "chase", "date": d.isoformat(),

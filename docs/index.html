@@ -488,6 +488,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(w.set_aside)parts.push(`${money(w.set_aside)} already set aside ${w.set_aside_label}.`);
     if(w.moved_in)parts.push(`${money(w.moved_in)} taken out ${w.moved_in_label}.`);
     if(w.paid_back)parts.push(`${money(w.paid_back)} paid back to you added in.`);
+    if(w.fund_back)parts.push(w.fund_back>0?`${money(w.fund_back)} left in the Black Friday Fund added back in.`:`${money(-w.fund_back)} the Black Friday Fund went over taken out.`);
 
     $("setaside").hidden=!parts.length;$("setaside").textContent=parts.join(" ");
     $("setaside").onclick=w.overspend&&w.rolled_over<0?e=>{e.stopPropagation();overspendPop(w,true)}:null;$("setaside").style.cursor=w.overspend&&w.rolled_over<0?"pointer":"";
@@ -1094,8 +1095,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(!f){$("fund-card").hidden=true;return}
     $("fund-card").hidden=false;
     // What's left already keeps back anything ordered but not charged yet (his rule, Nov 20).
-    $("fund-left").textContent=cents(f.left);
-    $("fund-sub").textContent=`left of ${money(f.saved)}`+(f.credit?` · ${cents(f.left+f.credit)} once the ${money(f.credit)} card credit is confirmed`:"");
+    $("fund-left").textContent=(f.left<-0.005?"−":"")+cents(f.left);
+    $("fund-sub").textContent=(f.left<-0.005?`over, of ${money(f.saved)} put in`:`left of ${money(f.saved)}`)+(f.credit?` · ${cents(f.left+f.credit)} once the ${money(f.credit)} card credit is confirmed`:"")
+      +(f.closes?` · whatever's left goes back to your spending money ${fmt(f.closes)}`:"");
     // One bar for the whole fund: spent (red), held for orders not charged yet (red stripes), left (green).
     const net=Math.max((f.spent||0)-(f.items||[]).filter(i=>i.kind==="back").reduce((a,i)=>a+i.amount,0),0);
     const parts=[{label:"Spent",v:net,c:"var(--bad)"},{label:"Held (not charged yet)",v:f.held||0,c:"var(--bad)",stripes:true},{label:"Left",v:Math.max(f.left,0),c:"var(--accent)"}];
