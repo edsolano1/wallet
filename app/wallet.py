@@ -98,6 +98,8 @@ FUND_SPENT = [
     ("UA Storm Liner gloves, Amazon", 17.58),                    # 114-0739792-1372252
     ("UA Velocity quarter-zip, Amazon", 29.55),                  # 114-9989667-9882661
     ("UA Tech 2.0 half-zip, Amazon", 19.58),                     # 114-3420614-6446634, arrives Dec 1
+    # Nov 26, logitech.com order US05227819 (refurbished): $89.99 - $18 educator code + $6.55 tax, on a Visa.
+    ("Logitech MX Master 4 mouse (business expense), Logitech", 78.54),
 ]
 # Ordered but charged only when it ships: kept out of what's left so the fund doesn't look bigger.
 FUND_HELD = [("Philips i9000 shaver", 218.18)]
@@ -530,6 +532,8 @@ COVERED = [
     # order, charged as items ship, possibly after Black Friday).
     {"merchant": "amazon", "low": 1.00, "high": 300.00, "after": date(2026, 11, 19), "before": date(2026, 12, 8)},
     {"merchant": "amzn", "low": 1.00, "high": 300.00, "after": date(2026, 11, 19), "before": date(2026, 12, 8)},
+    # The Logitech mouse (Nov 26, $78.54), from the fund; a business expense.
+    {"merchant": "logitech", "low": 76.00, "high": 81.00, "after": date(2026, 11, 25), "before": date(2026, 12, 20)},
     # MicroPerfumes order (Nov 20): the $2.96 left after the gift card.
     {"merchant": "microperfumes", "low": 2.50, "high": 3.50, "after": date(2026, 11, 19), "before": date(2026, 11, 30)},
     # The shaver, charged when it ships.
@@ -1287,7 +1291,7 @@ def money_calendar(conn, today: date, back: int = 21, ahead: int = 90) -> list[d
 #  - Each actual card ends with a check against the bank: checking less cards, plus what the
 #    envelopes still owe checking, should equal the wallet.
 WALLET_FROM = date(2026, 10, 30)  # October's bonus paycheck; the chain starts that morning
-FUND_MERCHANTS = ("amazon", "micro center", "microperfume")
+FUND_MERCHANTS = ("amazon", "micro center", "microperfume", "logitech")
 FUND_TOPUPS = [(date(2026, 11, 22), 75.00), *FUND_REFILLS]  # decided in chat; counts until the transfer shows up
 # Fund buys paid partly in cash, which no bank sees. The Micro Center receipt (Nov 8) totals $709.14:
 # $409.14 on the Samsung card and $300 in cash from the Costco returns. Shown only; no bank effect.
