@@ -987,7 +987,10 @@ BUDGET = [
     {"what": "Rent", "group": "Home", "amount": 542.00, "match": r"zelle payment to denisse", "lo": 541, "hi": 543},
     {"what": "Gas & electric (your half)", "group": "Home", "amount": 110.00, "note": "varies, Denisse sends the request"},
     {"what": "Phone (Verizon)", "group": "Home", "amount": 101.90, "match": r"verizon", "lo": 80, "hi": 140},
-    {"what": "Student loan", "group": "Loans", "amount": 699.33, "from": "2026-11", "match": r"aidvantage|dept ?of ?ed", "lo": 650, "hi": 760},
+    # November at the $327.26 minimum (Aidvantage autopay confirmed Nov 26); back to $699.33 from December
+    # until he sets the ramp-up amount.
+    {"what": "Student loan", "group": "Loans", "amount": 327.26, "from": "2026-11", "until": "2026-11", "match": r"aidvantage|dept ?of ?ed", "lo": 300, "hi": 760},
+    {"what": "Student loan", "group": "Loans", "amount": 699.33, "from": "2026-12", "match": r"aidvantage|dept ?of ?ed", "lo": 650, "hi": 760},
     {"what": "Car insurance (State Farm)", "group": "Car", "amount": 253.80, "until": "2026-12", "match": r"state farm", "lo": 200, "hi": 270},
     # GEICO's $1,257.50 (Dec 26) goes on a card that savings pays off, so it never hits a month;
     # the budget pays savings back instead (Eddie, Nov 21).
