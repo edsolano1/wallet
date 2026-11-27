@@ -305,6 +305,49 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 [hidden]{display:none!important}
 [data-view]{display:flex;flex-direction:column;gap:18px;min-width:0}
 .card,.list{min-width:0}
+
+/* ---- Motion (Nov 26): screen changes slide, things settle in, buttons give under a thumb. ---- */
+:root{--spring:cubic-bezier(.34,1.4,.5,1);--glide:cubic-bezier(.2,.8,.2,1);--snap:cubic-bezier(.5,0,.75,0)}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.42s;animation-timing-function:var(--glide);animation-fill-mode:both}
+html[data-nav=fwd]::view-transition-old(root){animation-name:vt-out-l}
+html[data-nav=fwd]::view-transition-new(root){animation-name:vt-in-r}
+html[data-nav=back]::view-transition-old(root){animation-name:vt-out-r}
+html[data-nav=back]::view-transition-new(root){animation-name:vt-in-l}
+@keyframes vt-in-r{from{transform:translateX(34%);opacity:0}}
+@keyframes vt-in-l{from{transform:translateX(-22%);opacity:0}}
+@keyframes vt-out-l{to{transform:translateX(-16%);opacity:0}}
+@keyframes vt-out-r{to{transform:translateX(30%);opacity:0}}
+.rise{animation:rise .55s var(--glide) both;animation-delay:var(--d,0ms)}
+@keyframes rise{from{opacity:0;transform:translateY(16px) scale(.985)}}
+.skel{animation:skel 1.1s ease-in-out infinite}
+@keyframes skel{50%{opacity:.18}}
+button,.tile,.menu button,.arow,.cday,.paybar,.freed{transition:transform .18s var(--spring),background-color .2s,box-shadow .2s,opacity .2s}
+button:active:not(:disabled),.freed:active{transform:scale(.96)}
+.menu button:active{transform:scale(.95)}
+.cday:active{transform:scale(.9)}
+.arow:active{transform:scale(.985);background:color-mix(in srgb,var(--fg) 4%,transparent)}
+.cday.sel.pick{animation:pick .42s var(--spring)}
+@keyframes pick{0%{transform:scale(.82)}}
+.cday.today .n{animation:todayring 2.8s ease-out 1s 2}
+@keyframes todayring{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}70%,100%{box-shadow:0 0 0 9px color-mix(in srgb,var(--accent) 0%,transparent)}}
+.sheet{animation:sheetbg .3s ease both;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+@keyframes sheetbg{from{background:rgba(0,0,0,0);-webkit-backdrop-filter:blur(0);backdrop-filter:blur(0)}}
+.sheet .card{animation:sheetin .5s var(--spring) both;box-shadow:0 22px 60px rgba(0,0,0,.35)}
+@keyframes sheetin{from{transform:translateY(-28px) scale(.94);opacity:0}}
+.sheet .card>*{animation:rise .5s var(--glide) both}
+.sheet .card>:nth-child(2){animation-delay:40ms}.sheet .card>:nth-child(3){animation-delay:80ms}.sheet .card>:nth-child(4){animation-delay:120ms}.sheet .card>:nth-child(n+5){animation-delay:160ms}
+.toast{animation:toastin .45s var(--spring) both}
+@keyframes toastin{from{transform:translate(-50%,28px) scale(.9);opacity:0}}
+.owed[open] .list>*,.owed[open] .note{animation:rise .4s var(--glide) both}
+.big{transition:color .4s}
+.menu #t-move-tile .ic svg{animation:nudge 2.4s ease-in-out infinite}
+@keyframes nudge{0%,60%,100%{transform:none}70%{transform:translateX(3px)}80%{transform:translateX(-2px)}}
+#pull svg{transition:transform .3s var(--spring)} #pull:active svg{transform:rotate(-40deg)}
+@media (prefers-reduced-motion:reduce){
+  ::view-transition-old(root),::view-transition-new(root){animation:none}
+  .rise,.skel,.cday.sel.pick,.cday.today .n,.sheet,.sheet .card,.sheet .card>*,.toast,.owed[open] .list>*,.owed[open] .note,.menu #t-move-tile .ic svg{animation:none}
+  button,.tile,.menu button,.arow,.cday,.paybar,.freed{transition:none}
+}
 </style>
 </head>
 <body>
@@ -517,6 +560,21 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     finally{$("big").classList.remove("skel")}
   }
 
+  // The big number runs up to its value (from the last one shown, or from zero on open).
+  function countTo(node,to){
+    const from=node._v==null?0:node._v;node._v=to;cancelAnimationFrame(node._raf);
+    if(calm||Math.abs(to-from)<1){node.textContent=money(to);return}
+    const t0=performance.now(), dur=Math.min(1100,450+Math.abs(to-from)/3);
+    const step=t=>{const k=Math.min((t-t0)/dur,1), e=1-Math.pow(1-k,4);node.textContent=money(from+(to-from)*e);if(k<1)node._raf=requestAnimationFrame(step)};
+    node._raf=requestAnimationFrame(step)}
+  // First open: the hero and the menu tiles settle in, and the bars fill from the left.
+  function entrance(){
+    if(calm||shown)return;
+    document.querySelector("#home .hero").classList.add("rise");
+    document.querySelectorAll("#home .menu>button:not([hidden])").forEach((b,i)=>{b.style.setProperty("--d",120+i*45+"ms");b.classList.add("rise")});
+    $("bar-fill").animate([{clipPath:"inset(0 100% 0 0 round 999px)"},{clipPath:"inset(0 0 0 0 round 999px)"}],{duration:900,delay:220,easing:"cubic-bezier(.2,.8,.2,1)",fill:"backwards"});
+    document.querySelectorAll("#t-needs .nbar i").forEach((f,i)=>{f.style.transformOrigin="left";
+      f.animate([{transform:"scaleX(0)"},{transform:"none"}],{duration:700,delay:450+i*80,easing:"cubic-bezier(.2,.8,.2,1)",fill:"backwards"})})}
   let last=null;
   function render(w){last=w;
     // The big number counts money people owe him (tentative). The confirmed figure
@@ -526,7 +584,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     if(left<0){tone="bad";pill="Over until payday by "+money(-left)}
     else if(real<0){tone="tent"}
     else if(left<cap*0.1){tone="warn";pill="Running low"}
-    $("big").textContent=money(Math.max(left,0));$("big").className="big "+tone;
+    countTo($("big"),Math.max(left,0));$("big").className="big "+tone;
     $("eyebrow").textContent=left<0?"Out of spending money":"Left until payday";
     const d=w.days_to_payday, next=day(w.next_payday).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
     $("sub").textContent=`${money(w.spent-w.paid_back)} of ${money(cap)} spent since payday. Next check ${next}, ${d} day${d===1?"":"s"} away.`;
@@ -550,7 +608,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     $("go-fund").hidden=!(w.fund&&w.fund.show!==false);if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawCalendar(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
     if(w.overspend&&w.rolled_over<0&&store("wallet.overspendSeen")!==w.period_start&&!$("ask").textContent)$("ask").textContent=`Last paycheck went ${money(-w.rolled_over)} over. It comes out of this one`;
-    needsPop(w);overspendPop(w);routePop(w);
+    needsPop(w);overspendPop(w);routePop(w);if(!render.once){render.once=true;entrance()}
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
@@ -647,7 +705,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   const calm=matchMedia("(prefers-reduced-motion: reduce)").matches;
   function morphToRing(){
     const bar=$("bar-fill"), from=bar.getBoundingClientRect();
-    location.hash="spent";show();
+    location.hash="spent";showNow();
     const ring=$("sp-ring"), to=ring.getBoundingClientRect();
     if(calm||!last||!to.width||!from.width)return;
     const m=plan(last), stops=(ps,unit)=>{const T=Math.max(ps.reduce((s,p)=>s+p.v,0),1);let at=0;
@@ -906,7 +964,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   }
 
   // Money calendar (his ask, Nov 24): paydays, bills, money moves and drives by day.
-  let calMonth=null, calSel=null;
+  let calMonth=null, calSel=null, calFx=null;
   const calColor={payday:"var(--accent)",bill:"var(--bad)",move:"var(--slate)",trip:"var(--pink)"};
   const calIcon={
     payday:'<path d="M12 3.5v11M7 10l5 5 5-5"/><path d="M4.5 19.5h15"/>',
@@ -929,7 +987,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     const curFrom=w.period_start||pays.filter(p=>p<=today).pop()||today;
     const curTo=calAdd(w.next_payday||calAdd(curFrom,14),-1);
     const cycleOf=s=>{let c=pays.filter(p=>p<=s).pop();if(!c){c=curFrom;while(c>s)c=calAdd(c,-14)}return c};
-    const go=k=>{calSel=k;calMonth=k.slice(0,7);drawCalendar(w)};
+    const go=k=>{const dir=k.slice(0,7)>calMonth?1:k.slice(0,7)<calMonth?-1:0;calSel=k;calMonth=k.slice(0,7);calFx={dir,pick:true};drawCalendar(w)};
 
     const [y,m]=calMonth.split("-").map(Number), first=new Date(y,m-1,1);
     $("cal-month").textContent=first.toLocaleDateString("en-US",{month:"long",year:"numeric"});
@@ -998,8 +1056,16 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
     // Only the months the calendar has data for.
     const minM=ev[0].date.slice(0,7), maxM=ev[ev.length-1].date.slice(0,7);
     $("cal-prev").disabled=calMonth<=minM;$("cal-next").disabled=calMonth>=maxM;
-    $("cal-prev").onclick=()=>{calMonth=calIso(new Date(y,m-2,1)).slice(0,7);drawCalendar(w)};
-    $("cal-next").onclick=()=>{calMonth=calIso(new Date(y,m,1)).slice(0,7);drawCalendar(w)};
+    $("cal-prev").onclick=()=>{calMonth=calIso(new Date(y,m-2,1)).slice(0,7);calFx={dir:-1};drawCalendar(w)};
+    $("cal-next").onclick=()=>{calMonth=calIso(new Date(y,m,1)).slice(0,7);calFx={dir:1};drawCalendar(w)};
+    // Motion only for taps, not for a data refresh.
+    const fx=calFx;calFx=null;
+    if(fx&&!calm){const ease="cubic-bezier(.2,.8,.2,1)";
+      if(fx.dir){G.animate([{opacity:0,transform:`translateX(${fx.dir*36}px)`},{opacity:1,transform:"none"}],{duration:380,easing:ease});
+        $("cal-month").animate([{opacity:0,transform:`translateY(${fx.dir*-8}px)`},{opacity:1,transform:"none"}],{duration:300,easing:"ease-out"});
+        [...$("cal-sum").children].forEach((c,i)=>c.animate([{opacity:0,transform:"translateY(6px)"},{opacity:1,transform:"none"}],{duration:360,delay:60+i*50,easing:ease,fill:"backwards"}))}
+      if(fx.pick){const sb=G.querySelector(".cday.sel");if(sb)sb.classList.add("pick");
+        [$("cal-dayname"),$("cal-dayrel"),...L.children].forEach((c,i)=>c.animate([{opacity:0,transform:"translateY(8px)"},{opacity:1,transform:"none"}],{duration:380,delay:i*40,easing:ease,fill:"backwards"}))}}
   }
   // One thing on the day panel: icon, what, amount, where it comes from, and whether the bank shows it.
   function calRow(e,today){
@@ -1266,7 +1332,41 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Each section is its own screen; the phone's back button returns home.
   // The home screen is the big number and a menu; each item is its own screen, and the
   // phone's back button (or "‹ Money") returns home.
-  function show(){const v=location.hash.replace(/^#/,"");document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==(/^(needs|fund|accounts|details|bills|charges|spent|budget|paychecks|calendar)$/.test(v)?v:""));if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}scrollTo(0,0)}
+  const viewOf=()=>{const v=location.hash.replace(/^#/,"");return /^(needs|fund|accounts|details|bills|charges|spent|budget|paychecks|calendar)$/.test(v)?v:""};
+  let shown=null;
+  function showNow(){const v=viewOf();shown=v;document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==v);if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}scrollTo(0,0)}
+  // Going into a screen slides it in from the right; going back slides home in from the left.
+  // Then the screen's cards settle in one after another.
+  function show(){
+    const v=viewOf(), from=shown;
+    if(from===null||v===from||calm){showNow();return}
+    const dir=v&&!from?"fwd":"back";
+    const settle=()=>{const V=document.querySelector(`[data-view="${v}"]`);if(!V)return;
+      [...V.children].forEach((c,i)=>{c.classList.remove("rise");void c.offsetWidth;c.style.setProperty("--d",Math.min(i,7)*45+"ms");c.classList.add("rise")})};
+    if(document.startViewTransition){document.documentElement.dataset.nav=dir;
+      const t=document.startViewTransition(()=>{showNow();if(dir==="fwd")settle()});
+      t.finished.finally(()=>{delete document.documentElement.dataset.nav})}
+    else{showNow();const V=document.querySelector(`[data-view="${v}"]`);
+      V&&V.animate([{opacity:0,transform:`translateX(${dir==="fwd"?28:-28}px)`},{opacity:1,transform:"none"}],{duration:380,easing:"cubic-bezier(.2,.8,.2,1)"});
+      if(dir==="fwd")settle()}
+  }
+  // Sheets and the toast fade and drop away when closed, wherever the code closes them.
+  const nativeHidden=Object.getOwnPropertyDescriptor(HTMLElement.prototype,"hidden");
+  function closeWithMotion(node,out){
+    Object.defineProperty(node,"hidden",{configurable:true,
+      get(){return !!node._closing||nativeHidden.get.call(node)},
+      set(v){
+        if(v){if(node._closing||nativeHidden.get.call(node))return;
+          if(calm){nativeHidden.set.call(node,true);return}
+          node._closing=true;const anims=out(node);
+          const done=()=>{clearTimeout(node._ct);if(node._closing){node._closing=false;nativeHidden.set.call(node,true)}anims.forEach(a=>a.cancel())};
+          node._ct=setTimeout(done,450);  // in case the browser pauses animations (background tab)
+          Promise.all(anims.map(a=>a.finished)).catch(()=>{}).then(done)}
+        else{if(node._closing){node._closing=false;clearTimeout(node._ct);node.getAnimations({subtree:true}).forEach(a=>a.cancel())}nativeHidden.set.call(node,false)}}})}
+  document.querySelectorAll(".sheet").forEach(n=>closeWithMotion(n,n=>{const c=n.querySelector(".card");
+    return [n.animate([{opacity:1},{opacity:0}],{duration:220,easing:"ease",fill:"forwards"}),
+      c?c.animate([{transform:"none"},{transform:"translateY(-18px) scale(.95)"}],{duration:220,easing:"cubic-bezier(.5,0,.75,0)",fill:"forwards"}):null].filter(Boolean)}));
+  closeWithMotion($("toast"),n=>[n.animate([{opacity:1,transform:"translate(-50%,0)"},{opacity:0,transform:"translate(-50%,20px) scale(.92)"}],{duration:220,easing:"cubic-bezier(.5,0,.75,0)",fill:"forwards"})]);
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
   $("paybar").onclick=morphToRing;
   document.querySelector("#home .hero").addEventListener("click",e=>{if(e.target.closest("#paybar,#owed,#pull,a,button"))return;location.hash="charges"});
