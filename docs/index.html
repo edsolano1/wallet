@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#F2F4F1">
 <title>Wallet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Instrument+Sans:wght@400;500;600&display=swap">
@@ -14,12 +16,8 @@
   --display:"Archivo","Helvetica Neue",Arial,sans-serif;
   --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0E1411; --surface:#161F1A; --line:#26322B; --fg:#E5EDE8; --muted:#90A097;
-  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; --purple:#B39CF0; --pink:#F08BB8; --teal:#4FC3CF; --slate:#9AA8C4; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0E1411; --surface:#161F1A; --line:#26322B; --fg:#E5EDE8; --muted:#90A097;
-  --accent:#55C48D; --accent-soft:#183327; --warn:#E3A84A; --warn-soft:#3A2C14; --bad:#F07A70; --bad-soft:#3D1D1A; --tent:#7EA4F4; --tent-soft:#1B2740; --purple:#B39CF0; --pink:#F08BB8; --teal:#4FC3CF; --slate:#9AA8C4; color-scheme:dark}
+/* Light only (his call, Nov 27): it reads better, so the page ignores the phone's dark mode. */
+:root{color-scheme:light}
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--fg);margin:0}
 body{font-family:var(--body);font-size:15px;line-height:1.45;padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
