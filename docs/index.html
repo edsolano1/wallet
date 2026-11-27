@@ -348,9 +348,62 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   .rise,.skel,.cday.sel.pick,.cday.today .n,.sheet,.sheet .card,.sheet .card>*,.toast,.owed[open] .list>*,.owed[open] .note,.menu #t-move-tile .ic svg{animation:none}
   button,.tile,.menu button,.arow,.cday,.paybar,.freed{transition:none}
 }
+/* ---- Interface pass (Nov 26): a top bar that stays put, one menu pattern, calmer lists, easier popups. ---- */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sheet textarea:focus-visible,.sheet .share input:focus-visible{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+h1,.sheet .q{text-wrap:balance}
+.note{font-size:13px;text-wrap:pretty}
+.row .d{font-size:12.5px}
+/* Top bar on every screen but home: back is always under the thumb, the title shows once the big one scrolls away. */
+#appbar{position:fixed;top:0;left:0;right:0;z-index:15;padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));
+  background:color-mix(in srgb,var(--bg) 80%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
+  border-bottom:1px solid transparent;transition:border-color .25s;view-transition-name:appbar}
+#appbar.scrolled{border-bottom-color:var(--line)}
+#appbar .in{position:relative;max-width:440px;height:52px;margin:0 auto;display:flex;align-items:center}
+#ab-back{justify-self:start;display:inline-flex;align-items:center;gap:2px;min-height:44px;margin-left:-8px;padding:0 12px 0 4px;border:0;border-radius:12px;background:none;color:var(--accent);font:600 15px var(--body);cursor:pointer;max-width:75%;-webkit-tap-highlight-color:transparent}
+#ab-back span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ab-back:active{background:var(--accent-soft)}
+#appbar.scrolled #ab-back{max-width:32%}
+#ab-title{position:absolute;left:50%;top:4px;max-width:44%;overflow:hidden;text-overflow:ellipsis;min-height:44px;padding:0 6px;border:0;background:none;color:var(--fg);font:700 16px var(--display);white-space:nowrap;cursor:pointer;opacity:0;transform:translate(-50%,6px);transition:opacity .22s,transform .3s var(--glide);pointer-events:none}
+#appbar.scrolled #ab-title{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+[data-view]:not(#home){padding-top:calc(38px + env(safe-area-inset-top,0px))}
+/* Home menu: every item says it opens something, and groceries & gas gets room for its two bars. */
+.menu button{position:relative}
+.menu button::after,.hub button::after{content:"";flex:none;width:7px;height:7px;border-top:2px solid var(--muted);border-right:2px solid var(--muted);transform:rotate(45deg);opacity:.55;border-radius:1px}
+.menu button:not(.span3)::after,.hub button::after{position:absolute;top:20px;right:16px}
+.menu .span3 .lb{margin-right:auto}
+.menu .span3 b{margin:0}
+.menu .span3::after{margin:0 2px 0 2px}
+.hub button{position:relative;padding-right:32px;min-height:56px;justify-content:center}
+.hub button::after{top:50%;margin-top:-4px}
+.menu #go-needs{flex-wrap:wrap;row-gap:12px}
+.menu #go-needs::after{order:2}
+.menu #go-needs .needs2{order:3;flex:1 1 100%;max-width:none;margin:0;display:grid;grid-auto-flow:column;grid-template-rows:auto auto;grid-auto-columns:minmax(0,1fr);gap:6px 14px}
+.menu #go-needs .needs2 span{flex-direction:column;justify-content:flex-start;gap:0;font-size:12px}
+.menu #go-needs .needs2 b{font-size:14px}
+.menu #go-needs .needs2 .nbar{margin:0}
+/* Lists: red is for trouble, not for every purchase. Rows you can tap press in. */
+.row .a.out{color:var(--fg)}
+.row.tap,.need.tap{position:relative}
+.row.tap::before,.need.tap::before{content:"";position:absolute;inset:0 -10px;border-radius:12px;background:var(--fg);opacity:0;transition:opacity .18s;pointer-events:none}
+.row.tap:active::before,.need.tap:active::before{opacity:.07}
+.dayhead span+span{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.months{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);padding-right:28px;scroll-snap-type:x proximity}
+.months button{min-height:40px;scroll-snap-align:start;cursor:pointer}
+button.link{min-height:44px}
+.calhead .ttl button{min-height:32px}
+/* Popups: the page behind holds still, and there's always one clear main button. */
+html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
+.sheet{overscroll-behavior:contain}
+#mv-chase[hidden]+#mv-ally{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.pop-x{width:44px;height:44px;top:8px;right:8px}
+.msg.info{background:var(--accent-soft)}
+::view-transition-old(appbar),::view-transition-new(appbar){animation-duration:.25s}
+@media (prefers-reduced-motion:reduce){#ab-title,.row.tap::before,.need.tap::before{transition:none}::view-transition-old(appbar),::view-transition-new(appbar){animation:none}}
 </style>
 </head>
 <body>
+<div id="appbar" hidden><div class="in"><button id="ab-back" aria-label="Back"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span id="ab-back-l">Money</span></button><button id="ab-title" aria-label="Back to the top"></button></div></div>
 <div class="wrap">
   <div data-view="" id="home">
   <section class="hero" aria-live="polite" style="position:relative">
@@ -371,12 +424,12 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
     </details>
   </section>
   <button class="freed" id="freed" hidden></button>
-  <div class="msg" id="msg" hidden></div>
+  <div class="msg" id="msg" role="status" hidden></div>
   <nav class="menu" aria-label="Sections">
     <button id="t-move-tile" class="span3" hidden><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span><span class="lb">Set aside<small class="mvfor" id="t-move-for"></small></span><b id="t-move">—</b></button>
     <button data-go="accounts" id="go-acct"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg></span><span class="lb">Accounts</span><b id="t-acct">—</b></button>
     <button data-go="bills" id="t-bills-tile"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></span><span class="lb">Upcoming bills</span><b id="t-bills">—</b></button>
-    <button data-go="calendar" id="go-cal" class="span3"><span class="ic" style="--c:var(--accent)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><circle cx="8" cy="14" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg></span><span class="lb">Money calendar<small class="mvfor" id="t-cal-next"></small></span><b id="t-cal">›</b></button>
+    <button data-go="calendar" id="go-cal" class="span3"><span class="ic" style="--c:var(--accent)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><circle cx="8" cy="14" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg></span><span class="lb">Money calendar<small class="mvfor" id="t-cal-next"></small></span></button>
     <button data-go="needs" id="go-needs" class="span3"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg></span><span class="lb">Groceries &amp; gas</span><div class="needs2" id="t-needs"></div></button>
     <button data-go="fund" id="go-fund" class="span3" hidden><span class="ic" style="--c:var(--purple)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8M2 7h20v5H2zM12 21V7M12 7H8a2.5 2.5 0 1 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 1 0 0-5c-3 0-4 5-4 5z"/></svg></span><span class="lb">Black Friday Fund</span><b id="t-fund">—</b></button>
     <button data-go="details" class="span3"><span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg></span><span class="lb">Details</span><b id="t-today">—</b></button>
@@ -385,21 +438,21 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   </div>
 
   <div data-view="budget" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Monthly budget</h1></header>
+    <header class="top"><h1>Monthly budget</h1></header>
     <div class="months" id="bud-months" role="tablist" aria-label="Month"></div>
     <section class="card" id="bud-card"></section>
     <p class="note">Every bill gets its share each month. Most months have two paychecks; the two with a third are the bonus. Spending money is $PER a paycheck. This month shows what's actually gone out so far.</p>
   </div>
 
   <div data-view="paychecks" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>By paycheck</h1></header>
+    <header class="top"><h1>By paycheck</h1></header>
     <section class="card" id="pc-sum"></section>
     <div id="pc-list" style="display:flex;flex-direction:column;gap:18px"></div>
     <p class="note">Each paycheck's money in and out. The last month is what actually happened, with pending charges counted as spent; the rest is the plan. Black Friday buys aren't here because the fund paid for them.</p>
   </div>
 
   <div data-view="calendar" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Money calendar</h1></header>
+    <header class="top"><h1>Money calendar</h1></header>
     <section class="card" id="cal-card">
       <div class="calhead"><button id="cal-prev" aria-label="Previous month">‹</button><div class="ttl"><b id="cal-month"></b><button id="cal-today" hidden>Back to today</button></div><button id="cal-next" aria-label="Next month">›</button></div>
       <div class="calsum" id="cal-sum"></div>
@@ -411,7 +464,7 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
     <p class="note">Amounts on a day are paychecks in (green) and bills out (red). Money moves and drives show as dots; tap a day for the details. A bill turns grey once it shows up at your bank.</p>
   </div>
   <div data-view="bills" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Upcoming bills</h1></header>
+    <header class="top"><h1>Upcoming bills</h1></header>
     <section class="card" id="bills-now"></section>
     <section class="card" id="bills-next"></section>
     <section class="card" id="bills-later" hidden></section>
@@ -419,7 +472,7 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   </div>
 
   <div data-view="spent" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Where it went</h1></header>
+    <header class="top"><h1>Where it went</h1></header>
     <p class="note" id="sp-range"></p>
     <div class="hub"><button data-go="budget" id="go-budget" hidden>Monthly budget<b id="t-budget">—</b></button><button data-go="paychecks" id="go-pc" hidden>By paycheck<b id="t-pc">—</b></button></div>
     <section class="card">
@@ -437,13 +490,13 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   </div>
 
   <div data-view="charges" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Recent charges</h1></header>
+    <header class="top"><h1>Recent charges</h1></header>
     <p class="note">Tap a charge to split it, mark it yours, or tell Claude about it.</p>
     <section class="card"><div class="list" id="list"></div></section>
   </div>
 
   <div data-view="needs" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Groceries &amp; gas</h1></header>
+    <header class="top"><h1>Groceries &amp; gas</h1></header>
     <section class="card" id="needs-card" hidden>
       <div class="ringrow">
         <svg id="ring" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true"></svg>
@@ -454,7 +507,7 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   </div>
 
   <div data-view="fund" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Black Friday Fund</h1></header>
+    <header class="top"><h1>Black Friday Fund</h1></header>
     <section class="card" id="fund-card" hidden>
       <div class="fundrow"><b id="fund-left">—</b><span id="fund-sub"></span></div>
       <div class="fbar" id="fund-bar" role="img"></div>
@@ -464,7 +517,7 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   </div>
 
   <div data-view="accounts" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Accounts</h1></header>
+    <header class="top"><h1>Accounts</h1></header>
     <section class="card" id="acct-card" hidden>
       <div class="list" id="accts"></div>
     </section>
@@ -475,7 +528,7 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   </div>
 
   <div data-view="details" hidden>
-    <header class="top"><button class="back" data-go="">‹ Money</button><h1>Details</h1></header>
+    <header class="top"><h1>Details</h1></header>
     <section class="card">
       <div class="sub" id="sub">Loading…</div>
       <div class="setaside" id="setaside" hidden></div>
@@ -543,7 +596,7 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   try{ if(key) localStorage.setItem("wallet.k",key); else key=localStorage.getItem("wallet.k"); }catch(e){}
   if(location.hash) history.replaceState(null,"",location.pathname);
 
-  const msg=t=>{const m=$("msg");m.textContent=t;m.hidden=!t};
+  const msg=t=>{const m=$("msg");m.textContent=t;m.hidden=!t;m.classList.toggle("info",!/Couldn|doesn't match|needs its key/.test(t))};
   const b64=s=>Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
 
   async function load(){
@@ -1254,6 +1307,7 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
       b.setAttribute("role","tab");b.setAttribute("aria-selected",String(i===budMonth));
       if(m.bonus)b.append(el("span","bn","+1 check"));
       b.onclick=()=>{budMonth=i;drawBudget(w)};tabs.append(b)});
+    {const sel=tabs.children[budMonth];if(sel&&shown==="budget")tabs.scrollTo({left:Math.max(0,sel.offsetLeft-tabs.offsetLeft-12),behavior:calm?"auto":"smooth"})}
     const m=M[budMonth], now=budMonth===0, box=$("bud-card");box.innerHTML="";
     const S=el("div","cardhead");S.append(el("div","eyebrow",m.label+(m.bonus?" · 3 paychecks":"")));
     const f=el("div","fundrow"), big=el("b",null,(m.left<0?"−":"")+money(Math.abs(m.left)));
@@ -1310,7 +1364,12 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
     $("acct-card").hidden=false;
     const row=(a,b,c,cls)=>{const r=el("div","row");r.append(el("div","m",a),el("div","a"+(cls?" "+cls:""),b),el("div","d",c));return r};
     const A=$("accts");A.innerHTML="";
-    w.accounts.forEach(a=>A.appendChild(row(`${a.name} ··${a.mask}`,(a.type==="credit"&&a.balance>0?"owe ":"")+money(Math.abs(a.balance)),a.type==="credit"?"card":"cash")));
+    const kinds=[["credit","Cards"],["depository","Cash"],["investment","Investments"]], known=kinds.map(k=>k[0]);
+    const grp=(title,list,card)=>{if(!list.length)return;const tot=list.reduce((s,a)=>s+(a.balance||0),0);
+      const h=el("div","dayhead");h.append(el("span",null,title),el("span",null,card?(tot>0?money(tot)+" owed":money(-tot)+" credit"):money(tot)));A.appendChild(h);
+      list.forEach(a=>{const r=el("div","row");r.append(el("div","m",`${a.name} ··${a.mask}`),el("div","a"+(card&&a.balance<0?" in":""),(card&&a.balance<0?"+":"")+money(Math.abs(a.balance))));A.appendChild(r)})};
+    kinds.forEach(([t,title])=>grp(title,w.accounts.filter(a=>a.type===t),t==="credit"));
+    grp("Other",w.accounts.filter(a=>!known.includes(a.type)),false);
     const M=$("moves");M.innerHTML="";
     if(!w.moves.length)M.appendChild(el("div","note","None yet."));
     w.moves.forEach(m=>M.appendChild(row(m.what.replace(/\s*(transaction #|#).*$/i,"").slice(0,60),money(-m.amount),`${fmt(m.date)} · from ${m.account}`)));
@@ -1334,19 +1393,32 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
   // phone's back button (or "‹ Money") returns home.
   const viewOf=()=>{const v=location.hash.replace(/^#/,"");return /^(needs|fund|accounts|details|bills|charges|spent|budget|paychecks|calendar)$/.test(v)?v:""};
   let shown=null;
-  function showNow(){const v=viewOf();shown=v;document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==v);if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}scrollTo(0,0)}
+  const stack=[""], pos={};
+  const isBack=v=>!v||(stack.length>1&&stack[stack.length-2]===v);
+  const titleOf=v=>{const h=document.querySelector(`[data-view="${v}"] h1`);return h?h.textContent:"Money"};
+  const barScroll=()=>$("appbar").classList.toggle("scrolled",scrollY>56);
+  function showNow(v=viewOf()){const from=shown;let back=false;
+    if(from!==null&&from!==v)pos[from]=scrollY;
+    if(stack[stack.length-1]!==v){back=isBack(v);if(!v)stack.length=1;else if(back)stack.pop();else stack.push(v)}
+    shown=v;document.querySelectorAll("[data-view]").forEach(e=>e.hidden=e.dataset.view!==v);if(v!=="spent"){const pp=$("sp-pop");if(pp)pp.remove();if(spPick&&last){spPick=null;drawSpent(last)}}
+    $("appbar").hidden=!v;
+    if(v){const prev=stack[stack.length-2];$("ab-back-l").textContent=prev?titleOf(prev):"Money";$("ab-back").setAttribute("aria-label","Back to "+(prev?titleOf(prev):"Money"));$("ab-title").textContent=titleOf(v)}
+    if(from!==v)scrollTo(0,back?(pos[v]||0):0);barScroll()}
+  addEventListener("scroll",barScroll,{passive:true});
+  $("ab-back").onclick=()=>history.back();
+  $("ab-title").onclick=()=>scrollTo({top:0,behavior:calm?"auto":"smooth"});
   // Going into a screen slides it in from the right; going back slides home in from the left.
   // Then the screen's cards settle in one after another.
   function show(){
     const v=viewOf(), from=shown;
-    if(from===null||v===from||calm){showNow();return}
-    const dir=v&&!from?"fwd":"back";
+    if(from===null||v===from||calm){showNow(v);return}
+    const dir=isBack(v)?"back":"fwd";
     const settle=()=>{const V=document.querySelector(`[data-view="${v}"]`);if(!V)return;
       [...V.children].forEach((c,i)=>{c.classList.remove("rise");void c.offsetWidth;c.style.setProperty("--d",Math.min(i,7)*45+"ms");c.classList.add("rise")})};
     if(document.startViewTransition){document.documentElement.dataset.nav=dir;
-      const t=document.startViewTransition(()=>{showNow();if(dir==="fwd")settle()});
-      t.finished.finally(()=>{delete document.documentElement.dataset.nav})}
-    else{showNow();const V=document.querySelector(`[data-view="${v}"]`);
+      const t=document.startViewTransition(()=>{showNow(v);if(dir==="fwd")settle()}), id=show.n=(show.n||0)+1;
+      t.ready.catch(()=>{});t.finished.catch(()=>{}).then(()=>{if(show.n===id)delete document.documentElement.dataset.nav})}
+    else{showNow(v);const V=document.querySelector(`[data-view="${v}"]`);
       V&&V.animate([{opacity:0,transform:`translateX(${dir==="fwd"?28:-28}px)`},{opacity:1,transform:"none"}],{duration:380,easing:"cubic-bezier(.2,.8,.2,1)"});
       if(dir==="fwd")settle()}
   }
@@ -1368,6 +1440,12 @@ button:active:not(:disabled),.freed:active{transform:scale(.96)}
       c?c.animate([{transform:"none"},{transform:"translateY(-18px) scale(.95)"}],{duration:220,easing:"cubic-bezier(.5,0,.75,0)",fill:"forwards"}):null].filter(Boolean)}));
   closeWithMotion($("toast"),n=>[n.animate([{opacity:1,transform:"translate(-50%,0)"},{opacity:0,transform:"translate(-50%,20px) scale(.92)"}],{duration:220,easing:"cubic-bezier(.5,0,.75,0)",fill:"forwards"})]);
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
+  const putOff={sheet:"ask-later","mv-sheet":"mv-later","rt-sheet":"rt-later"};
+  document.querySelectorAll(".sheet").forEach(n=>{n.setAttribute("role","dialog");n.setAttribute("aria-modal","true");
+    let down=null;n.addEventListener("pointerdown",e=>{down=e.target});
+    n.addEventListener("click",e=>{if(e.target===n&&down===n&&putOff[n.id])$(putOff[n.id]).click()})});
+  addEventListener("keydown",e=>{if(e.key!=="Escape")return;const x=document.querySelector(".pop-x");if(x){x.click();return}
+    const n=[...document.querySelectorAll(".sheet")].find(n=>!n.hidden);if(n&&putOff[n.id])$(putOff[n.id]).click()});
   $("paybar").onclick=morphToRing;
   document.querySelector("#home .hero").addEventListener("click",e=>{if(e.target.closest("#paybar,#owed,#pull,a,button"))return;location.hash="charges"});
   addEventListener("hashchange",show);show();
