@@ -1250,8 +1250,10 @@ def _paid_near(conn, bill: dict, due: date) -> bool:
     return False
 
 
-def money_calendar(conn, today: date, back: int = 21, ahead: int = 90) -> list[dict]:
-    a, b = today - timedelta(days=back), today + timedelta(days=ahead)
+def money_calendar(conn, today: date, ahead: int = 90) -> list[dict]:
+    # From the first of last month, so the page's calendar never shows a half-empty month.
+    a = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+    b = today + timedelta(days=ahead)
     out = []
     d, _ = period_for(a)
     while d < b:  # paydays

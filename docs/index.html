@@ -166,20 +166,64 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .sheet fieldset.rt legend{font:600 13px var(--body);color:var(--muted);padding:0 4px}
 .sheet fieldset.rt label{display:flex;align-items:center;gap:10px;padding:8px 0;font:500 15px var(--body);cursor:pointer}
 .sheet fieldset.rt input{width:18px;height:18px;accent-color:var(--accent)}
-.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.calhead b{font:700 17px var(--display)}
-.calhead button{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 18px var(--body);cursor:pointer}
-.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-.calgrid .dow{font:600 11px var(--body);color:var(--muted);text-align:center;padding:2px 0 4px}
-.calgrid button{position:relative;aspect-ratio:1/1.1;border-radius:10px;border:1px solid transparent;background:none;color:var(--fg);font:500 14px var(--body);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 0 0;gap:3px;cursor:pointer;min-width:0}
-.calgrid button.out{opacity:.35}
-.calgrid button.today{border-color:var(--accent)}
-.calgrid button.sel{background:var(--accent-soft)}
-.calgrid button.pay{font-weight:800;color:var(--accent)}
-.calgrid .dots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;max-width:90%}
-.calgrid .dots i{width:6px;height:6px;border-radius:50%}
-.calkey{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--muted)}
+/* Money calendar (overhaul, Nov 26): amounts on each day, the current paycheck shaded,
+   a month summary, a day panel and a coming-up list grouped by paycheck. */
+.calhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.calhead .ttl{display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
+.calhead .ttl b{font:800 19px/1.15 var(--display);font-variation-settings:"wdth" 112}
+.calhead .ttl button{font:600 12px var(--body);color:var(--accent);background:none;border:0;padding:2px 6px;cursor:pointer}
+.calhead>button{width:40px;height:40px;flex:none;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 18px var(--body);cursor:pointer}
+.calhead>button:disabled{opacity:.3;cursor:default}
+.calsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.calsum div{display:flex;flex-direction:column;gap:1px;padding:9px 10px;border-radius:12px;background:color-mix(in srgb,var(--fg) 4%,transparent);min-width:0}
+.calsum span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calsum b{font:700 16px var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.calsum .in b{color:var(--accent)} .calsum .out b{color:var(--bad)} .calsum .due b{color:var(--warn)}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.calgrid .dow{font:600 11px var(--body);letter-spacing:.06em;color:var(--muted);text-align:center;padding:4px 0}
+.cday{position:relative;min-height:58px;border-radius:10px;border:0;background:none;color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 1px 4px;gap:1px;cursor:pointer;min-width:0;-webkit-tap-highlight-color:transparent;font-family:var(--body)}
+.cday .n{display:grid;place-items:center;min-width:24px;height:24px;padding:0 4px;border-radius:999px;font:600 13.5px var(--body);font-variant-numeric:tabular-nums}
+.cday .amt{font:700 10.5px/1.25 var(--body);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap}
+.cday .amt.in{color:var(--accent)} .cday .amt.out{color:var(--bad)} .cday .amt.paid{color:var(--muted);font-weight:600}
+.cday .dots{display:flex;gap:3px;margin-top:1px}
+.cday .dots i{width:5px;height:5px;border-radius:50%}
+.cday.cur{background:var(--accent-soft)}
+.cday.past .amt,.cday.past .dots{opacity:.6}
+.cday.past .n{color:var(--muted)}
+.cday.out{opacity:.3}
+.cday.today .n{background:var(--fg);color:var(--surface)}
+.cday.pay .n{color:var(--accent);font-weight:800}
+.cday.today.pay .n{background:var(--accent);color:var(--surface)}
+.cday.sel{box-shadow:inset 0 0 0 2px var(--fg)}
+.cday:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.calkey{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
 .calkey span{display:inline-flex;align-items:center;gap:5px}.calkey i{width:8px;height:8px;border-radius:50%}
+.calkey i.sq{width:12px;height:12px;border-radius:4px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.calday-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.calday-h small{font-size:13px;color:var(--muted);white-space:nowrap}
+.cev{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:1px 12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.cev:first-child{border-top:0}
+.cev .ic{grid-row:span 2;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:var(--k);background:color-mix(in srgb,var(--k) 15%,transparent)}
+.cev .m{font-weight:600;min-width:0;line-height:1.3}
+.cev .a{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.cev .a.in{color:var(--accent)} .cev .a.out{color:var(--bad)}
+.cev .d{font-size:12.5px;color:var(--muted);min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.cev .st{grid-column:3;justify-self:end;font:600 11px var(--body);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.cev .st.ok{background:var(--accent-soft);color:var(--accent)} .cev .st.late{background:var(--warn-soft);color:var(--warn)}
+.cev.done .m,.cev.done .a{color:var(--muted)}
+.cev.sum{border-top:1px solid var(--fg)} .cev.sum .m,.cev.sum .a{font-weight:700}
+.agrp{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:16px 0 6px;border-bottom:1px solid var(--line)}
+.agrp:first-child{padding-top:2px}
+.agrp b{font-weight:600;letter-spacing:0;text-transform:none;font-variant-numeric:tabular-nums;color:var(--fg);white-space:nowrap}
+.arow{display:grid;grid-template-columns:44px 10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 2px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;width:100%;-webkit-tap-highlight-color:transparent}
+.arow:last-child{border-bottom:0}
+.arow .dt{font:600 12px/1.15 var(--body);color:var(--muted);font-variant-numeric:tabular-nums}
+.arow .dt b{display:block;font:700 15px var(--display);color:var(--fg)}
+.arow i{width:8px;height:8px;border-radius:50%}
+.arow .m{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.arow .a{font-weight:600;font-variant-numeric:tabular-nums}
+.arow .a.in{color:var(--accent)} .arow .a.out{color:var(--bad)}
+.arow.today .dt b{color:var(--accent)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:45;background:var(--fg);color:var(--bg);font:600 15px var(--body);padding:12px 18px;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.25);animation:up .3s ease-out;white-space:nowrap}
 .pb.note-sent{color:var(--muted);background:none;padding-left:0;white-space:normal}
 .coins{position:fixed;inset:0;z-index:40;pointer-events:none;display:grid;place-items:center}
@@ -313,12 +357,15 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 
   <div data-view="calendar" hidden>
     <header class="top"><button class="back" data-go="">‹ Money</button><h1>Money calendar</h1></header>
-    <section class="card">
-      <div class="calhead"><button id="cal-prev" aria-label="Previous month">‹</button><b id="cal-month"></b><button id="cal-next" aria-label="Next month">›</button></div>
+    <section class="card" id="cal-card">
+      <div class="calhead"><button id="cal-prev" aria-label="Previous month">‹</button><div class="ttl"><b id="cal-month"></b><button id="cal-today" hidden>Back to today</button></div><button id="cal-next" aria-label="Next month">›</button></div>
+      <div class="calsum" id="cal-sum"></div>
       <div class="calgrid" id="cal-grid"></div>
-      <div class="calkey"><span><i style="background:var(--accent)"></i>Payday</span><span><i style="background:var(--bad)"></i>Bill</span><span><i style="background:var(--slate)"></i>Move money</span><span><i style="background:var(--pink)"></i>Drive</span></div>
+      <div class="calkey"><span><i class="sq"></i><em id="cal-curkey" style="font-style:normal">This paycheck</em></span><span><i style="background:var(--accent)"></i>Payday</span><span><i style="background:var(--bad)"></i>Bill</span><span><i style="background:var(--slate)"></i>Move money</span><span><i style="background:var(--pink)"></i>Drive</span></div>
     </section>
-    <section class="card"><div class="eyebrow" id="cal-dayname"></div><div class="list" id="cal-day"></div></section>
+    <section class="card"><div class="calday-h"><div class="eyebrow" id="cal-dayname"></div><small id="cal-dayrel"></small></div><div class="list" id="cal-day"></div></section>
+    <section class="card" id="cal-upcard"><div class="eyebrow">Coming up</div><div class="list" id="cal-agenda"></div></section>
+    <p class="note">Amounts on a day are paychecks in (green) and bills out (red). Money moves and drives show as dots; tap a day for the details. A bill turns grey once it shows up at your bank.</p>
   </div>
   <div data-view="bills" hidden>
     <header class="top"><button class="back" data-go="">‹ Money</button><h1>Upcoming bills</h1></header>
@@ -861,33 +908,109 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
   // Money calendar (his ask, Nov 24): paydays, bills, money moves and drives by day.
   let calMonth=null, calSel=null;
   const calColor={payday:"var(--accent)",bill:"var(--bad)",move:"var(--slate)",trip:"var(--pink)"};
+  const calIcon={
+    payday:'<path d="M12 3.5v11M7 10l5 5 5-5"/><path d="M4.5 19.5h15"/>',
+    bill:'<path d="M6.5 3.5h11v17l-2.75-1.6L12 20.5l-2.75-1.6L6.5 20.5z"/><path d="M9.5 8.5h5M9.5 12h5"/>',
+    move:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+    trip:'<path d="M4.5 16.5l1.4-5.2A2 2 0 0 1 7.8 9.8h8.4a2 2 0 0 1 1.9 1.5l1.4 5.2v2.5h-15z"/><path d="M7.5 19v1.5M16.5 19v1.5"/><circle cx="8" cy="15.5" r=".6"/><circle cx="16" cy="15.5" r=".6"/>'};
+  const calIso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const calAdd=(s,n)=>{const d=day(s);d.setDate(d.getDate()+n);return calIso(d)};
+  // Short amounts for a day square: $412, $1.8k.
+  const calShort=n=>n>=1000?"$"+(Math.round(n/100)/10).toString()+"k":"$"+Math.round(n);
   function drawCalendar(w){
     const ev=w.calendar||[];$("go-cal").hidden=!ev.length;if(!ev.length)return;
-    const today=w.today||new Date().toISOString().slice(0,10);
+    const today=w.today||calIso(new Date());
     const nxt=ev.find(e=>e.date>today&&e.kind!=="trip");
     $("t-cal-next").textContent=nxt?`Next: ${nxt.what.replace(/^Move: /,"Move ")} ${fmt(nxt.date)}`:"";
     if(!calMonth)calMonth=today.slice(0,7);if(!calSel)calSel=today;
-    const [y,m]=calMonth.split("-").map(Number), first=new Date(y,m-1,1), days=new Date(y,m,0).getDate();
-    $("cal-month").textContent=first.toLocaleDateString("en-US",{month:"long",year:"numeric"});
-    const G=$("cal-grid");G.innerHTML="";["S","M","T","W","T","F","S"].forEach(d=>G.append(el("div","dow",d)));
     const by={};ev.forEach(e=>(by[e.date]=by[e.date]||[]).push(e));
-    const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    // The paycheck a day belongs to starts on the last payday on or before it.
+    const pays=ev.filter(e=>e.kind==="payday").map(e=>e.date);
+    const curFrom=w.period_start||pays.filter(p=>p<=today).pop()||today;
+    const curTo=calAdd(w.next_payday||calAdd(curFrom,14),-1);
+    const cycleOf=s=>{let c=pays.filter(p=>p<=s).pop();if(!c){c=curFrom;while(c>s)c=calAdd(c,-14)}return c};
+    const go=k=>{calSel=k;calMonth=k.slice(0,7);drawCalendar(w)};
+
+    const [y,m]=calMonth.split("-").map(Number), first=new Date(y,m-1,1);
+    $("cal-month").textContent=first.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+    $("cal-today").hidden=calMonth===today.slice(0,7)&&calSel===today;
+    $("cal-today").onclick=()=>go(today);
+    $("cal-curkey").textContent=`This paycheck, ${fmt(curFrom)} – ${fmt(curTo)}`;
+
+    // Month at a glance: paychecks in, bills out, and what's still to come out.
+    const inMonth=ev.filter(e=>e.date.slice(0,7)===calMonth);
+    const sumK=k=>inMonth.filter(e=>e.kind===k).reduce((s,e)=>s+e.amount,0);
+    const due=inMonth.filter(e=>e.kind==="bill"&&!e.done&&e.date>=today).reduce((s,e)=>s+e.amount,0);
+    const S=$("cal-sum");S.innerHTML="";
+    const stat=(cls,label,val)=>{const d=el("div",cls);d.append(el("span",null,label),el("b",null,val));S.append(d)};
+    const npay=inMonth.filter(e=>e.kind==="payday").length;
+    stat("in",npay===1?"1 paycheck":`${npay} paychecks`,"+"+money(sumK("payday")));
+    stat("out","Bills",money(sumK("bill")));
+    stat("due",calMonth<today.slice(0,7)?"Still due":"Still to go",money(due));
+
+    const G=$("cal-grid");G.innerHTML="";["S","M","T","W","T","F","S"].forEach(d=>G.append(el("div","dow",d)));
     const start=new Date(y,m-1,1-first.getDay());
     for(let i=0;i<42;i++){const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i);if(i>=35&&d.getMonth()!==m-1)break;
-      const k=iso(d), es=by[k]||[], b=el("button",(d.getMonth()!==m-1?"out ":"")+(k===today?"today ":"")+(k===calSel?"sel ":"")+(es.some(e=>e.kind==="payday")?"pay":""));
-      b.append(String(d.getDate()));const dots=el("span","dots");
-      [...new Set(es.map(e=>e.kind))].forEach(kd=>{const i=el("i");i.style.background=calColor[kd];dots.append(i)});b.append(dots);
-      b.onclick=()=>{calSel=k;if(d.getMonth()!==m-1)calMonth=k.slice(0,7);drawCalendar(w)};G.append(b)}
+      const k=calIso(d), es=by[k]||[], isPay=es.some(e=>e.kind==="payday");
+      const b=el("button","cday"+(d.getMonth()!==m-1?" out":"")+(k<today?" past":"")+(k===today?" today":"")+(k===calSel?" sel":"")+(isPay?" pay":"")+(k>=curFrom&&k<=curTo?" cur":""));
+      b.append(el("span","n",String(d.getDate())));
+      const pay=es.filter(e=>e.kind==="payday").reduce((s,e)=>s+e.amount,0);
+      const bills=es.filter(e=>e.kind==="bill"), billSum=bills.reduce((s,e)=>s+e.amount,0);
+      if(pay)b.append(el("span","amt in","+"+calShort(pay)));
+      if(bills.length)b.append(el("span","amt "+(bills.every(e=>e.done)?"paid":"out"),calShort(billSum)));
+      const other=[...new Set(es.filter(e=>e.kind==="move"||e.kind==="trip").map(e=>e.kind))];
+      if(other.length){const dots=el("span","dots");other.forEach(kd=>{const i=el("i");i.style.background=calColor[kd];dots.append(i)});b.append(dots)}
+      const label=[d.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"}),
+        pay?`paycheck ${money(pay)}`:"",bills.length?`${bills.length} bill${bills.length>1?"s":""} ${money(billSum)}`:"",
+        other.includes("move")?"money to move":"",other.includes("trip")?"a drive":""].filter(Boolean).join(", ");
+      b.setAttribute("aria-label",label);if(k===calSel)b.setAttribute("aria-pressed","true");
+      b.onclick=()=>go(k);G.append(b)}
+
+    // The day you tapped.
+    const sd=day(calSel), gap=Math.round((sd-day(today))/864e5);
+    $("cal-dayname").textContent=sd.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+    $("cal-dayrel").textContent=gap===0?"Today":gap===1?"Tomorrow":gap===-1?"Yesterday":gap>0?`In ${gap} days`:`${-gap} days ago`;
     const L=$("cal-day");L.innerHTML="";const es=by[calSel]||[];
-    $("cal-dayname").textContent=day(calSel).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
-    if(!es.length)L.append(el("div","note","Nothing due this day."));
-    es.forEach(e=>{const r=el("div","row");const mm=el("div","m");const dot=el("i","dot");dot.style.background=calColor[e.kind];mm.append(dot,e.what);
-      r.append(mm,el("div","a "+(e.kind==="payday"?"in":e.kind==="bill"?"out":""),(e.kind==="payday"?"+":"")+cents(e.amount)),
-        el("div","d",[e.note,e.done?(e.kind==="payday"?"landed":"done ✓"):""].filter(Boolean).join(" · ")));if(e.done)r.style.opacity=.7;L.append(r)});
-    const tot=es.filter(e=>e.kind==="bill").reduce((s,e)=>s+e.amount,0);
-    if(es.filter(e=>e.kind==="bill").length>1){const r=el("div","row");r.append(el("div","m",el("b",null,"Bills this day")),el("div","a out",cents(tot)));L.append(r)}
-    $("cal-prev").onclick=()=>{const p=new Date(y,m-2,1);calMonth=iso(p).slice(0,7);drawCalendar(w)};
-    $("cal-next").onclick=()=>{const p=new Date(y,m,1);calMonth=iso(p).slice(0,7);drawCalendar(w)};
+    if(!es.length){const c=cycleOf(calSel);
+      L.append(el("div","note",`Nothing due this day. It's in the paycheck that starts ${fmt(c)}.`))}
+    es.forEach(e=>L.append(calRow(e,today)));
+    const bl=es.filter(e=>e.kind==="bill");
+    if(bl.length>1){const r=el("div","cev sum");r.append(el("span"),el("div","m","Bills this day"),el("div","a out",cents(bl.reduce((s,e)=>s+e.amount,0))));L.append(r)}
+
+    // Coming up: what's left of this paycheck and the next one, grouped by paycheck.
+    const A=$("cal-agenda");A.innerHTML="";
+    const nextTo=calAdd(curTo,14);
+    const up=ev.filter(e=>e.date>=today&&e.date<=nextTo&&!(e.done&&e.kind!=="payday"));
+    $("cal-upcard").hidden=!up.length;
+    let grp=null, lastDay=null;
+    up.forEach(e=>{const c=e.date<=curTo?curFrom:cycleOf(e.date);
+      if(c!==grp){grp=c;lastDay=null;const end=calAdd(c,13), list=up.filter(x=>(x.date<=curTo?curFrom:cycleOf(x.date))===c);
+        const billTot=list.filter(x=>x.kind==="bill").reduce((s,x)=>s+x.amount,0);
+        const h=el("div","agrp");h.append(el("span",null,c===curFrom?`Rest of this paycheck · to ${fmt(curTo)}`:`Paycheck ${fmt(c)} – ${fmt(end)}`),
+          el("b",null,billTot?`${money(billTot)} in bills`:"No bills"));A.append(h)}
+      const r=el("button","arow"+(e.date===today?" today":""));const dd=day(e.date);
+      const dt=el("span","dt",e.date===lastDay?"":dd.toLocaleDateString("en-US",{weekday:"short"}));if(e.date!==lastDay)dt.prepend(el("b",null,String(dd.getDate())));lastDay=e.date;
+      const dot=el("i");dot.style.background=calColor[e.kind];
+      r.append(dt,dot,el("span","m",e.what.replace(/^Move: /,"Move ").replace(/^Drive: /,"Drive to ")),
+        el("span","a "+(e.kind==="payday"?"in":e.kind==="bill"?"out":""),(e.kind==="payday"?"+":"")+money(e.amount)));
+      r.onclick=()=>{go(e.date);$("cal-card").scrollIntoView({behavior:"smooth",block:"start"})};A.append(r)});
+
+    // Only the months the calendar has data for.
+    const minM=ev[0].date.slice(0,7), maxM=ev[ev.length-1].date.slice(0,7);
+    $("cal-prev").disabled=calMonth<=minM;$("cal-next").disabled=calMonth>=maxM;
+    $("cal-prev").onclick=()=>{calMonth=calIso(new Date(y,m-2,1)).slice(0,7);drawCalendar(w)};
+    $("cal-next").onclick=()=>{calMonth=calIso(new Date(y,m,1)).slice(0,7);drawCalendar(w)};
+  }
+  // One thing on the day panel: icon, what, amount, where it comes from, and whether the bank shows it.
+  function calRow(e,today){
+    const r=el("div","cev"+(e.done&&e.kind!=="payday"?" done":""));r.style.setProperty("--k",calColor[e.kind]);
+    const ic=el("span","ic");ic.innerHTML=`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${calIcon[e.kind]}</svg>`;
+    const what=e.what.replace(/^Move: /,"Move ").replace(/^Drive: /,"Drive to ");
+    r.append(ic,el("div","m",what),el("div","a "+(e.kind==="payday"?"in":e.kind==="bill"&&!e.done?"out":""),(e.kind==="payday"?"+":e.kind==="bill"?"−":"")+cents(e.amount)));
+    const d=el("div","d",e.note||"");r.append(d);
+    const st=e.done?{payday:"Landed",bill:"Paid",move:"Moved",trip:"Done"}[e.kind]:(e.date<today&&e.kind!=="trip"?"Not at the bank yet":"");
+    if(st)r.append(el("span","st "+(e.done?"ok":"late"),st));
+    return r;
   }
 
   // Coins for money in (+) and money out (−), like a party game but with dollars.
