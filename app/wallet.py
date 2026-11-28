@@ -34,13 +34,13 @@ TIP_MIN = 30.00
 # Refill from the Nov 27 paycheck's spending money (Nov 24): he's buying the Black Friday clothes,
 # board, heater and bins now and letting the fund go negative; the cushion stays untouched.
 # Exact: the orders came to $224.44 against $114.45 left.
-# Nov 26 (his answer): $450 more ON TOP of that, for more Black Friday buys: one $559.99 transfer.
-# Spending money goes negative this paycheck; he chose that.
-FUND_REFILLS = [(date(2026, 11, 27), 559.99)]
-# One short line for the Set aside screen: what the refill is made of.
-# Nov 27 (his words): $450 is the transfer, plus whatever the fund was down, so $559.99. It's the last
-# Black Friday transfer; what's left rolls into the wallet when the fund closes.
-FUND_REFILL_WHY = {date(2026, 11, 27): ["$109.99 the fund was over", "$450 refill", "Last Black Friday transfer"]}
+# Nov 26 (his answer): $450 more for Black Friday buys.
+# Nov 28 (his words): the transfer is $450 flat, not $559.99. The $109.99 the fund was over comes out
+# of that $450; he won't top it up, because the fund is fun money and nothing breaks if it runs short.
+# It's the last Black Friday transfer; what's left rolls into the wallet when the fund closes.
+FUND_REFILLS = [(date(2026, 11, 27), 450.00)]
+# Short lines for the Set aside screen: what the refill is.
+FUND_REFILL_WHY = {date(2026, 11, 27): ["Last Black Friday transfer", "−$109.99 already spent"]}
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 # The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
