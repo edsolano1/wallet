@@ -268,11 +268,19 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .mvacct b{grid-column:1/-1;font:800 16px var(--display);font-variant-numeric:tabular-nums}
 .mvacct em{grid-column:1/-1;font-style:normal;font-weight:600;font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted);margin-top:-2px}
 .mvacct em.in{color:var(--accent)}
+.mvacct em.out,.mv .why .neg{color:color-mix(in srgb,var(--bad) 72%,var(--muted))}
+.mv .owe{font-size:13px;font-weight:600;color:var(--fg)}
+.mv .why li.more{display:block}
+.mv .why li.more>button{display:flex;justify-content:space-between;gap:10px;width:100%;padding:0;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.mv .why li.more>button span:first-child::after{content:"Details";margin-left:8px;font-size:11.5px;font-weight:600;color:var(--accent)}
+.mv .why li.more.open>button span:first-child::after{content:"Hide"}
+.mv .why li.more ul{list-style:none;margin:3px 0 4px;padding:0 0 0 9px;border-left:2px solid var(--line)}
+.mv .why li.more:not(.open) ul{display:none}
 .mv .why{list-style:none;margin:0;padding:0 0 0 9px;border-left:2px solid var(--line);font-size:12.5px;line-height:1.45;color:var(--muted)}
 .mv .why li:has(span){display:flex;justify-content:space-between;gap:10px}
 .mv .why li span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
 .mv .why li.tot{margin-top:4px;padding-top:4px;border-top:1px solid var(--line);font-weight:700;color:var(--fg)}
-.mv .why li.note{font-style:italic}
+.mv .why li.note{display:block;font-style:italic}
 .mvlist{display:flex;flex-direction:column;gap:10px}
 .mvbank{display:flex;align-items:center;gap:8px;min-height:44px;text-decoration:none;color:var(--fg);font:700 14px var(--body);-webkit-tap-highlight-color:transparent}
 .mvbank small{font-weight:500;font-size:12.5px;color:var(--muted)}
@@ -288,7 +296,7 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .mv .t{min-width:0;display:flex;flex-direction:column;gap:5px}
 .mv .t b{font-weight:700;font-size:15px;line-height:1.25}
 .mv .rt{display:flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:12.5px;color:var(--muted)}
-.mv .rt i{font-style:normal;opacity:.55}
+.mv .rt i{font-style:normal;font-weight:700;font-size:16px;line-height:1;color:var(--fg);margin:0 1px}
 .mv .a{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .mv .a b{font:800 18px var(--display);font-variant-numeric:tabular-nums}
 .mv .a small{font-size:12px;color:var(--muted);white-space:nowrap}
@@ -1259,6 +1267,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
   const acctOf=s=>{s=String(s||"");const mask=(s.match(/(\d{4})\s*$/)||[])[1]||"", bank=/ally/i.test(s)?"ally":/chase/i.test(s)?"chase":"";
     const name=s.replace(/[\s·.]*\d{4}\s*$/,"").replace(/\b(chase|ally)\b/i,"").trim()||s;
     return {bank,mask,name:name.charAt(0).toUpperCase()+name.slice(1),key:mask||s}};
+  const openWhy={};
   function showMoves(w,manual){
     const ticks=store("wallet.moved")||{};
     const list=(w.to_move||[]).filter(m=>!m.done||m.kind==="payday"), open=openMoves(w);
@@ -1272,7 +1281,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
     list.forEach(m=>[m.from,m.to].forEach(s=>{const a=acctOf(s);if(seen[a.key])return;seen[a.key]=1;
       const hit=(w.accounts||[]).find(x=>x.mask===a.mask), c=el("div","mvacct");
       c.append(bankBadge(a.bank,true),el("small",null,a.name),el("b",null,hit?money(hit.balance):"—"));
-      const d=net[a.key]||0;if(Math.abs(d)>=0.5)c.append(el("em",d>0?"in":"",(d>0?"+":"")+money(d)));
+      const d=net[a.key]||0;if(Math.abs(d)>=0.5)c.append(el("em",d>0?"in":"out",(d>0?"+":"")+money(d)));
       c.title=`${a.bank&&BANKS[a.bank]?BANKS[a.bank].n+" ":""}${a.name}${a.mask?" ··"+a.mask:""}`;B.append(c)}));
     B.hidden=!B.children.length;
     // One group per bank you'd open to do them.
@@ -1287,7 +1296,13 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
         cb.onchange=()=>{const t=store("wallet.moved")||{};if(cb.checked)t[m.id]=Date.now();else delete t[m.id];store("wallet.moved",t);showMoves(w,true);moveTile(w)};
         const t=el("span","t"), rt=el("span","rt");
         rt.append(bankBadge(a.bank,true),el("span",null,a.name),el("i",null,"→"),bankBadge(b.bank,true),el("span",null,b.name));
-        t.append(el("b",null,m.what.replace(" and yearly"," & yearly")));const why=[].concat(m.why||[]);if(why.length){const u=el("ul","why");why.forEach(x=>{const li=el("li");if(typeof x==="string"){li.textContent=x;if(x[0]==="(")li.className="note"}else{li.append(el("span",null,x.t),el("span",null,x.a));if(x.total)li.className="tot"}u.append(li)});t.append(u)}t.append(rt);
+        t.append(el("b",null,m.what.replace(" and yearly"," & yearly")));const why=[].concat(m.why||[]);if(why.length){const u=el("ul","why");why.forEach(x=>{const li=el("li");if(typeof x==="string"){if(x[0]==="("){li.className="note";x.split(/(\$[\d,.]*\d)/).forEach((p,i)=>li.append(i%2?el("span","neg",p):document.createTextNode(p)))}else li.textContent=x}
+          else if(x.parts){li.className="more"+(openWhy[m.id]?" open":"");const tg=el("button"), sub=el("ul");tg.type="button";tg.append(el("span",null,x.t),el("span",null,x.a));
+            tg.onclick=e=>{e.preventDefault();e.stopPropagation();openWhy[m.id]=!openWhy[m.id];li.classList.toggle("open",!!openWhy[m.id])};
+            x.parts.forEach(q=>{const s=el("li");s.append(el("span",null,q.t),el("span",null,q.a));sub.append(s)});li.append(tg,sub)}
+          else{li.append(el("span",null,x.t),el("span",(x.a||"")[0]==="−"?"neg":null,x.a));if(x.total)li.className="tot"}u.append(li)});t.append(u)}t.append(rt);
+        if(!done){const amt=Math.abs(m.amount%1)<0.005?money(m.amount):cents(m.amount), nm=x=>(BANKS[x.bank]?BANKS[x.bank].n+" ":"")+x.name;
+          t.append(el("span","owe",/checking/i.test(b.name)?`${nm(a)} owes you ${amt}`:`You owe ${amt} to ${nm(b)}`))}
         const amt=el("span","a");amt.append(el("b",null,Math.abs(m.amount%1)<0.005?money(m.amount):cents(m.amount)),
           el("small",null,m.done?"Moved ✓":a.bank==="chase"&&b.bank==="chase"?"Instant":"1–3 days"));
         r.append(cb,el("span","ck"),t,amt);

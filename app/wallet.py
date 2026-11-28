@@ -1002,9 +1002,9 @@ BUDGET = [
      "note": "savings paid the 6-month policy; this pays it back"},
     {"what": "Car maintenance", "group": "Car", "amount": 100.00, "note": "set aside for repairs"},
     {"what": "Parking", "group": "Car", "amount": 30.00, "match": r"cash app\*gee", "lo": 1, "hi": 35},
-    # Kitty is monthly: his half of the monthly shot ($124.50) plus litter (~$23). Checkups are
+    # Kitty is monthly: his half of the monthly Solensia shot ($133 from Nov 22, was $124.50) plus litter (~$23). Checkups are
     # set aside: ~$250 a year, his half. The $500 fight visit this year was a one-off (Eddie, Nov 22).
-    {"what": "Kitty (monthly shot, litter)", "group": "Health", "amount": round(124.50 / 2 + 23, 2), "cats": {"MEDICAL_VETERINARY_SERVICES"},
+    {"what": "Kitty (monthly shot, litter)", "group": "Health", "amount": round(133.00 / 2 + 23, 2), "cats": {"MEDICAL_VETERINARY_SERVICES"},
      "match": r"petsmart|petco|chewy", "lo": 1, "hi": 80, "note": "your half of the shot; D sends the other half"},
     {"what": "Vet checkups (set aside)", "group": "Health", "amount": round(250 / 2 / 12, 2), "note": "about $250 a year, your half"},
     {"what": "Therapy (set aside)", "group": "Health", "amount": 50.00, "cats": {"MEDICAL_PRIMARY_CARE"}, "note": "$150 a quarter"},
@@ -1098,7 +1098,7 @@ TO_ALLY = 250.00                   # the quarterly and yearly bills are about $2
 # What the $250 is made of, per paycheck (the plan of Nov 22: $486.88 a month, halved).
 # Shown line by line on the Set aside screen (his ask, Nov 28); the last line is the rounding.
 ALLY_PARTS = [("Car insurance", 104.79), ("Car repairs", 50.00), ("Subscription", 41.30), ("Therapy", 25.00),
-              ("Small yearly stuff", 17.15), ("Vet checkups", 5.21)]
+              ("Small yearly stuff", 17.15), ("Checkups (not Solensia)", 5.21)]
 ALLY_PARTS.append(("Rounded up", round(TO_ALLY - sum(x for _, x in ALLY_PARTS), 2)))
 # The student loan moves to Ally (his plan, Nov 24): $350 a paycheck rides along to Ally Savings,
 # a recurring Ally transfer moves $699.33 to Ally Spending before the 28th, and Aidvantage
@@ -1117,7 +1117,9 @@ MOVE_BACK_DAYS = 6                 # start asking this many days before the bill
 FROM_ALLY = [
     {"what": "Car insurance", "cats": {"GENERAL_SERVICES_INSURANCE"}},
     {"what": "Therapy", "cats": {"MEDICAL_PRIMARY_CARE"}},
-    {"what": "Vet visit", "cats": {"MEDICAL_VETERINARY_SERVICES"}, "lo": 130.00},  # not the monthly shot
+    # Not the monthly Solensia shot: that was $124.50 and is $133 from Nov 22 (D sent her $66.50 half
+    # the same day). It's a monthly bill in the budget, so it never comes back from Ally.
+    {"what": "Vet visit", "cats": {"MEDICAL_VETERINARY_SERVICES"}, "lo": 140.00},
     {"what": "Lab work", "match": r"sonora quest|labcorp|quest diag"},
     {"what": "Car registration", "match": r"az mvd|mvd fee|servicearizona"},
 ]
@@ -1262,9 +1264,11 @@ def money_moves(conn, today: date) -> list[dict]:
         pulled = 0.0
     bills_lines = [{"t": t, "a": _usd(x)} for t, x in ALLY_PARTS] + (
         [{"t": "Student loan", "a": _usd(LOAN_TO_ALLY)}] if cur_due > TO_ALLY else [])
+    # One line for the paycheck's bills; the page opens it to show each bill.
+    bills_line = {"t": "Bills, each paycheck", "a": _usd(cur_due), "parts": bills_lines}
     send = {"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
             "what": "Quarterly and yearly bills" + (" + student loan" if cur_due > TO_ALLY else ""),
-            "why": bills_lines + [{"t": "Total", "a": _usd(cur_due), "total": True}],
+            "why": [bills_line],
             "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
             "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days."}
     pull = {"kind": "ally", "bank": "ally", "from": "Ally Savings ··2617", "to": "Chase checking ··7372",
@@ -1276,7 +1280,7 @@ def money_moves(conn, today: date) -> list[dict]:
         net = round(cur_out - back_out, 2)
         if net >= 1:
             moves.append({**send, "amount": net, "done": False,
-                          "why": (bills_lines if abs(cur_out - cur_due) < 1 else [{"t": "Bills, still to send", "a": _usd(cur_out)}])
+                          "why": ([bills_line] if abs(cur_out - cur_due) < 1 else [{"t": "Bills, still to send", "a": _usd(cur_out)}])
                                  + [{"t": label, "a": "−" + _usd(x)} for _, _, label, x in owed]
                                  + [{"t": "Total", "a": _usd(net), "total": True}]})
         elif net <= -1:
