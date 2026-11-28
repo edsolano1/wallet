@@ -536,6 +536,9 @@ MOVED_LABEL = "for the Oct 26 Costco run"
 # What a paycheck's leftover (not bills, not spending money) is for, when he names it.
 # Nov 13: kept as a cushion while he gets used to the first $699.33 loan autopay (Nov 23).
 EXTRA_LABELS = {date(2026, 11, 13): "Cushion"}
+# A paycheck's leftover he chose to spend: it goes into that paycheck's spending money.
+# Nov 28 (his call): the Nov 27 paycheck's $335.60, this paycheck only.
+EXTRA_IN = {date(2026, 11, 27): 335.60}
 
 # Charges the bank files as transfers that he says were really spending.
 # (date, merchant fragment, amount). The Oct 13 Venmo to his brother Cristian was
@@ -970,7 +973,8 @@ def summary(conn, today: date | None = None) -> dict:
             prev_allow -= prev_env["set_aside"]
 
     fund_back = round(fund_left(FUND_CLOSE), 2) if start == FUND_CLOSE else 0.0
-    cap = PER_PERIOD - set_aside - moved_in + roll - sum(r["amount"] for r in route_now) + fund_back
+    extra_in = EXTRA_IN.get(start, 0.0)
+    cap = PER_PERIOD - set_aside - moved_in + roll - sum(r["amount"] for r in route_now) + fund_back + extra_in
     rows = _rows(conn, start, nxt)
     spent = _cost(rows)
     paid_back = _paid_back(rows)
@@ -995,6 +999,7 @@ def summary(conn, today: date | None = None) -> dict:
         "extra_label": EXTRA_LABELS.get(start, "Extra savings"),
         "rolled_over": round(roll, 2),
         "fund_back": fund_back,
+        "extra_in": round(extra_in, 2),
         "overspend": overspend_detail(prev_rows, prev_allow, prev_env, prev_start) if roll < -0.5 else None,
         "allowance": round(cap, 2),
         "spent": round(spent, 2),
