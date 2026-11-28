@@ -40,7 +40,7 @@ FUND_REFILLS = [(date(2026, 11, 27), 559.99)]
 # One short line for the Set aside screen: what the refill is made of.
 # Nov 27 (his words): $450 is the transfer, plus whatever the fund was down, so $559.99. It's the last
 # Black Friday transfer; what's left rolls into the wallet when the fund closes.
-FUND_REFILL_WHY = {date(2026, 11, 27): ["$109.99 the fund was over", "$450 refill", "Last one, leftover to your wallet"]}
+FUND_REFILL_WHY = {date(2026, 11, 27): ["$109.99 the fund was over", "$450 refill", "Last Black Friday transfer"]}
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 # The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
@@ -1143,11 +1143,27 @@ def _bonus_check(payday: date) -> bool:
     return payday in paydays_in(payday.year, payday.month)[2:]
 
 
+def _usd(x: float) -> str:
+    return f"${x:,.0f}" if abs(x - round(x)) < 0.005 else f"${x:,.2f}"
+
+
+def _sent_to_ally(conn, a: date, b: date) -> float:
+    """Money that left Chase checking for Ally between a and b, as either bank shows it."""
+    if b < a:
+        return 0.0
+    chase = sum(-float(r["amount"]) for r in _tx(conn, BILLS_ACCOUNT, a, b)
+                if float(r["amount"]) < 0 and re.search(r"ally", r["what"]))
+    ally = sum(float(r["amount"]) for mask in (ALLY_SAVINGS, ALLY_SPENDING) for r in _tx(conn, mask, a, b)
+               if float(r["amount"]) > 0 and re.search(r"jpmorgan|chase", r["what"]))
+    return max(chase, ally)
+
+
 def money_moves(conn, today: date) -> list[dict]:
-    """What he should move by hand right now, oldest first. Each is done once the bank shows it."""
+    """What he should move by hand right now. Each is done once the bank shows it."""
     start, nxt = period_for(today)
     moves = []
-    if start >= MOVES_FROM and not _bonus_check(start):
+    payday_period = start >= MOVES_FROM and not _bonus_check(start)
+    if payday_period:
         a, b = start - timedelta(days=1), nxt - timedelta(days=1)
         if _first_check(start):
             moves.append({"id": f"pay-{start}-chase", "kind": "payday", "bank": "chase", "date": start.isoformat(),
@@ -1155,16 +1171,6 @@ def money_moves(conn, today: date) -> list[dict]:
                           "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
                           "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", TO_CHASE_SAVINGS - 1, a, b, -1)})
-        ally = to_ally(start)
-        moves.append({"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
-                      "what": "Quarterly and yearly bills" + (" + student loan" if ally > TO_ALLY else ""), "amount": ally,
-                      "why": ["Car insurance", "Therapy", "Vet", "Labs", "Registration"]
-                             + ([f"Student loan, ${LOAN_TO_ALLY:,.0f}"] if ally > TO_ALLY else []),
-                      "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
-                      "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days.",
-                      "done": _moved(conn, BILLS_ACCOUNT, r"ally", ally - 1, a, b, -1)
-                              or _moved(conn, ALLY_SAVINGS, r"jpmorgan|chase", ally - 1, a, b, 1)
-                              or _moved(conn, ALLY_SPENDING, r"jpmorgan|chase", ally - 1, a, b, 1)})
     for r in routed(conn, start):
         sent = any(abs(-float(t["amount"]) - r["amount"]) < 1 and re.search(r["pattern"], t["what"])
                    for t in _tx(conn, BILLS_ACCOUNT, start - timedelta(days=1), nxt))
@@ -1231,18 +1237,52 @@ def money_moves(conn, today: date) -> list[dict]:
     for mask in (ALLY_SPENDING, ALLY_SAVINGS):
         pulled += sum(-float(r["amount"]) for r in _tx(conn, mask, FROM_ALLY_SINCE, today + timedelta(days=1))
                       if float(r["amount"]) < 0 and re.search(r"jpmorgan|chase", r["what"]) and "6725" not in r["what"])
-    for day_, what, amt in hits:  # oldest first, each paid back in turn
+    # What this paycheck still owes Ally. An earlier paycheck that sent less than its share was a
+    # bill coming back the short way (see below), so that shortfall counts as pulled.
+    day1 = timedelta(days=1)
+    due_prev, p = 0.0, MOVES_FROM
+    while p < start:
+        due_prev += 0.0 if _bonus_check(p) else to_ally(p)
+        p += timedelta(days=14)
+    cur_due = to_ally(start) if payday_period else 0.0
+    pulled += max(due_prev - _sent_to_ally(conn, MOVES_FROM - day1, start - 2 * day1), 0.0)
+    cur_out = max(cur_due - _sent_to_ally(conn, start - day1, nxt - day1), 0.0)
+    owed = []  # (day, label, still to come back), oldest first, each paid back in turn
+    for day_, what, amt in hits:
         if pulled >= amt - 0.5:
             pulled -= amt
             continue
         d = date.fromisoformat(day_)
-        moves.append({"id": f"ally-{day_}-{what}", "kind": "ally", "bank": "ally", "date": day_,
-                      "what": f"{what}, {'charged' if d <= today else 'due'} {d:%b} {d.day}", "amount": round(amt - pulled, 2),
-                      "why": "Went on a card, so it comes back",
-                      "from": "Ally Savings ··2617", "to": "Chase checking ··7372",
-                      "how": "Ally → Transfers → Savings to your Chase checking. Takes 1–3 days, so do it before the card is due.",
-                      "done": False})
+        owed.append((day_, what, f"{what}, {'charged' if d <= today else 'due'} {d:%b} {d.day}", round(amt - pulled, 2)))
         pulled = 0.0
+    send = {"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
+            "what": "Quarterly and yearly bills" + (" + student loan" if cur_due > TO_ALLY else ""),
+            "why": ["Car insurance", "Therapy", "Vet", "Labs", "Registration"]
+                   + ([f"Student loan, {_usd(LOAN_TO_ALLY)}"] if cur_due > TO_ALLY else []),
+            "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
+            "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days."}
+    pull = {"kind": "ally", "bank": "ally", "from": "Ally Savings ··2617", "to": "Chase checking ··7372",
+            "how": "Ally → Transfers → Savings to your Chase checking. Takes 1–3 days, so do it before the card is due."}
+    if cur_out >= 1 and owed:
+        # Money owed both ways between the same two accounts is one transfer for the difference
+        # (his ask, Nov 28): $250 to Ally and $133 back is just $117 to Ally.
+        back_out = sum(x for *_, x in owed)
+        net = round(cur_out - back_out, 2)
+        if net >= 1:
+            moves.append({**send, "amount": net, "done": False,
+                          "why": [f"{_usd(cur_out)} for the bills"] + [f"−{_usd(x)} {label}" for _, _, label, x in owed]})
+        elif net <= -1:
+            moves.append({**pull, "id": f"ally-net-{start}", "date": start.isoformat(), "what": "Back from Ally", "amount": -net,
+                          "why": [f"{_usd(x)} {label}" for _, _, label, x in owed] + [f"−{_usd(cur_out)} this paycheck's bills"],
+                          "done": False})
+        else:
+            moves.append({**send, "amount": cur_due, "done": True})
+    else:
+        if payday_period:
+            moves.append({**send, "amount": cur_out if cur_out >= 1 else cur_due, "done": cur_out < 1})
+        for day_, what, label, x in owed:
+            moves.append({**pull, "id": f"ally-{day_}-{what}", "date": day_, "what": label, "amount": x,
+                          "why": "Went on a card, so it comes back", "done": False})
     # No interest sweeps: he only moves money to put it aside for a bill, like rent (Nov 23).
     return moves
 
