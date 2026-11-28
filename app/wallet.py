@@ -40,7 +40,7 @@ TIP_MIN = 30.00
 # It's the last Black Friday transfer; what's left rolls into the wallet when the fund closes.
 FUND_REFILLS = [(date(2026, 11, 27), 450.00)]
 # Short lines for the Set aside screen: what the refill is.
-FUND_REFILL_WHY = {date(2026, 11, 27): ["Last Black Friday transfer", "($109.99 of it is already spent)"]}
+FUND_REFILL_WHY = {date(2026, 11, 27): ["Last Black Friday transfer", "($109.99 already spent)"]}
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 # The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
@@ -1265,7 +1265,7 @@ def money_moves(conn, today: date) -> list[dict]:
     bills_lines = [{"t": t, "a": _usd(x)} for t, x in ALLY_PARTS] + (
         [{"t": "Student loan", "a": _usd(LOAN_TO_ALLY)}] if cur_due > TO_ALLY else [])
     # One line for the paycheck's bills; the page opens it to show each bill.
-    bills_line = {"t": "Bills, each paycheck", "a": _usd(cur_due), "parts": bills_lines}
+    bills_line = {"t": "Each paycheck", "a": _usd(cur_due), "parts": bills_lines}
     send = {"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
             "what": "Quarterly and yearly bills" + (" + student loan" if cur_due > TO_ALLY else ""),
             "why": [bills_line],

@@ -281,7 +281,12 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .mv .why li span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
 .mv .why li.tot{margin-top:4px;padding-top:4px;border-top:1px solid var(--line);font-weight:700;color:var(--fg)}
 .mv .why li.note{display:block;font-style:italic}
-.mvlist{display:flex;flex-direction:column;gap:10px}
+.mvlist{display:flex;flex-direction:column;gap:12px}
+/* Each bank is its own framed box, so its Open link clearly belongs to its transfers (his ask, Nov 28). */
+.mvgrp{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.mvgrp .mvbank{padding:4px 12px;background:var(--bg);border-bottom:1px solid var(--line)}
+.mvgrp .mv{padding:11px 12px}
+.mvgrp .mvbank+.mv{border-top:0}
 .mvbank{display:flex;align-items:center;gap:8px;min-height:44px;text-decoration:none;color:var(--fg);font:700 14px var(--body);-webkit-tap-highlight-color:transparent}
 .mvbank small{font-weight:500;font-size:12.5px;color:var(--muted)}
 .mvbank em{margin-left:auto;font-style:normal;font-weight:600;font-size:13.5px;color:var(--accent)}
@@ -1302,7 +1307,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
             x.parts.forEach(q=>{const s=el("li");s.append(el("span",null,q.t),el("span",null,q.a));sub.append(s)});li.append(tg,sub)}
           else{li.append(el("span",null,x.t),el("span",(x.a||"")[0]==="−"?"neg":null,x.a));if(x.total)li.className="tot"}u.append(li)});t.append(u)}t.append(rt);
         if(!done){const amt=Math.abs(m.amount%1)<0.005?money(m.amount):cents(m.amount), nm=x=>(BANKS[x.bank]?BANKS[x.bank].n+" ":"")+x.name;
-          t.append(el("span","owe",/checking/i.test(b.name)?`${nm(a)} owes you ${amt}`:`You owe ${amt} to ${nm(b)}`))}
+          t.append(el("span","owe",/checking/i.test(b.name)?`${nm(a)} owes you ${amt}`:`You owe ${amt} to ${b.name}`))}
         const amt=el("span","a");amt.append(el("b",null,Math.abs(m.amount%1)<0.005?money(m.amount):cents(m.amount)),
           el("small",null,m.done?"Moved ✓":a.bank==="chase"&&b.bank==="chase"?"Instant":"1–3 days"));
         r.append(cb,el("span","ck"),t,amt);
