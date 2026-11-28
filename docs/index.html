@@ -65,7 +65,22 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .fundrow b{font-family:var(--display);font-weight:800;font-size:34px;font-variant-numeric:tabular-nums}
 .fundrow span{font-size:13px;color:var(--muted)}
 #ring text{font-family:var(--display);font-weight:800;fill:var(--fg)}
-#pull{position:absolute;top:12px;right:12px;width:42px;height:42px;border-radius:50%;border:0;background:var(--accent-soft);color:var(--accent);-webkit-tap-highlight-color:transparent;display:grid;place-items:center;cursor:pointer}
+.tools{position:absolute;top:12px;right:12px;display:flex;gap:8px}
+#pull,#bell{position:relative;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);-webkit-tap-highlight-color:transparent;display:grid;place-items:center;cursor:pointer}
+#pull:active,#bell:active{background:var(--bg)}
+#pull.spin{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+#bell-n{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:var(--bad);color:#fff;font:700 11px/18px var(--body);font-style:normal;text-align:center;box-shadow:0 0 0 2px var(--surface)}
+#home .hero>.eyebrow{padding-right:96px}
+/* Notifications (his ask, Nov 28): what's waiting on him, one tap from each. */
+.ntlist{display:flex;flex-direction:column}
+.nt{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;padding:12px 0;border:0;border-top:1px solid var(--line);background:none;text-align:left;font:inherit;color:var(--fg);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.nt:first-child{border-top:0}
+.nt .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c)}
+.nt b{display:block;font-weight:700;font-size:15px;line-height:1.25}
+.nt small{display:block;margin-top:2px;font-size:12.5px;line-height:1.35;color:var(--muted)}
+.nt::after{content:"";width:7px;height:7px;border-top:2px solid var(--muted);border-right:2px solid var(--muted);transform:rotate(45deg);opacity:.55;margin-right:3px}
+.nt:disabled{cursor:default}.nt:disabled::after{visibility:hidden}
+.nt:active:not(:disabled){opacity:.6}
 #pull.spin svg{animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .paybar{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding:0;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -434,7 +449,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
 <div class="wrap">
   <div data-view="" id="home">
   <section class="hero" aria-live="polite" style="position:relative">
-    <button id="pull" aria-label="Pull from bank"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+    <div class="tools"><button id="bell" aria-label="Notifications"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4s2-1.5 2-6.5z"/><path d="M10 19.5a2.2 2.2 0 0 0 4 0"/></svg><i id="bell-n" hidden></i></button><button id="pull" aria-label="Check the banks for new charges"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 10.5A7.8 7.8 0 0 0 5.6 7.2L4 9"/><path d="M4 4.5V9h4.5"/><path d="M4.5 13.5a7.8 7.8 0 0 0 13.9 3.3L20 15"/><path d="M20 19.5V15h-4.5"/></svg></button></div>
     <div class="eyebrow" id="eyebrow">Left until payday</div>
     <div class="big skel" id="big">$—</div>
     <div class="tentative" id="tentative" hidden></div>
@@ -567,7 +582,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
     </section>
     <p class="note">Pending restaurant, bar and salon charges of $30+ get a 20% tip estimate until they post; counter service and groceries never do. Bills, rent, loans, subscriptions, parking, card payments and transfers never count. Paybacks go back in. Leftover from last paycheck rolls in; an overspend comes out.</p>
     <p class="note">Numbers come from your banks through Plaid. Tap the round arrow or pull down to have the banks checked right now.</p>
-    <div class="meta"><span></span><button class="link" id="refresh">Reload page</button></div>
+    <div class="meta"><span></span><button class="link" id="gh-link" hidden>Connect this browser</button><button class="link" id="refresh">Reload page</button></div>
   </div>
 </div>
 <div class="sheet" id="sheet" hidden><section class="card">
@@ -608,6 +623,12 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
   <div class="btns"><button class="main minus" id="os-ok">Got it</button></div>
 </section></div>
 <div class="coins" id="coins" hidden aria-live="polite"></div>
+<div class="sheet" id="nt-sheet" hidden><section class="card">
+  <div class="eyebrow">Notifications</div>
+  <div class="q" id="nt-q"></div>
+  <div class="ntlist" id="nt-list"></div>
+  <div class="btns"><button id="nt-close">Close</button></div>
+</section></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <span id="ask" hidden></span>
 <script>
@@ -687,7 +708,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
     $("go-fund").hidden=!(w.fund&&w.fund.show!==false);if(w.fund)$("t-fund").textContent=money(w.fund.left)+" left";
     drawNeeds(w);drawFund(w.fund);drawAccounts(w);drawCalendar(w);drawOwed(w);drawBills(w);drawBudget(w);drawPaychecks(w);drawSpent(w);moves(w);ask(w);
     if(w.overspend&&w.rolled_over<0&&store("wallet.overspendSeen")!==w.period_start&&!$("ask").textContent)$("ask").textContent=`Last paycheck went ${money(-w.rolled_over)} over. It comes out of this one`;
-    needsPop(w);overspendPop(w);routePop(w);if(!render.once){render.once=true;entrance()}
+    needsPop(w);overspendPop(w);routePop(w);drawBell(w);if(!render.once){render.once=true;entrance()}
     const list=$("list");list.innerHTML="";
     if(!w.charges.length){const n=document.createElement("div");n.className="note";n.textContent="No charges yet since payday.";list.appendChild(n)}
     w.charges.forEach(t=>list.appendChild(chargeRow(t,false)));
@@ -1206,7 +1227,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
   let mvSnoozed=false;
   const openMoves=w=>{const t=store("wallet.moved")||{};return (w.to_move||[]).filter(m=>!m.done&&!t[m.id])};
   function moveTile(w){const o=openMoves(w);$("t-move-tile").hidden=!o.length;$("t-move").textContent=o.length?money(o.reduce((a,m)=>a+m.amount,0)):"";
-    $("t-move-for").textContent=o.length?"for "+o.map(m=>m.what.split(",")[0].toLowerCase().replace(" and yearly"," & yearly")).join(", "):""}
+    $("t-move-for").textContent=o.length?"for "+o.map(m=>m.what.split(",")[0].toLowerCase().replace(" and yearly"," & yearly")).join(", "):"";drawBell(w)}
   function moves(w){
     const ticks=store("wallet.moved")||{}, now=Date.now();
     for(const k in ticks)if(now-ticks[k]>4*864e5)delete ticks[k];
@@ -1273,6 +1294,39 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
   }
   const closeMoves=()=>{$("mv-sheet").hidden=true;mvSnoozed=true;if(last)ask(last)};
   $("mv-later").onclick=closeMoves;
+
+  // Notifications: everything that's waiting on him, in one list behind the bell.
+  const NI={move:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',ask:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.7.4-1 .9-1 1.6M12 16.6v.01"/>',
+    bill:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',warn:'<path d="M12 4l9 15.5H3z"/><path d="M12 10v4M12 16.8v.01"/>',
+    plus:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/>'};
+  function notes(w){
+    const out=[], add=(icon,c,title,sub,go)=>out.push({icon,c,title,sub,go}), exact=n=>Math.abs(n%1)<0.005?money(n):cents(n), s=n=>n===1?"":"s";
+    const mv=openMoves(w);
+    if(mv.length)add("move","var(--warn)",`${mv.length} transfer${s(mv.length)} to make`,mv.map(m=>`${exact(m.amount)} ${m.what.split(",")[0].replace(" and yearly"," & yearly")}`).join(" · "),()=>showMoves(w,true));
+    const done=store("wallet.answered")||{}, qs=(w.questions||[]).filter(q=>!done[q.id]);
+    if(qs.length)add("ask","var(--tent)",`${qs.length} charge${s(qs.length)} to check`,`Was ${qs[0].merchant} $${qs[0].amount.toFixed(2)} split?`,()=>{snoozed=false;manual=false;ask(w)});
+    const E0=(w.ended||[])[0];
+    if(w.freed&&E0)add("plus","var(--accent)",`${money(w.freed)} freed up`,`Was ${E0.name}. Choose where it goes`,()=>routeSheet(w,E0));
+    overOpen(w).forEach(n=>add("warn","var(--bad)",`${n.name} is ${money(n.over)} over`,"It comes out of your wallet",()=>needsPop(w)));
+    const lo=w.needs_leftover;
+    if(lo&&!store("wallet.cashin."+lo.month))add("plus","var(--accent)",`${money(lo.amount)} left from groceries & gas`,`${lo.label}. Add it to your wallet?`,()=>needsPop(w));
+    if(w.overspend&&w.rolled_over<0&&store("wallet.overspendSeen")!==w.period_start)add("warn","var(--warn)",`Last paycheck went ${money(-w.rolled_over)} over`,"It comes out of this one",()=>overspendPop(w,true));
+    const now=Date.now(), B=w.bills||{};
+    [...((B.now&&B.now.items)||[]),...((B.next&&B.next.items)||[])].filter(b=>!b.paid&&!b.move&&+day(b.due)<=now+3*864e5&&+day(b.due)>=now-2*864e5)
+      .forEach(b=>add("bill","var(--tent)",b.what.replace(" autopay",""),`Due ${fmt(b.due)} · ${cents(b.amount)}`+(b.card?" · on a card":"")+(b.est?" · estimate":""),()=>{location.hash="bills"}));
+    (w.banks||[]).filter(b=>!b.ok).forEach(b=>add("bank","var(--bad)",`${b.name} needs reconnecting`,"Open the Finance App on your computer",null));
+    return out}
+  let noteList=[];
+  function drawBell(w){noteList=notes(w);const n=$("bell-n");n.hidden=!noteList.length;n.textContent=noteList.length;
+    $("bell").setAttribute("aria-label",noteList.length?`Notifications, ${noteList.length} waiting`:"Notifications")}
+  $("bell").onclick=()=>{if(last)drawBell(last);const L=$("nt-list"), k=noteList.length;L.innerHTML="";
+    $("nt-q").textContent=k?`${k} thing${k===1?"":"s"} waiting on you`:"You're all caught up";
+    noteList.forEach(x=>{const b=el("button","nt"), ic=el("span","ic"), t=el("span");ic.style.setProperty("--c",x.c);
+      ic.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NI[x.icon]}</svg>`;
+      t.append(el("b",null,x.title),el("small",null,x.sub));b.append(ic,t);
+      if(x.go)b.onclick=()=>{$("nt-sheet").hidden=true;x.go()};else b.disabled=true;L.append(b)});
+    $("sheet").hidden=true;$("nt-sheet").hidden=false};
+  $("nt-close").onclick=()=>{$("nt-sheet").hidden=true};
 
   // Upcoming bills: checking, less every card balance and the bills due before payday,
   // then the next pay cycle on top of what's left.
@@ -1501,7 +1555,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
       c?c.animate([{transform:"none"},{transform:"translateY(-18px) scale(.95)"}],{duration:220,easing:"cubic-bezier(.5,0,.75,0)",fill:"forwards"}):null].filter(Boolean)}));
   closeWithMotion($("toast"),n=>[n.animate([{opacity:1,transform:"translate(-50%,0)"},{opacity:0,transform:"translate(-50%,20px) scale(.92)"}],{duration:220,easing:"cubic-bezier(.5,0,.75,0)",fill:"forwards"})]);
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go)location.hash=b.dataset.go;else history.back()});
-  const putOff={sheet:"ask-later","mv-sheet":"mv-later","rt-sheet":"rt-later"};
+  const putOff={sheet:"ask-later","mv-sheet":"mv-later","rt-sheet":"rt-later","nt-sheet":"nt-close"};
   document.querySelectorAll(".sheet").forEach(n=>{n.setAttribute("role","dialog");n.setAttribute("aria-modal","true");
     let down=null;n.addEventListener("pointerdown",e=>{down=e.target});
     n.addEventListener("click",e=>{if(e.target===n&&down===n&&putOff[n.id])$(putOff[n.id]).click()})});
@@ -1512,11 +1566,17 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
   addEventListener("hashchange",show);show();
   // Starts the GitHub update right now. The token stays on this phone only.
   const spin=on=>$("pull").classList.toggle("spin",on);
+  const hasToken=()=>{try{return !!localStorage.getItem("wallet.gh")}catch(e){return false}};
+  function connect(){const t=(prompt("To send from this browser, paste the GitHub token your phone uses. It stays in this browser only.")||"").trim();
+    if(t){try{localStorage.setItem("wallet.gh",t)}catch(e){}$("gh-link").hidden=true}return t}
+  $("gh-link").hidden=hasToken();$("gh-link").onclick=()=>{if(connect())toast("Connected ✓")};
   $("pull").onclick=async()=>{if($("pull").classList.contains("spin"))return;spin(true);try{await pull()}finally{spin(false)}};
   async function pull(withAnswers){
     const queue=store("wallet.queue")||[];
     let t=null;try{t=localStorage.getItem("wallet.gh")}catch(e){}
-    if(!t){t=(prompt("Paste your GitHub key (one time only)")||"").trim();if(!t)return;try{localStorage.setItem("wallet.gh",t)}catch(e){}}
+    // A browser without the GitHub token can't ask the banks itself (the phone can): the button just loads the newest numbers.
+    if(!t&&!withAnswers){await load();msg("Showing the newest numbers. Only your phone can ask the banks for a fresh check.");setTimeout(()=>msg(""),6000);return}
+    if(!t){t=connect();if(!t)return}
     msg(withAnswers?"Saving your answers...":"Asking your banks to check for new charges...");
     const r=await fetch("https://api.github.com/repos/edsolano1/wallet/actions/workflows/wallet.yml/dispatches",
       {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},body:JSON.stringify({ref:"main",inputs:{answers:JSON.stringify(queue),live:withAnswers?"":"1"}})}).catch(()=>null);
