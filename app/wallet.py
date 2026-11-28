@@ -38,7 +38,9 @@ TIP_MIN = 30.00
 # Spending money goes negative this paycheck; he chose that.
 FUND_REFILLS = [(date(2026, 11, 27), 559.99)]
 # One short line for the Set aside screen: what the refill is made of.
-FUND_REFILL_WHY = {date(2026, 11, 27): "$109.99 over + $450 extra"}
+# Nov 27 (his words): $450 is the transfer, plus whatever the fund was down, so $559.99. It's the last
+# Black Friday transfer; what's left rolls into the wallet when the fund closes.
+FUND_REFILL_WHY = {date(2026, 11, 27): ["$109.99 the fund was over", "$450 refill", "Last one, leftover to your wallet"]}
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 # The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
@@ -1156,8 +1158,8 @@ def money_moves(conn, today: date) -> list[dict]:
         ally = to_ally(start)
         moves.append({"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
                       "what": "Quarterly and yearly bills" + (" + student loan" if ally > TO_ALLY else ""), "amount": ally,
-                      "why": "Car insurance, therapy, vet, labs, registration"
-                             + (f" + ${LOAN_TO_ALLY:,.0f} loan" if ally > TO_ALLY else ""),
+                      "why": ["Car insurance", "Therapy", "Vet", "Labs", "Registration"]
+                             + ([f"Student loan, ${LOAN_TO_ALLY:,.0f}"] if ally > TO_ALLY else []),
                       "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
                       "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days.",
                       "done": _moved(conn, BILLS_ACCOUNT, r"ally", ally - 1, a, b, -1)
