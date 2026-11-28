@@ -237,14 +237,37 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .sheet .btns button.later{border:0;background:none;color:var(--muted);padding:6px}
 .sheet .btns a{display:block;text-align:center;text-decoration:none;font:600 15px var(--body);padding:13px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
 .sheet .btns a.main{background:var(--accent);border-color:var(--accent);color:var(--bg)}
-.mv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:12px 0;border-top:1px solid var(--line)}
-.mv:first-child{border-top:0}
-.mv b{font-weight:700}
-.mv .a{font:800 20px var(--display);font-variant-numeric:tabular-nums;text-align:right}
-.mv .d{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
-.mv.done{opacity:.55} .mv.done .a{text-decoration:line-through}
-.mv label{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg);margin-top:4px}
-.mv label input{width:18px;height:18px;accent-color:var(--accent)}
+/* Set aside sheet (his ask, Nov 27): bank logos, balances and a tick instead of sentences. */
+.bk{flex:none;width:28px;height:28px;border-radius:8px;display:inline-grid;place-items:center;background:var(--slate);color:#fff}
+.bk svg{display:block;width:100%;height:100%}
+.bk.chase{background:#117ACA}.bk.chase svg{width:62%;height:62%}
+.bk.ally{background:#650360}
+.bk.sm{width:18px;height:18px;border-radius:5px}
+.mvbal{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px}
+.mvacct{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px 5px;min-width:0;padding:9px 8px 9px 9px;border-radius:12px;background:var(--bg)}
+.mvacct small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mvacct b{grid-column:1/-1;font:800 16px var(--display);font-variant-numeric:tabular-nums}
+.mvlist{display:flex;flex-direction:column;gap:10px}
+.mvbank{display:flex;align-items:center;gap:8px;min-height:44px;text-decoration:none;color:var(--fg);font:700 14px var(--body);-webkit-tap-highlight-color:transparent}
+.mvbank small{font-weight:500;font-size:12.5px;color:var(--muted)}
+.mvbank em{margin-left:auto;font-style:normal;font-weight:600;font-size:13.5px;color:var(--accent)}
+.mv{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mv input{position:absolute;opacity:0;pointer-events:none}
+.mv .ck{width:24px;height:24px;border-radius:50%;border:2px solid color-mix(in srgb,var(--muted) 45%,transparent);display:grid;place-items:center;transition:background .2s,border-color .2s,transform .25s var(--spring)}
+.mv .ck::after{content:"";width:10px;height:5px;border-left:2.5px solid #fff;border-bottom:2.5px solid #fff;transform:translateY(-1px) rotate(-45deg);opacity:0;transition:opacity .15s}
+.mv input:checked+.ck{background:var(--accent);border-color:var(--accent)}
+.mv input:checked+.ck::after{opacity:1}
+.mv:active .ck{transform:scale(.88)}
+.mv input:focus-visible+.ck{outline:2px solid var(--accent);outline-offset:2px}
+.mv .t{min-width:0;display:flex;flex-direction:column;gap:5px}
+.mv .t b{font-weight:700;font-size:15px;line-height:1.25}
+.mv .rt{display:flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:12.5px;color:var(--muted)}
+.mv .rt i{font-style:normal;opacity:.55}
+.mv .a{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.mv .a b{font:800 18px var(--display);font-variant-numeric:tabular-nums}
+.mv .a small{font-size:12px;color:var(--muted);white-space:nowrap}
+.mv.done{cursor:default}.mv.done .t,.mv.done .a{opacity:.5}.mv.done .a b{text-decoration:line-through}
+@media (prefers-reduced-motion:reduce){.mv .ck,.mv .ck::after{transition:none}}
 .tile.wide{grid-column:1/-1;flex-direction:row;align-items:center;gap:12px}
 .tile.wide div{display:flex;flex-direction:column;gap:2px}
 .tile.wide em{margin-left:auto;font-style:normal;font-size:13px;color:var(--muted);text-align:right}
@@ -393,7 +416,6 @@ button.link{min-height:44px}
 /* Popups: the page behind holds still, and there's always one clear main button. */
 html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
 .sheet{overscroll-behavior:contain}
-#mv-chase[hidden]+#mv-ally{background:var(--accent);border-color:var(--accent);color:var(--bg)}
 .pop-x{width:44px;height:44px;top:8px;right:8px}
 .msg.info{background:var(--accent-soft)}
 ::view-transition-old(appbar),::view-transition-new(appbar){animation-duration:.25s}
@@ -552,10 +574,9 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
 <div class="sheet" id="mv-sheet" hidden><section class="card">
   <div class="eyebrow" id="mv-count">Set aside for bills</div>
   <div class="q" id="mv-q"></div>
-  <div class="note" id="mv-why"></div>
-  <div class="list" id="mv-list"></div>
-  <div class="note" id="mv-tip">Easiest on your computer: open chase.com and go to Pay &amp; transfer. Moves between your Chase accounts are instant; transfers to and from Ally take 1–3 days.</div>
-  <div class="btns"><a class="main" id="mv-chase" href="https://secure.chase.com/" target="_blank" rel="noopener">Open Chase</a><a id="mv-ally" href="https://secure.ally.com/" target="_blank" rel="noopener" hidden>Open Ally</a><button id="mv-close">Done for now</button><button class="later" id="mv-later">Remind me later</button></div>
+  <div class="mvbal" id="mv-bal"></div>
+  <div class="mvlist" id="mv-list"></div>
+  <div class="btns"><button id="mv-later">Later</button></div>
 </section></div>
 <div class="sheet" id="nd-sheet" hidden><section class="card">
   <div class="eyebrow" id="nd-eyebrow">Groceries &amp; gas</div>
@@ -1188,30 +1209,55 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
     if(urgent.length&&!mvSnoozed&&!location.hash)showMoves(w,false);
     else if(!openMoves(w).length)$("mv-sheet").hidden=true;
   }
+  // Bank marks for the sheet: a logo says "Chase checking" faster than the words do.
+  const BANKS={
+    chase:{n:"Chase",hint:"Pay & transfer",url:"https://secure.chase.com/",
+      svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="#fff">'+[0,90,180,270].map(r=>`<path d="M7 1h8.7v6.7H1V7z" transform="rotate(${r} 12 12)"/>`).join("")+'</g></svg>'},
+    ally:{n:"Ally",hint:"Transfers",url:"https://secure.ally.com/",
+      svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="16" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="700" fill="#fff">ally</text></svg>'}};
+  const OTHER_BANK='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10l7-4.5 7 4.5M7 10.5v6M12 10.5v6M17 10.5v6M5 18.5h14"/></svg>';
+  const bankBadge=(bank,sm)=>{const b=el("span","bk"+(BANKS[bank]?" "+bank:"")+(sm?" sm":""));b.innerHTML=BANKS[bank]?BANKS[bank].svg:OTHER_BANK;return b};
+  // "Chase checking ··7372" -> which bank, which account, last four.
+  const acctOf=s=>{s=String(s||"");const mask=(s.match(/(\d{4})\s*$/)||[])[1]||"", bank=/ally/i.test(s)?"ally":/chase/i.test(s)?"chase":"";
+    const name=s.replace(/[\s·.]*\d{4}\s*$/,"").replace(/\b(chase|ally)\b/i,"").trim()||s;
+    return {bank,mask,name:name.charAt(0).toUpperCase()+name.slice(1),key:mask||s}};
   function showMoves(w,manual){
     const ticks=store("wallet.moved")||{};
     const list=(w.to_move||[]).filter(m=>!m.done||m.kind==="payday"), open=openMoves(w);
     if(!open.length&&!manual){$("mv-sheet").hidden=true;return}
-    const pay=open.some(m=>m.kind==="payday"), sum=open.reduce((a,m)=>a+m.amount,0);
-    $("mv-count").textContent=open.length>1?`Set aside for bills · ${open.length}`:"Set aside for bills";
-    $("mv-q").textContent=pay?"Payday: move your bill money":open.length?`Move ${money(sum)}`:"All moved";
-    $("mv-why").textContent=pay?"Rent waits in Chase Savings until it goes out. Quarterly and yearly money goes to Ally Savings. The loan and your spending money stay in checking."
-      :open.length?"So each bill is covered before it comes out.":"The banks show everything moved.";
-    const L=$("mv-list");L.innerHTML="";
-    list.forEach(m=>{
-      const done=m.done||!!ticks[m.id], r=el("div","mv"+(done?" done":""));
-      r.append(el("b",null,m.what),el("div","a",money(m.amount)),el("div","d",`${m.from} → ${m.to}. ${m.how}`));
-      if(m.done)r.append(el("div","d","Moved ✓ (the bank shows it)"));
-      else{const lb=el("label"),cb=document.createElement("input");cb.type="checkbox";cb.checked=!!ticks[m.id];
+    const pay=open.some(m=>m.kind==="payday");
+    $("mv-count").textContent="Set aside for bills"+(pay?" · payday":"");
+    $("mv-q").textContent=open.length?`${open.length} transfer${open.length===1?"":"s"} to make`:"All moved";
+    // The accounts these touch, with what each holds right now.
+    const B=$("mv-bal"), seen={};B.innerHTML="";
+    list.forEach(m=>[m.from,m.to].forEach(s=>{const a=acctOf(s);if(seen[a.key])return;seen[a.key]=1;
+      const hit=(w.accounts||[]).find(x=>x.mask===a.mask), c=el("div","mvacct");
+      c.append(bankBadge(a.bank,true),el("small",null,a.name),el("b",null,hit?money(hit.balance):"—"));
+      c.title=`${a.bank&&BANKS[a.bank]?BANKS[a.bank].n+" ":""}${a.name}${a.mask?" ··"+a.mask:""}`;B.append(c)}));
+    B.hidden=!B.children.length;
+    // One group per bank you'd open to do them.
+    const L=$("mv-list"), groups=[];L.innerHTML="";
+    list.forEach(m=>{let g=groups.find(g=>g.bank===m.bank);if(!g)groups.push(g={bank:m.bank,items:[]});g.items.push(m)});
+    groups.forEach(g=>{const G=el("div","mvgrp"), bk=BANKS[g.bank];
+      if(bk){const h=el("a","mvbank");h.href=bk.url;h.target="_blank";h.rel="noopener";
+        h.append(bankBadge(g.bank),el("span",null,bk.n),el("small",null,bk.hint),el("em",null,"Open ↗"));G.append(h)}
+      g.items.forEach(m=>{
+        const done=m.done||!!ticks[m.id], r=el("label","mv"+(m.done?" done":"")), cb=document.createElement("input"), a=acctOf(m.from), b=acctOf(m.to);
+        cb.type="checkbox";cb.checked=done;cb.disabled=!!m.done;
         cb.onchange=()=>{const t=store("wallet.moved")||{};if(cb.checked)t[m.id]=Date.now();else delete t[m.id];store("wallet.moved",t);showMoves(w,true);moveTile(w)};
-        lb.append(cb,document.createTextNode("I did this"));r.append(lb)}
-      L.append(r)});
-    $("mv-ally").hidden=!open.some(m=>m.bank==="ally");
-    $("mv-chase").hidden=open.length>0&&!open.some(m=>m.bank==="chase");
+        const t=el("span","t"), rt=el("span","rt");
+        rt.append(bankBadge(a.bank,true),el("span",null,a.name),el("i",null,"→"),bankBadge(b.bank,true),el("span",null,b.name));
+        t.append(el("b",null,m.what.replace(" and yearly"," & yearly")),rt);
+        const amt=el("span","a");amt.append(el("b",null,Math.abs(m.amount%1)<0.005?money(m.amount):cents(m.amount)),
+          el("small",null,m.done?"Moved ✓":a.bank==="chase"&&b.bank==="chase"?"Instant":"1–3 days"));
+        r.append(cb,el("span","ck"),t,amt);
+        G.append(r)});
+      L.append(G)});
+    $("mv-later").textContent=open.length?"Later":"Done";$("mv-later").className=open.length?"":"main";
     $("sheet").hidden=true;$("mv-sheet").hidden=false;
   }
   const closeMoves=()=>{$("mv-sheet").hidden=true;mvSnoozed=true;if(last)ask(last)};
-  $("mv-close").onclick=closeMoves;$("mv-later").onclick=closeMoves;
+  $("mv-later").onclick=closeMoves;
 
   // Upcoming bills: checking, less every card balance and the bills due before payday,
   // then the next pay cycle on top of what's left.
