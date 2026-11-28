@@ -247,6 +247,9 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .mvacct{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px 5px;min-width:0;padding:9px 8px 9px 9px;border-radius:12px;background:var(--bg)}
 .mvacct small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mvacct b{grid-column:1/-1;font:800 16px var(--display);font-variant-numeric:tabular-nums}
+.mvacct em{grid-column:1/-1;font-style:normal;font-weight:600;font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted);margin-top:-2px}
+.mvacct em.in{color:var(--accent)}
+.mv .why{font-size:12.5px;line-height:1.3;color:var(--muted);text-wrap:pretty}
 .mvlist{display:flex;flex-direction:column;gap:10px}
 .mvbank{display:flex;align-items:center;gap:8px;min-height:44px;text-decoration:none;color:var(--fg);font:700 14px var(--body);-webkit-tap-highlight-color:transparent}
 .mvbank small{font-weight:500;font-size:12.5px;color:var(--muted)}
@@ -1229,10 +1232,12 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
     $("mv-count").textContent="Set aside for bills"+(pay?" · payday":"");
     $("mv-q").textContent=open.length?`${open.length} transfer${open.length===1?"":"s"} to make`:"All moved";
     // The accounts these touch, with what each holds right now.
-    const B=$("mv-bal"), seen={};B.innerHTML="";
+    const B=$("mv-bal"), seen={}, net={};B.innerHTML="";
+    open.forEach(m=>{const a=acctOf(m.from).key, b=acctOf(m.to).key;net[a]=(net[a]||0)-m.amount;net[b]=(net[b]||0)+m.amount});
     list.forEach(m=>[m.from,m.to].forEach(s=>{const a=acctOf(s);if(seen[a.key])return;seen[a.key]=1;
       const hit=(w.accounts||[]).find(x=>x.mask===a.mask), c=el("div","mvacct");
       c.append(bankBadge(a.bank,true),el("small",null,a.name),el("b",null,hit?money(hit.balance):"—"));
+      const d=net[a.key]||0;if(Math.abs(d)>=0.5)c.append(el("em",d>0?"in":"",(d>0?"+":"")+money(d)));
       c.title=`${a.bank&&BANKS[a.bank]?BANKS[a.bank].n+" ":""}${a.name}${a.mask?" ··"+a.mask:""}`;B.append(c)}));
     B.hidden=!B.children.length;
     // One group per bank you'd open to do them.
@@ -1247,7 +1252,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
         cb.onchange=()=>{const t=store("wallet.moved")||{};if(cb.checked)t[m.id]=Date.now();else delete t[m.id];store("wallet.moved",t);showMoves(w,true);moveTile(w)};
         const t=el("span","t"), rt=el("span","rt");
         rt.append(bankBadge(a.bank,true),el("span",null,a.name),el("i",null,"→"),bankBadge(b.bank,true),el("span",null,b.name));
-        t.append(el("b",null,m.what.replace(" and yearly"," & yearly")),rt);
+        t.append(el("b",null,m.what.replace(" and yearly"," & yearly")));if(m.why)t.append(el("span","why",m.why));t.append(rt);
         const amt=el("span","a");amt.append(el("b",null,Math.abs(m.amount%1)<0.005?money(m.amount):cents(m.amount)),
           el("small",null,m.done?"Moved ✓":a.bank==="chase"&&b.bank==="chase"?"Instant":"1–3 days"));
         r.append(cb,el("span","ck"),t,amt);

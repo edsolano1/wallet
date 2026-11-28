@@ -37,6 +37,8 @@ TIP_MIN = 30.00
 # Nov 26 (his answer): $450 more ON TOP of that, for more Black Friday buys: one $559.99 transfer.
 # Spending money goes negative this paycheck; he chose that.
 FUND_REFILLS = [(date(2026, 11, 27), 559.99)]
+# One short line for the Set aside screen: what the refill is made of.
+FUND_REFILL_WHY = {date(2026, 11, 27): "$109.99 over + $450 extra"}
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 # The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
@@ -1147,13 +1149,15 @@ def money_moves(conn, today: date) -> list[dict]:
         a, b = start - timedelta(days=1), nxt - timedelta(days=1)
         if _first_check(start):
             moves.append({"id": f"pay-{start}-chase", "kind": "payday", "bank": "chase", "date": start.isoformat(),
-                          "what": "Rent", "amount": TO_CHASE_SAVINGS,
+                          "what": "Rent", "amount": TO_CHASE_SAVINGS, "why": "Parked until rent is due",
                           "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
                           "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", TO_CHASE_SAVINGS - 1, a, b, -1)})
         ally = to_ally(start)
         moves.append({"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
                       "what": "Quarterly and yearly bills" + (" + student loan" if ally > TO_ALLY else ""), "amount": ally,
+                      "why": "Car insurance, therapy, vet, labs, registration"
+                             + (f" + ${LOAN_TO_ALLY:,.0f} loan" if ally > TO_ALLY else ""),
                       "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
                       "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days.",
                       "done": _moved(conn, BILLS_ACCOUNT, r"ally", ally - 1, a, b, -1)
@@ -1163,21 +1167,21 @@ def money_moves(conn, today: date) -> list[dict]:
         sent = any(abs(-float(t["amount"]) - r["amount"]) < 1 and re.search(r["pattern"], t["what"])
                    for t in _tx(conn, BILLS_ACCOUNT, start - timedelta(days=1), nxt))
         moves.append({"id": f"route-{r['id']}-{start}", "kind": "fund", "bank": "chase", "date": start.isoformat(),
-                      "what": f"{r['what']} (was {r['from_name']})", "amount": r["amount"],
+                      "what": f"{r['what']} (was {r['from_name']})", "amount": r["amount"], "why": "Freed-up money you assigned",
                       "from": "Chase checking ··7372", "to": r["to"],
                       "how": "Chase → Pay & transfer. Moves to Chase Savings are instant; to Ally take 1–3 days.",
                       "done": sent})
     back = round(fund_left(FUND_CLOSE), 2)
     if start == FUND_CLOSE and back > 0:
         moves.append({"id": f"fund-close-{FUND_CLOSE}", "kind": "fund", "bank": "chase", "date": FUND_CLOSE.isoformat(),
-                      "what": "Black Friday Fund leftover back to spending money", "amount": back,
+                      "what": "Black Friday Fund leftover back to spending money", "amount": back, "why": "The fund is closing",
                       "from": "Chase Savings ··6725", "to": "Chase checking ··7372",
                       "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
                       "done": _moved(conn, BILLS_ACCOUNT, r"from sav|6725", back - 1, FUND_CLOSE - timedelta(days=1), nxt, 1)})
     for d, x in FUND_REFILLS:
         if start <= d < nxt:
             moves.append({"id": f"fund-{d}", "kind": "fund", "bank": "chase", "date": d.isoformat(),
-                          "what": "Black Friday Fund refill", "amount": x,
+                          "what": "Black Friday Fund refill", "amount": x, "why": FUND_REFILL_WHY.get(d, "Top-up for the fund"),
                           "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
                           "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", x - 1, d - timedelta(days=1), nxt, -1)})
@@ -1195,6 +1199,7 @@ def money_moves(conn, today: date) -> list[dict]:
                 continue  # already paid
             moves.append({"id": f"back-{bill['what']}-{due}", "kind": "back", "bank": "chase", "date": due.isoformat(),
                           "what": bill["what"].replace(" autopay", "") + f", due {due:%b} {due.day}", "amount": back,
+                          "why": "Back to checking so it can be paid",
                           "from": "Chase Savings ··6725", "to": "Chase checking ··7372",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
                           "done": _moved(conn, BILLS_ACCOUNT, r"from sav|6725", back - 1, due - timedelta(days=10), today, 1)})
@@ -1231,6 +1236,7 @@ def money_moves(conn, today: date) -> list[dict]:
         d = date.fromisoformat(day_)
         moves.append({"id": f"ally-{day_}-{what}", "kind": "ally", "bank": "ally", "date": day_,
                       "what": f"{what}, {'charged' if d <= today else 'due'} {d:%b} {d.day}", "amount": round(amt - pulled, 2),
+                      "why": "Went on a card, so it comes back",
                       "from": "Ally Savings ··2617", "to": "Chase checking ··7372",
                       "how": "Ally → Transfers → Savings to your Chase checking. Takes 1–3 days, so do it before the card is due.",
                       "done": False})
