@@ -40,7 +40,7 @@ TIP_MIN = 30.00
 # It's the last Black Friday transfer; what's left rolls into the wallet when the fund closes.
 FUND_REFILLS = [(date(2026, 11, 27), 450.00)]
 # Short lines for the Set aside screen: what the refill is.
-FUND_REFILL_WHY = {date(2026, 11, 27): ["Last Black Friday transfer", "−$109.99 already spent"]}
+FUND_REFILL_WHY = {date(2026, 11, 27): ["Last Black Friday transfer", "($109.99 of it is already spent)"]}
 SET_ASIDE = {date(2026, 10, 30): 425.00, date(2026, 11, 13): 425.00, **{d: x for d, x in FUND_REFILLS}}
 SET_ASIDE_LABEL = "for the Black Friday Fund"
 # The $425 a paycheck that went to Black Friday stays in spending money from Nov 27 on, unassigned,
@@ -1095,6 +1095,11 @@ def monthly_budget(conn, today: date, months: int = 12) -> dict:
 MOVES_FROM = date(2026, 11, 27)   # first payday under this plan
 TO_CHASE_SAVINGS = 550.00          # rent is $542; first paycheck of the month only
 TO_ALLY = 250.00                   # the quarterly and yearly bills are about $244 a paycheck, rounded up
+# What the $250 is made of, per paycheck (the plan of Nov 22: $486.88 a month, halved).
+# Shown line by line on the Set aside screen (his ask, Nov 28); the last line is the rounding.
+ALLY_PARTS = [("Car insurance", 104.79), ("Car repairs", 50.00), ("Subscription", 41.30), ("Therapy", 25.00),
+              ("Small yearly stuff", 17.15), ("Vet checkups", 5.21)]
+ALLY_PARTS.append(("Rounded up", round(TO_ALLY - sum(x for _, x in ALLY_PARTS), 2)))
 # The student loan moves to Ally (his plan, Nov 24): $350 a paycheck rides along to Ally Savings,
 # a recurring Ally transfer moves $699.33 to Ally Spending before the 28th, and Aidvantage
 # autopays from Ally Spending. The Nov 28 payment still comes out of Chase checking.
@@ -1255,10 +1260,11 @@ def money_moves(conn, today: date) -> list[dict]:
         d = date.fromisoformat(day_)
         owed.append((day_, what, f"{what}, {'charged' if d <= today else 'due'} {d:%b} {d.day}", round(amt - pulled, 2)))
         pulled = 0.0
+    bills_lines = [{"t": t, "a": _usd(x)} for t, x in ALLY_PARTS] + (
+        [{"t": "Student loan", "a": _usd(LOAN_TO_ALLY)}] if cur_due > TO_ALLY else [])
     send = {"id": f"pay-{start}-ally", "kind": "payday", "bank": "ally", "date": start.isoformat(),
             "what": "Quarterly and yearly bills" + (" + student loan" if cur_due > TO_ALLY else ""),
-            "why": ["Car insurance", "Therapy", "Vet", "Labs", "Registration"]
-                   + ([f"Student loan, {_usd(LOAN_TO_ALLY)}"] if cur_due > TO_ALLY else []),
+            "why": bills_lines + [{"t": "Total", "a": _usd(cur_due), "total": True}],
             "from": "Chase checking ··7372", "to": "Ally Savings ··2617",
             "how": "Ally → Transfers → from your Chase checking into Ally Savings. Takes 1–3 days."}
     pull = {"kind": "ally", "bank": "ally", "from": "Ally Savings ··2617", "to": "Chase checking ··7372",
@@ -1270,10 +1276,13 @@ def money_moves(conn, today: date) -> list[dict]:
         net = round(cur_out - back_out, 2)
         if net >= 1:
             moves.append({**send, "amount": net, "done": False,
-                          "why": [f"{_usd(cur_out)} for the bills"] + [f"−{_usd(x)} {label}" for _, _, label, x in owed]})
+                          "why": (bills_lines if abs(cur_out - cur_due) < 1 else [{"t": "Bills, still to send", "a": _usd(cur_out)}])
+                                 + [{"t": label, "a": "−" + _usd(x)} for _, _, label, x in owed]
+                                 + [{"t": "Total", "a": _usd(net), "total": True}]})
         elif net <= -1:
             moves.append({**pull, "id": f"ally-net-{start}", "date": start.isoformat(), "what": "Back from Ally", "amount": -net,
-                          "why": [f"{_usd(x)} {label}" for _, _, label, x in owed] + [f"−{_usd(cur_out)} this paycheck's bills"],
+                          "why": [{"t": label, "a": _usd(x)} for _, _, label, x in owed]
+                                 + [{"t": "This paycheck's bills", "a": "−" + _usd(cur_out)}, {"t": "Total", "a": _usd(-net), "total": True}],
                           "done": False})
         else:
             moves.append({**send, "amount": cur_due, "done": True})

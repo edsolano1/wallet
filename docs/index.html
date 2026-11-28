@@ -269,6 +269,10 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .mvacct em{grid-column:1/-1;font-style:normal;font-weight:600;font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted);margin-top:-2px}
 .mvacct em.in{color:var(--accent)}
 .mv .why{list-style:none;margin:0;padding:0 0 0 9px;border-left:2px solid var(--line);font-size:12.5px;line-height:1.45;color:var(--muted)}
+.mv .why li:has(span){display:flex;justify-content:space-between;gap:10px}
+.mv .why li span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.mv .why li.tot{margin-top:4px;padding-top:4px;border-top:1px solid var(--line);font-weight:700;color:var(--fg)}
+.mv .why li.note{font-style:italic}
 .mvlist{display:flex;flex-direction:column;gap:10px}
 .mvbank{display:flex;align-items:center;gap:8px;min-height:44px;text-decoration:none;color:var(--fg);font:700 14px var(--body);-webkit-tap-highlight-color:transparent}
 .mvbank small{font-weight:500;font-size:12.5px;color:var(--muted)}
@@ -1283,7 +1287,7 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
         cb.onchange=()=>{const t=store("wallet.moved")||{};if(cb.checked)t[m.id]=Date.now();else delete t[m.id];store("wallet.moved",t);showMoves(w,true);moveTile(w)};
         const t=el("span","t"), rt=el("span","rt");
         rt.append(bankBadge(a.bank,true),el("span",null,a.name),el("i",null,"→"),bankBadge(b.bank,true),el("span",null,b.name));
-        t.append(el("b",null,m.what.replace(" and yearly"," & yearly")));const why=[].concat(m.why||[]);if(why.length){const u=el("ul","why");why.forEach(x=>u.append(el("li",null,x)));t.append(u)}t.append(rt);
+        t.append(el("b",null,m.what.replace(" and yearly"," & yearly")));const why=[].concat(m.why||[]);if(why.length){const u=el("ul","why");why.forEach(x=>{const li=el("li");if(typeof x==="string"){li.textContent=x;if(x[0]==="(")li.className="note"}else{li.append(el("span",null,x.t),el("span",null,x.a));if(x.total)li.className="tot"}u.append(li)});t.append(u)}t.append(rt);
         const amt=el("span","a");amt.append(el("b",null,Math.abs(m.amount%1)<0.005?money(m.amount):cents(m.amount)),
           el("small",null,m.done?"Moved ✓":a.bank==="chase"&&b.bank==="chase"?"Instant":"1–3 days"));
         r.append(cb,el("span","ck"),t,amt);
