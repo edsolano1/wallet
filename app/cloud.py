@@ -380,6 +380,14 @@ def _paycheck(conn, start: date) -> dict | None:
     return {"amount": round(float(r[0]), 2), "date": r[1]} if r else None
 
 
+def bank_slug(name) -> str:
+    """Which logo the page shows for an account, from the bank's name at Plaid."""
+    n = (name or "").lower()
+    if "omaha" in n or "fnbo" in n:
+        return "fnbo"
+    return next((k for k in ("chase", "ally", "barclays", "fidelity", "empower") if k in n), "")
+
+
 def snapshot(conn, today: date) -> dict:
     s = wallet.summary(conn, today)
     start = date.fromisoformat(s["period_start"])
@@ -480,12 +488,14 @@ def snapshot(conn, today: date) -> dict:
         "charges": charges,
         "needs": needs,
         "accounts": [{"name": wallet.NICKNAMES.get(r["mask"], r["name"]), "mask": r["mask"], "type": r["type"],
+                      "bank": bank_slug(r["bank"]),
                       "balance": r["available_balance"] if r["type"] == "depository" and r["available_balance"] is not None else r["current_balance"],
                       "as_of": r["last_synced_at"]}
                      for r in conn.execute(
-                         "SELECT name, mask, type, current_balance, available_balance, last_synced_at"
-                         " FROM accounts WHERE type = 'depository' OR COALESCE(current_balance, 0) <> 0"
-                         " ORDER BY type, current_balance DESC")],
+                         "SELECT a.name, a.mask, a.type, a.current_balance, a.available_balance, a.last_synced_at,"
+                         " i.institution_name AS bank FROM accounts a LEFT JOIN items i ON i.id = a.item_id"
+                         " WHERE a.type = 'depository' OR COALESCE(a.current_balance, 0) <> 0"
+                         " ORDER BY a.type, a.current_balance DESC")],
         "moves": [{"date": r["date"], "amount": round(float(r["amount"]), 2), "what": r["what"], "account": r["acct"]}
                   for r in conn.execute(
                       "SELECT t.date, t.amount, COALESCE(t.merchant_name, t.name) AS what, a.name || ' ' || a.mask AS acct"
