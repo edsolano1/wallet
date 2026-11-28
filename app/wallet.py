@@ -300,7 +300,8 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
     after = nxt + timedelta(days=14)
     acct = conn.execute("SELECT name, mask, COALESCE(available_balance, current_balance) AS bal FROM accounts"
                         " WHERE mask = ?", (BILLS_ACCOUNT,)).fetchone()
-    cash = float(acct["bal"] or 0) if acct else 0.0
+    adj = in_flight_adjust(conn, today)["adj"]
+    cash = (float(acct["bal"] or 0) if acct else 0.0) + adj.get(BILLS_ACCOUNT, 0.0)
 
     cards = []
     for a in conn.execute("SELECT id, name, official_name, mask, current_balance FROM accounts WHERE type = 'credit'"):
@@ -309,7 +310,7 @@ def upcoming_bills(conn, today: date, s: dict, owed_total: float) -> dict:
             " 1 AS pending FROM transactions WHERE account_id = ? AND pending = 1", (a["id"],))]
         held = sum(float(p["amount"]) for p in pend)
         pend = [_real_amount(p) for p in pend]
-        owe = float(a["current_balance"] or 0)
+        owe = float(a["current_balance"] or 0) + adj.get(a["mask"], 0.0)
         if a["mask"] not in BALANCE_HAS_PENDING:
             owe -= held
         owe -= sum(float(p["amount"]) for p in pend) - held  # a hold that will settle smaller
@@ -1184,6 +1185,62 @@ def _bonus_check(payday: date) -> bool:
     return payday in paydays_in(payday.year, payday.month)[2:]
 
 
+# ---- On the way (his ask, Nov 28) -------------------------------------------------------
+# Money he has sent that the banks don't show yet, from his word or a confirmation email.
+# Each one counts on both accounts until that bank shows it, then drops out by itself.
+# (date sent, from mask, to mask, amount, what)
+IN_FLIGHT = [
+    (date(2026, 11, 27), "7372", "9203", 477.20, "Sapphire payment"),         # Chase email, Nov 27
+    (date(2026, 11, 27), "7372", "1271", 391.96, "Samsung card payment"),     # Barclays email, from Chase ..7372
+    (date(2026, 11, 27), "7372", "2098", 95.65, "MGM card payment"),          # FNBO email; source account assumed
+    (date(2026, 11, 28), "7372", "6725", 450.00, "Black Friday Fund refill"), # his word, Nov 28
+    (date(2026, 11, 28), "7372", "2617", 250.00, "Bills to Ally Savings"),    # his word, Nov 28
+]
+IN_FLIGHT_DAYS = 10  # one the banks never show stops counting after this long
+
+
+def _shows(conn, mask: str, amount: float, sign: int, since: date) -> bool:
+    """Whether account `mask` shows this amount arriving (sign +1) or leaving (-1) since `since`."""
+    return any(abs(float(r["amount"]) * sign - amount) < 0.5
+               for r in _tx(conn, mask, since, since + timedelta(days=IN_FLIGHT_DAYS + 7)))
+
+
+def in_flight(conn, today: date | None = None) -> list[dict]:
+    today = today or date.today()
+    out = []
+    for d, src, dst, amt, what in IN_FLIGHT:
+        if today > d + timedelta(days=IN_FLIGHT_DAYS):
+            continue
+        since = d - timedelta(days=2)
+        src_open = not _shows(conn, src, amt, -1, since)
+        dst_open = not _shows(conn, dst, amt, 1, since)
+        if src_open or dst_open:
+            out.append({"date": d.isoformat(), "from": src, "to": dst, "amount": amt, "what": what,
+                        "src_open": src_open, "dst_open": dst_open})
+    return out
+
+
+def in_flight_adjust(conn, today: date | None = None) -> dict:
+    """Mask -> what to add to the balance the bank reports. Cards report what's owed, so a
+    payment arriving lowers it."""
+    kinds = {r["mask"]: r["type"] for r in conn.execute("SELECT mask, type FROM accounts")}
+    adj, notes = {}, {}
+    for f in in_flight(conn, today):
+        for mask, sign, open_ in ((f["from"], -1, f["src_open"]), (f["to"], 1, f["dst_open"])):
+            if open_:
+                delta = -sign * f["amount"] if kinds.get(mask) == "credit" else sign * f["amount"]
+                adj[mask] = round(adj.get(mask, 0.0) + delta, 2)
+                notes.setdefault(mask, []).append({"what": f["what"], "amount": round(delta, 2)})
+    return {"adj": adj, "notes": notes}
+
+
+def _flight_sent(conn, dst_masks: tuple, a: date, b: date, amount: float | None = None) -> float:
+    """In-flight money out of checking to these accounts, sent between a and b, that neither bank shows yet."""
+    return sum(f["amount"] for f in in_flight(conn)
+               if f["from"] == BILLS_ACCOUNT and f["to"] in dst_masks and a <= date.fromisoformat(f["date"]) <= b
+               and f["src_open"] and f["dst_open"] and (amount is None or abs(f["amount"] - amount) < 0.5))
+
+
 def _usd(x: float) -> str:
     return f"${x:,.0f}" if abs(x - round(x)) < 0.005 else f"${x:,.2f}"
 
@@ -1196,7 +1253,7 @@ def _sent_to_ally(conn, a: date, b: date) -> float:
                 if float(r["amount"]) < 0 and re.search(r"ally", r["what"]))
     ally = sum(float(r["amount"]) for mask in (ALLY_SAVINGS, ALLY_SPENDING) for r in _tx(conn, mask, a, b)
                if float(r["amount"]) > 0 and re.search(r"jpmorgan|chase", r["what"]))
-    return max(chase, ally)
+    return max(chase, ally) + _flight_sent(conn, (ALLY_SAVINGS, ALLY_SPENDING), a, b)
 
 
 def money_moves(conn, today: date) -> list[dict]:
@@ -1211,7 +1268,8 @@ def money_moves(conn, today: date) -> list[dict]:
                           "what": "Rent", "amount": TO_CHASE_SAVINGS, "why": "Parked until rent is due",
                           "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
-                          "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", TO_CHASE_SAVINGS - 1, a, b, -1)})
+                          "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", TO_CHASE_SAVINGS - 1, a, b, -1)
+                                  or _flight_sent(conn, (CHASE_SAVINGS,), a, b, TO_CHASE_SAVINGS) > 0})
     for r in routed(conn, start):
         sent = any(abs(-float(t["amount"]) - r["amount"]) < 1 and re.search(r["pattern"], t["what"])
                    for t in _tx(conn, BILLS_ACCOUNT, start - timedelta(days=1), nxt))
@@ -1233,7 +1291,8 @@ def money_moves(conn, today: date) -> list[dict]:
                           "what": "Black Friday Fund refill", "amount": x, "why": FUND_REFILL_WHY.get(d, "Top-up for the fund"),
                           "from": "Chase checking ··7372", "to": "Chase Savings ··6725",
                           "how": "Chase → Pay & transfer → Transfer between your accounts. It's instant.",
-                          "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", x - 1, d - timedelta(days=1), nxt, -1)})
+                          "done": _moved(conn, BILLS_ACCOUNT, r"to sav|6725", x - 1, d - timedelta(days=1), nxt, -1)
+                                  or _flight_sent(conn, (CHASE_SAVINGS,), d - timedelta(days=1), nxt, x) > 0})
     # Before rent and the loan come out of checking, their money comes back from Chase Savings.
     for bill in BILLS:
         back = SAVED_BILLS.get(bill["what"])

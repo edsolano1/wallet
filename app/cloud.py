@@ -480,6 +480,7 @@ def snapshot(conn, today: date) -> dict:
 
     banks = [dict(r) for r in conn.execute(
         "SELECT institution_name AS name, status, last_sync_at, last_sync_error FROM items")]
+    flight = wallet.in_flight_adjust(conn, today)
     return {
         **s,
         "today": today.isoformat(),
@@ -489,7 +490,10 @@ def snapshot(conn, today: date) -> dict:
         "needs": needs,
         "accounts": [{"name": wallet.NICKNAMES.get(r["mask"], r["name"]), "mask": r["mask"], "type": r["type"],
                       "bank": bank_slug(r["bank"]),
-                      "balance": r["available_balance"] if r["type"] == "depository" and r["available_balance"] is not None else r["current_balance"],
+                      # As it will be once the money on the way lands (his ask, Nov 28).
+                      "balance": round((r["available_balance"] if r["type"] == "depository" and r["available_balance"] is not None
+                                        else r["current_balance"] or 0) + flight["adj"].get(r["mask"], 0.0), 2),
+                      "on_way": flight["notes"].get(r["mask"], []),
                       "as_of": r["last_synced_at"]}
                      for r in conn.execute(
                          "SELECT a.name, a.mask, a.type, a.current_balance, a.available_balance, a.last_synced_at,"
