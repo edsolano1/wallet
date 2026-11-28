@@ -94,6 +94,14 @@ h2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color
 .fbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:color-mix(in srgb,var(--fg) 10%,transparent);margin:10px 0 8px;gap:2px}
 .fbar i{display:block;height:100%}
 .fgrp{font:600 12px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:16px 0 4px}
+/* Fund items with a picture; a delivered one is crossed off (his ask, Nov 28). */
+.row.fi{grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:2px 12px}
+.row.fi .th{grid-row:1/3;width:48px;height:48px;border-radius:10px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;color:var(--muted)}
+.row.fi .th img{width:100%;height:100%;object-fit:contain;display:block}
+.row.fi .m{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
+.row.fi .d{grid-column:2/-1}
+.row.fi.got .m{text-decoration:line-through;color:var(--muted)}
+.row.fi.got .th{opacity:.7}
 #fund-keys{margin-bottom:10px}
 .keys{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
 .keys span{display:flex;align-items:center;gap:7px;white-space:nowrap}
@@ -1488,11 +1496,17 @@ html:has(.sheet:not([hidden])),html:has(.pop){overflow:hidden}
     B.setAttribute("aria-label",parts.map(p=>p.label+" "+cents(p.v)).join(", "));
     const L=$("fund-items");L.className="list";L.innerHTML="";
     const items=f.items||[], group=(title,list,make)=>{if(!list.length)return;L.append(el("div","fgrp",title));list.forEach(i=>L.append(make(i)))};
+    const BOX='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8L12 3.5 20.5 8v8L12 20.500 3.500 16z"/><path d="M3.500 8L12 12.500 20.500 8M12 12.500v8"/></svg>'.replace(/\.500/g,".5");
+    const thumb=i=>{const t=el("div","th");if(i.img){const im=document.createElement("img");im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";im.onerror=()=>{t.innerHTML=BOX};im.src=i.img;t.append(im)}else t.innerHTML=BOX;return t};
+    const pic=(i,amt,cls,d)=>{const r=el("div","row fi"+(i.delivered?" got":""));r.append(thumb(i),el("div","m",i.what),el("div","a "+cls,amt),el("div","d",d));return r};
     const line=(i,sign,cls,d)=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a "+cls,sign+cents(i.amount)),el("div","d",d));return r};
-    group("Purchased",items.filter(i=>(i.kind||"spent")==="spent"||i.kind==="back"),i=>i.kind==="back"?line(i,"+","in","Back into the fund"):line(i,"","out","Paid from the fund"));
-    group("Waiting to ship",items.filter(i=>i.kind==="held"),i=>line(i,"","out","Ordered, charged when it ships, Dec 28 to Jan 14"));
-    group("Purchase list",(f.watch||[]).slice().sort((a,b)=>(a.price||0)-(b.price||0)),i=>{const r=el("div","row");r.append(el("div","m",i.what),el("div","a",i.price?cents(i.price):"watching"),el("div","d",i.note));return r});
+    // What's still open first; what's bought and done at the bottom.
+    group("Waiting to ship",items.filter(i=>i.kind==="held"),i=>pic(i,cents(i.amount),"out",i.status||"Ordered, charged when it ships, Dec 28 to Jan 14"));
+    group("Purchase list",(f.watch||[]).slice().sort((a,b)=>(a.price||0)-(b.price||0)),i=>pic(i,i.price?cents(i.price):"watching","",i.note));
     group("Money to confirm",items.filter(i=>i.kind==="credit"),i=>line(i,"+","in","Not counted until it lands"));
+    const bought=items.filter(i=>(i.kind||"spent")==="spent"||i.kind==="back");
+    group("Purchased",[...bought.filter(i=>i.kind!=="back"&&!i.delivered),...bought.filter(i=>i.kind!=="back"&&i.delivered),...bought.filter(i=>i.kind==="back")],
+      i=>i.kind==="back"?line(i,"+","in","Back into the fund"):pic(i,cents(i.amount),"out",i.status||(i.delivered?"Delivered":"Paid from the fund")));
     group("Bought earlier, with the first $450",items.filter(i=>i.kind==="earlier"),i=>{const r=line(i,"","",i.note);r.style.opacity=.75;return r});
   }
 

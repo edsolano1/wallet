@@ -470,12 +470,12 @@ def snapshot(conn, today: date) -> dict:
     fund = {"name": "Black Friday Fund", "saved": saved, "planned": saved,
             "spent": round(used_fund, 2), "held": round(held, 2), "credit": round(credit, 2),
             "left": round(left, 2), "left_planned": round(left, 2), "closes": wallet.FUND_CLOSE.isoformat(),
-            "items": [{"what": w, "amount": a, "kind": "spent"} for w, a in wallet.FUND_SPENT]
-                     + [{"what": w, "amount": a, "kind": "held"} for w, a in wallet.FUND_HELD]
+            "items": [{"what": w, "amount": a, "kind": "spent", **wallet.fund_info(w)} for w, a in wallet.FUND_SPENT]
+                     + [{"what": w, "amount": a, "kind": "held", **wallet.fund_info(w)} for w, a in wallet.FUND_HELD]
                      + [{"what": w, "amount": a, "kind": "back"} for w, a in wallet.FUND_CREDITS]
                      + [{"what": w, "amount": a, "kind": "credit"} for w, a in wallet.FUND_CREDIT_TO_CONFIRM]
                      + [{"what": w, "amount": a, "kind": "earlier", "note": n} for w, a, n in wallet.FUND_EARLIER],
-            "watch": [{"what": w, "price": a, "note": n} for w, a, n in wallet.FUND_WATCH],
+            "watch": [{"what": w, "price": a, "note": n, "img": wallet.fund_info(w).get("img")} for w, a, n in wallet.FUND_WATCH],
             "show": today <= wallet.FUND_SHOW_UNTIL}
 
     banks = [dict(r) for r in conn.execute(

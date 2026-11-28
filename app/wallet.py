@@ -131,6 +131,35 @@ FUND_SHOW_UNTIL = date(2027, 1, 31)
 FUND_CLOSE = date(2027, 2, 5)
 
 
+# A picture and where each item stands, for the fund screen (his ask, Nov 28). Matched on a piece of
+# the item's name; "img" is the product photo from the order email, "status" replaces the small line.
+FUND_INFO = [
+    # Pictures from his Amazon order history and the Logitech, MicroPerfumes and Micro Center emails;
+    # delivery from the Delivered emails, as of Nov 28.
+    ("trimmer", {"img": "https://m.media-amazon.com/images/I/71yC0jXOtZL._SS160_.jpg", "delivered": True, "status": "Delivered Nov 21"}),
+    ("feetures quarter", {"img": "https://m.media-amazon.com/images/I/71spzRQA4DL._SS160_.jpg", "delivered": True, "status": "Delivered Nov 23"}),
+    ("feetures crew", {"img": "https://m.media-amazon.com/images/I/71LtJFLcFDL._SS160_.jpg", "delivered": True, "status": "Delivered Nov 25"}),
+    ("solisnug", {"img": "https://m.media-amazon.com/images/I/71LP+b7ymLL._SS160_.jpg", "status": "Shipped, was due Nov 27"}),
+    ("rainhol", {"img": "https://m.media-amazon.com/images/I/61SFj1A7vLL._SS160_.jpg", "status": "Shipped, was due Nov 27"}),
+    ("under-bed bins", {"img": "https://m.media-amazon.com/images/I/71MiJvCkMOL._SS160_.jpg", "delivered": True, "status": "Delivered Nov 25"}),
+    ("storm liner", {"img": "https://m.media-amazon.com/images/I/41aDehYgDzL._SS160_.jpg", "delivered": True, "status": "Delivered Nov 25"}),
+    ("velocity", {"img": "https://m.media-amazon.com/images/I/41woFzWfA8L._SS160_.jpg", "delivered": True, "status": "Delivered Nov 25"}),
+    ("tech 2.0", {"img": "https://m.media-amazon.com/images/I/81dcY+R-l2L._SS160_.jpg", "status": "Shipped, arriving Dec 1"}),
+    ("mx master", {"img": "https://resource.logitech.com/content/dam/logitech/en/products/refurbished/mx-master-4-refurbished/graphite/mx-master-4-refurb-graphite-top-angle-gallery-1.png", "status": "Shipped Nov 27"}),
+    ("microperfumes", {"img": "https://cdn.shopify.com/s/files/1/0755/3607/2955/files/mp-4532-1000px-005_compact_cropped.jpg?v=1771543702", "delivered": True, "status": "Delivered Nov 27"}),
+    ("i9000", {"img": "https://m.media-amazon.com/images/I/71Fc-pUr38L._SS160_.jpg"}),
+    ("acer x32", {"img": "https://90a1c75758623581b3f8-5c119c3de181c9857fcb2784776b17ef.ssl.cf2.rackcdn.com/0680741_707018.jpg"}),
+]
+
+
+def fund_info(what: str) -> dict:
+    low = what.lower()
+    for key, info in FUND_INFO:
+        if key in low:
+            return dict(info)
+    return {}
+
+
 def fund_left(today: date) -> float:
     """What the fund has left: saved plus refills so far, less spent and held, plus money back."""
     saved = FUND_SAVED + sum(x for d, x in FUND_REFILLS if d <= today)
